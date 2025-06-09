@@ -1,0 +1,30 @@
+# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# AVSystem Anjay Lite LwM2M SDK
+# All rights reserved.
+#
+# Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
+# See the attached LICENSE file for details.
+
+cmake_minimum_required(VERSION 3.6.0)
+
+project(anjay_lite_reuse_port C)
+
+set(CMAKE_C_STANDARD 99)
+
+set(ANJ_WITH_SOCKET_POSIX_COMPAT OFF)
+set(ANJ_NET_WITH_UDP ON)
+set(ANJ_NET_WITH_TCP OFF)
+
+if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    set(anjay_lite_DIR "../../../cmake")
+    find_package(anjay_lite REQUIRED)
+endif()
+
+add_executable(anjay_lite_reuse_port src/main.c src/net.c)
+target_include_directories(anjay_lite_reuse_port PUBLIC
+    "${CMAKE_SOURCE_DIR}"
+    )
+
+target_link_libraries(anjay_lite_reuse_port PRIVATE
+                      anj
+                      anj_extra_warning_flags)

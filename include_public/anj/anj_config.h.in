@@ -1,0 +1,612 @@
+/*
+ * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * AVSystem Anjay Lite LwM2M SDK
+ * All rights reserved.
+ *
+ * Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
+ * See the attached LICENSE file for details.
+ */
+
+#ifndef ANJ_CONFIG_H
+#define ANJ_CONFIG_H
+
+/**
+ * @file anj_config.h
+ *
+ * Anjay Lite library configuration.
+ *
+ * The preferred way to compile Anjay Lite is to use CMake, in which case this
+ * file will be generated automatically by CMake.
+ *
+ * However, to provide compatibility with various build systems used especially
+ * by embedded platforms, it is alternatively supported to compile Anjay by
+ * other means, in which case this file will need to be provided manually.
+ */
+
+/******************************************************************************\
+ * Input/Output buffer sizes
+\******************************************************************************/
+/**
+ * Configures the size of the buffer for handling incoming messages.
+ *
+ * Default value: 1200
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_IN_MSG_BUFFER_SIZE @ANJ_IN_MSG_BUFFER_SIZE@
+
+/**
+ * Configures the size of the buffer for handling outgoing messages.
+ *
+ * Default value: 1200
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_OUT_MSG_BUFFER_SIZE @ANJ_OUT_MSG_BUFFER_SIZE@
+
+/**
+ * Configures the size of the buffer for preparing outgoing messages payload.
+ * Must be lower than @ref ANJ_OUT_MSG_BUFFER_SIZE to fit CoAP header in it as 
+ * well.
+ *
+ * Default value: 1024
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_OUT_PAYLOAD_BUFFER_SIZE @ANJ_OUT_PAYLOAD_BUFFER_SIZE@
+
+/******************************************************************************\
+ * Data Model configuration
+\******************************************************************************/
+/**
+ * Configures the maximum number of LwM2M Objects that Anjay Lite Data Model can
+ * simultaneously hold.
+ *
+ * Default value: 10
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_DM_MAX_OBJECTS_NUMBER @ANJ_DM_MAX_OBJECTS_NUMBER@
+
+/**
+ * Enable Composite Operations support (Read-Composite, Write-Composite)
+ * 
+ * If not active, Anjay will respond with message code 5.01 Not Implemented to
+ * any composite type request.
+ * To enable Observe-Composite as well, see @ref ANJ_WITH_COMPOSITE_OPERATIONS .
+ */
+#cmakedefine ANJ_WITH_COMPOSITE_OPERATIONS
+
+/**
+ * Configures the maximum number of entries (paths) in a composite operation.
+ *
+ * Default value: 5
+ * This option is meaningful if @ref ANJ_WITH_COMPOSITE_OPERATIONS is enabled.
+ */
+#cmakedefine ANJ_DM_MAX_COMPOSITE_ENTRIES @ANJ_DM_MAX_COMPOSITE_ENTRIES@
+
+/******************************************************************************\
+ * Device Object configuration
+\******************************************************************************/
+/**
+ * Enable default, built-in implementation of /3 Device Object.
+ *
+ * If this flag is disabled, the user should provide an alternative, custom
+ * implementation. It's mandated by the LwM2M Specification, but not necassary
+ * to connect to a LwM2M Server.
+ */
+#cmakedefine ANJ_WITH_DEFAULT_DEVICE_OBJ
+
+/******************************************************************************\
+ * Security Object configuration
+\******************************************************************************/
+/**
+ * Enable default, built-in implementation of /0 Security Object.
+ *
+ * If this flag is disabled, the user must provide an alternative, custom
+ * implementation.
+ */
+#cmakedefine ANJ_WITH_DEFAULT_SECURITY_OBJ
+
+/**
+ * Configures the size of the buffer that holds Public Key or Identity
+ * (/0/x/3 Resource).
+ *
+ * Default value: 255
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE @ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE@
+
+/**
+ * Configures the size of the buffer that holds Server Public Key
+ * (/0/x/4 Resource).
+ *
+ * Default value: 255
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE @ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE@
+
+/**
+ * Configures the size of the buffer that holds Secret Key
+ * (/0/x/5 Resource).
+ *
+ * Default value: 255
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE @ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE@
+
+/******************************************************************************\
+ * Server Object configuration
+\******************************************************************************/
+/**
+ * Enable default, built-in implementation of /1 Server Object.
+ *
+ * If this flag is disabled, the user must provide an alternative, custom
+ * implementation.
+ */
+#cmakedefine ANJ_WITH_DEFAULT_SERVER_OBJ
+
+/******************************************************************************\
+ * FOTA Object configuration
+\******************************************************************************/
+/**
+ * Enable default, built-in implementation of /5 Firmware Update Object.
+ */
+#cmakedefine ANJ_WITH_DEFAULT_FOTA_OBJ
+
+/**
+ * Enable PULL method of Firmware dlivery in FOTA.
+ * Allows LwM2M Server to write an URI from which FW package can be downloaded
+ * to /5/0/1 Resource.
+ *
+ * This method actually requires the application to implement a downloader and
+ * get the FW package with handlers provided in
+ * @ref anj_dm_fw_update_handlers_t
+ */
+#cmakedefine ANJ_FOTA_WITH_PULL_METHOD
+
+/**
+ * Enable PUSH method of Firmware dlivery in FOTA.
+ * Allows LwM2M Server to write FW package with a series of LwM2M Write
+ * operations to /5/0/0 Resource.
+ */
+#cmakedefine ANJ_FOTA_WITH_PUSH_METHOD
+
+/**
+ * Enable FOTA with CoAP support.
+ */
+#cmakedefine ANJ_FOTA_WITH_COAP
+
+/**
+ * Enable FOTA with CoAPs (CoAP over DTLS) support.
+ */
+#cmakedefine ANJ_FOTA_WITH_COAPS
+
+/**
+ * Enable FOTA with HTTP support.
+ */
+#cmakedefine ANJ_FOTA_WITH_HTTP
+
+/**
+ * Enable FOTA with HTTPS support.
+ */
+#cmakedefine ANJ_FOTA_WITH_HTTPS
+
+/**
+ * Enable FOTA with CoAP over TCP support.
+ */
+#cmakedefine ANJ_FOTA_WITH_COAP_TCP
+
+/**
+ * Enable FOTA with CoAP over TLS support.
+ */
+#cmakedefine ANJ_FOTA_WITH_COAPS_TCP
+
+/******************************************************************************\
+ * Observe configuration
+\******************************************************************************/
+/**
+ * Enable Observe, Notify, Cancel Observation and Write-Attributes operations in
+ * Information Reporting Interface.
+ */
+#cmakedefine ANJ_WITH_OBSERVE
+
+/**
+ * Enable Observe-Composite and Cancel Observation-composite operations in 
+ * Information Reporting Interface.
+ *
+ * Requires <c>ANJ_WITH_OBSERVE</c> to be enabled.
+ * Requires <c>ANJ_WITH_COMPOSITE_OPERATIONS</c> to enabled.
+ */
+#cmakedefine ANJ_WITH_OBSERVE_COMPOSITE
+
+/**
+ * Configure the number of Observations that can be set on Anjay Lite at the
+ * same time.
+ *
+ * Default value: 10
+ * It affects statically allocated RAM.
+ * If an incoming Observation can't be handled due to this limit, Anjay Lite
+ * will respond with message code 5.00 Internal Server Error.
+ */
+#cmakedefine ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER @ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER@
+
+/**
+ * Configure the number of paths that have Observation-Class Attributes set with
+ * Write-Attributes operation at the same time. Attributes set with Observe
+ * operation (possible with LwM2M 1.2) are stored independently.
+ *
+ * Default value: 10
+ * It affects statically allocated RAM.
+ * If an incoming Write-Attributes can't be handled due to this limit, Anjay
+ * Lite will respond with message code 5.00 Internal Server Error.
+ */
+#cmakedefine ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER @ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER@
+
+/******************************************************************************\
+ * Bootstrap configuration
+\******************************************************************************/
+/**
+ * Enable Bootstrap Interface.
+ */
+#cmakedefine ANJ_WITH_BOOTSTRAP
+
+/**
+ * Enable Bootstrap-Discover operation support in Bootstrap Interface.
+ */
+#cmakedefine ANJ_WITH_BOOTSTRAP_DISCOVER
+
+/******************************************************************************\
+ * Discover configuration
+\******************************************************************************/
+/**
+ * Enable Discover operation support in Device Management and Service Enablement
+ * Interface.
+ */
+#cmakedefine ANJ_WITH_DISCOVER
+
+/**
+ * Enable reporting Observation-Class Attributes in response to Discover
+ * operation.
+ * 
+ * Requires @ref ANJ_WITH_DISCOVER and @ref ANJ_WITH_OBSERVE to be enabled.
+ */
+#cmakedefine ANJ_WITH_DISCOVER_ATTR
+
+/******************************************************************************\
+ * Send configuration
+\******************************************************************************/
+/**
+ * Enable LwM2M Send operation in Information Reporting Interface.
+ */
+#cmakedefine ANJ_WITH_LWM2M_SEND
+
+/**
+ * Configures the number of Send messages that can be queued simultaneously.
+ * They are never sent right away, so 1 is the minimum.
+ *
+ * Default value: 1
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_LWM2M_SEND_QUEUE_SIZE @ANJ_LWM2M_SEND_QUEUE_SIZE@
+
+/******************************************************************************\
+ * Compat layer configuration
+\******************************************************************************/
+/**
+ * Enable implementation of Anjay Lite time API for POSIX-compilant platforms.
+ *
+ * If disabled, user must provide the compatibility layer.
+ */
+#cmakedefine ANJ_WITH_TIME_POSIX_COMPAT
+
+/**
+ * Enable implementation of Anjay Lite socket API for POSIX-compilant plafroms.
+ *
+ * If disabled, user must provide the compatibility layer.
+ */
+#cmakedefine ANJ_WITH_SOCKET_POSIX_COMPAT
+
+/**
+ * Enable communication using IPv4 protocol.
+ *
+ * Must be enabled, if
+ * @link anj_net_socket_configuration_t.af_setting anj_t.net_socket_cfg.raw_socket_config.af_setting @endlink
+ * forces IPv4 usage.
+ * This option is meaningful if underlaying, platform sockets implementation
+ * supports IPv4.
+ */
+#cmakedefine ANJ_NET_WITH_IPV4
+
+/**
+ * Enable communication using IPv6 protocol.
+ *
+ * Must be enabled, if 
+ * @link anj_net_socket_configuration_t.af_setting anj_t.net_socket_cfg.raw_socket_config.af_setting @endlink
+ * forces IPv6 usage.
+ * This option is meaningful if underlaying, platform sockets implementation
+ * supports IPv6.
+ */
+#cmakedefine ANJ_NET_WITH_IPV6
+
+/**
+ * Enable communication using UDP protocol.
+ *
+ * This option is meaningful if underlaying, platform sockets implementation
+ * supports UDP.
+ */
+#cmakedefine ANJ_NET_WITH_UDP
+
+/**
+ * Enable communication using TCP protocol.
+ *
+ * This option is meaningful if underlaying, platform sockets implementation
+ * supports TCP.
+ */
+#cmakedefine ANJ_NET_WITH_TCP
+
+/******************************************************************************\
+ * Data Formats configuration
+\******************************************************************************/
+/**
+ * Enable support for external data types: @ref ANJ_DATA_TYPE_EXTERNAL_BYTES
+ * and @ref ANJ_DATA_TYPE_EXTERNAL_STRING. This allows to use external data
+ * sources (e.g. files) as a source of data for the output payload.
+ */
+#cmakedefine ANJ_WITH_EXTERNAL_DATA
+
+/**
+ * Enable CBOR Content Format (application/cbor, numerical-value 60) encoder and
+ * decoder.
+ */
+#cmakedefine ANJ_WITH_CBOR
+
+/**
+ * Enable support for decoding CBOR Tag 4 - Decimal Fractions.
+ */
+#cmakedefine ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
+
+/**
+ * Enable support for decoding 16-bit IEEE 754 half-precision format
+ * ("half floats") in CBOR.
+ */
+#cmakedefine ANJ_WITH_CBOR_DECODE_HALF_FLOAT
+
+/**
+ * Enable support for decoding CBOR indefinite-length byte strings and arrays.
+ */
+#cmakedefine ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
+
+/**
+ * Enable support for docoding CBOR time values represented as text strings.
+ */
+#cmakedefine ANJ_WITH_CBOR_DECODE_STRING_TIME
+
+/**
+ * Enable LwM2M CBOR Content Format (application/vnd.oma.lwm2m+cbor,
+ * numerical-value 11544) encoder and decoder.
+ *
+ * Requires @ref ANJ_WITH_LWM2M12 to be enabled.
+ * At least one of @ref ANJ_WITH_SENML_CBOR or @ref ANJ_WITH_LWM2M_CBOR
+ * must enabled for payload encoding, because other content formats can't encode
+ * multiple records in one message.
+ */
+#cmakedefine ANJ_WITH_LWM2M_CBOR
+
+/**
+ * Enable SenML CBOR Content Format (application/senml+cbor, numerical-value
+ * 112) and SenML-ETCH CBOR (application/senml-etch+cbor, numerical-value 322)
+ * encoder and decoder.
+ *
+ * At least one of @ref ANJ_WITH_SENML_CBOR or @ref ANJ_WITH_LWM2M_CBOR
+ * must enabled for payload encoding, because other content formats can't encode
+ * multiple records in one message.
+ */
+#cmakedefine ANJ_WITH_SENML_CBOR
+
+/**
+ * Enable Plaintext Content Format (text/plain , numerical-value 0) encoder and
+ * decoder.
+ */
+#cmakedefine ANJ_WITH_PLAINTEXT
+
+/**
+ * Enable Opaque Content Format (application/octet-stream , numerical-value 42)
+ * encoder and decoder.
+ */
+#cmakedefine ANJ_WITH_OPAQUE
+
+/**
+ * Enable TLV Content Format (application/vnd.oma.lwm2m+tlv, numerical-value
+ * 11542) decoder.
+ *
+ * NOTE: encoder is not implemented.
+ */
+#cmakedefine ANJ_WITH_TLV
+
+/******************************************************************************\
+ * CoAP configuration
+\******************************************************************************/
+/**
+ * Enable communication with LwM2M Server using CoAP over UDP.
+ *
+ * Requires @ref ANJ_NET_WITH_UDP to be enabled.
+ */
+#cmakedefine ANJ_COAP_WITH_UDP
+
+/**
+ * Enable communication with LwM2M Server using CoAP over TCP.
+ *
+ * Requires @ref ANJ_NET_WITH_TCP to be enabled.
+ */
+#cmakedefine ANJ_COAP_WITH_TCP
+
+/**
+ * Configures the maximum allowed number of Options present in CoAP header, in a
+ * single frame.
+ *
+ * Default value: 10
+ * If an incomming message has more options, Anjay Lite will not process it or
+ * respond to it.
+ */
+#cmakedefine ANJ_COAP_MAX_OPTIONS_NUMBER @ANJ_COAP_MAX_OPTIONS_NUMBER@
+
+/**
+ * Configures the maximum length of a single Uri-Query CoAP Option related to
+ * Register, Request Bootstrap, Attribute setting with Write-Attributes or
+ * Observe operation.
+ * This option directly limits Client Endpoint name length.
+ *
+ * Default value: 40
+ * Calculated as "attr_name" + "=" + "attr_value", e.g.:
+ * - "gt=700.12" -> 9
+ * - "ep=anjay_lite_client" -> 20
+ */
+#cmakedefine ANJ_COAP_MAX_ATTR_OPTION_SIZE @ANJ_COAP_MAX_ATTR_OPTION_SIZE@
+
+/**
+ * Configures the number of Location-Path options that can be set in the LwM2M
+ * Server's response to a Register message, in the CoAP header. Register
+ * response will be rejected if Location-Paths count in it exeeds this value.
+ *
+ * Default value: 2
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_COAP_MAX_LOCATION_PATHS_NUMBER @ANJ_COAP_MAX_LOCATION_PATHS_NUMBER@
+
+/**
+ * Configures the maximum size of each Location-Path option in the LwM2M
+ * Server's response to a Register message, in the CoAP header.
+ *
+ * Default value: 40
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_COAP_MAX_LOCATION_PATH_SIZE @ANJ_COAP_MAX_LOCATION_PATH_SIZE@
+
+/******************************************************************************\
+ * Logger configuration
+\******************************************************************************/
+/**
+ * Enable logger in full mode. The header for log messages contains:
+ * - module name
+ * - level of log message
+ * - name of source file the log is called from
+ * - line number of the log call
+ */
+#cmakedefine ANJ_LOG_FULL
+
+/**
+ * Enable logger in alternative mode. This should be defined to path to header
+ * file that specifes an alternative implementation of
+ * @ref ANJ_LOG_HANDLER_IMPL_MACRO with arguments:
+ * - Module: module name, in the same form as in @ref anj_log() calls
+ *   (stringifiable identifier).
+ * - Level: identifier, one of: L_TRACE, L_DEBUG, L_INFO, L_WARNING, L_ERROR,
+ *   L_MUTE. L_MUTE must not generate a message.
+ * - format string as in <c>printf()</c> function and arguments
+ *
+ * This header file is included by by <c>anj/log/log.h</c>. This is useful to
+ * completely replace log calls with a custom definition, e.g. to emit log calls
+ * compatible with other logging libraries, such as the built-in system in
+ * Zephyr.
+ */
+#cmakedefine ANJ_LOG_ALT_IMPL_HEADER "@ANJ_LOG_ALT_IMPL_HEADER@"
+
+/**
+ * Use <c>vsnprintf()</c> to format log messages. This is the preferred option
+ * if the application already uses other functions from <c>printf()</c> family.
+ *
+ * NOTE: this option affects only the builds that use built-in log handler,
+ * i.e. @ref ANJ_LOG_FULL .
+ */
+#cmakedefine ANJ_LOG_FORMATTER_PRINTF
+
+/**
+ * Size of the buffer used to format log messages. If the message is larger than
+ * the buffer, it will be truncated.
+ *
+ * Caution: the buffer is allocated on stack when calling @ref anj_log() macro.
+ *
+ * NOTE: this option affects only the builds that use built-in log handler,
+ * i.e. @ref ANJ_LOG_FULL .
+ */
+#cmakedefine ANJ_LOG_FORMATTER_BUF_SIZE @ANJ_LOG_FORMATTER_BUF_SIZE@
+
+/**
+ * Output log messages on stderr.
+ *
+ * NOTE: this option affects only the builds that use built-in log handler,
+ * i.e. @ref ANJ_LOG_FULL .
+ */
+#cmakedefine ANJ_LOG_HANDLER_OUTPUT_STDERR
+
+/**
+ * Use alternative implementation of output function for log handler. End user
+ * must implement the @ref anj_log_handler_output() function, declared in
+ * <c>anj/compat/log_impl_decls.h</c>.
+ */
+#cmakedefine ANJ_LOG_HANDLER_OUTPUT_ALT
+
+/**
+ * If enabled, @ref ANJ_LOG_DISPOSABLE() will evaluate to <c>" "</c>.
+ */
+#cmakedefine ANJ_LOG_STRIP_CONSTANTS
+
+/**
+ * If enabled, the logger will verify the format string upon call whether it
+ * only uses the format specifiers allowed, as defined in description for
+ * @ref anj_log() macro. In case an unexpected format specifier is used,
+ * assertion is raised.
+ */
+#cmakedefine ANJ_LOG_DEBUG_FORMAT_CONSTRAINTS_CHECK
+
+/**
+ * Default log level. Any log statements with a level lower than this will be
+ * excluded from the build.
+ *
+ * NOTE: Defaults to <c>L_INFO</c> if not defined.
+ *
+ * NOTE: Log level may be overridden for specific modules, see
+ * @ref ANJ_LOG_FILTERING_CONFIG_HEADER .
+ */
+#cmakedefine ANJ_LOG_LEVEL_DEFAULT @ANJ_LOG_LEVEL_DEFAULT@
+
+/**
+ * Override log level for specific modules. This should be defined to path to
+ * header file with declarations in form:
+ * <c>ANJ_LOG_LEVEL_FOR_MODULE_Module</c>, where <c>Module</c> is the name of
+ * the module, in the same form as in @ref anj_log() calls (stringifiable
+ * identifier).
+ *
+ * <example>
+ * @code
+ * // Enable trace logs for exchange module
+ * #define ANJ_LOG_LEVEL_FOR_MODULE_exchange L_TRACE
+ *
+ * // Disable logs for observe module
+ * #define ANJ_LOG_LEVEL_FOR_MODULE_observe L_MUTED
+ * @endcode
+ * </example>
+ */
+#cmakedefine ANJ_LOG_FILTERING_CONFIG_HEADER "@ANJ_LOG_FILTERING_CONFIG_HEADER@"
+
+/******************************************************************************\
+ * Other configuration
+\******************************************************************************/
+/**
+ * Enable features introduced in LwM2M protocol version 1.2.
+ */
+#cmakedefine ANJ_WITH_LWM2M12
+
+/**
+ * Enables custom convertion functions implementation that do not require
+ * sprintf() and sscanf() in Anjay Lite for string<->number convertions.
+ *
+ * Useful on constrained platforms which do not use these functions.
+ */
+#cmakedefine ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS
+
+/**
+ * Configures the numerical converters to treat the platform as big endian.
+ * Disabling this option will make Anjay Lite treat the platform as little
+ * endian.
+ */
+#cmakedefine ANJ_PLATFORM_BIG_ENDIAN
+
+#endif // ANJ_CONFIG_H

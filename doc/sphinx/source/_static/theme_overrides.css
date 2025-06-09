@@ -1,0 +1,91 @@
+/*
+ * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * AVSystem Anjay Lite LwM2M SDK
+ * All rights reserved.
+ *
+ * Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
+ * See the attached LICENSE file for details.
+ */
+
+/**
+ * See: http://rackerlabs.github.io/docs-rackspace/tools/rtd-tables.html
+ */
+
+/* override table width restrictions */
+@media screen and (min-width: 767px) {
+
+   .wy-table-responsive table td {
+      /* !important prevents the common CSS stylesheets from overriding
+         this as on RTD they are loaded after this stylesheet */
+      white-space: normal !important;
+   }
+
+   .wy-table-responsive {
+      overflow: visible !important;
+   }
+
+   /* https://stackoverflow.com/questions/23211695/modifying-content-width-of-the-sphinx-theme-read-the-docs */
+   .wy-nav-content {
+        max-width: 960px !important;
+    }
+}
+
+/* AVSystem color scheme */
+.wy-side-nav-search>a {
+    color: #ffffff !important;
+}
+
+.wy-side-nav-search>a:after {
+    content: "Anjay Lite";
+}
+
+.wy-side-nav-search>div.version {
+    color: #ffffff;
+}
+
+.wy-side-nav-search input[type=text] {
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+.wy-menu-vertical a:active {
+    background-color: #773dbd;
+    color: #FFFFFF;
+}
+
+a {
+    color: #000;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+}
+
+.wy-nav-content a:visited,
+.wy-nav-content a:hover {
+    color: #8a8a8a;
+}
+
+nav a {
+    text-decoration: none !important;
+}
+
+.highlight {
+    background: #ffffff;
+}
+
+.highlight .hll {
+    background: #f3f6f6;
+}
+
+code.small-literal {
+    font-size: 65%;
+}
+
+.highlighted {
+    background-color: #c3a0e3 !important; /* Light purple highlight */
+    color: #000 !important; /* Keeps text readable */
+    padding: 0 2px; /* optional: adds some breathing space */
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+}

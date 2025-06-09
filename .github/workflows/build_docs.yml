@@ -1,0 +1,56 @@
+# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# AVSystem Anjay Lite LwM2M SDK
+# All rights reserved.
+#
+# Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
+# See the attached LICENSE file for details.
+
+name: Build and Deploy Docs
+on: push
+
+concurrency:
+  group: "pages-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: avsystemembedded/anjay-lite-build-docs:1.0
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      - name: Build docs
+        run: |
+          mkdir build
+          cd build
+          cmake ..
+          make doc
+      - name: Move docs
+        run: |
+          mkdir build/pages
+          cp -r doc/build/sphinx/* build/pages
+          cp -r doc/build/doxygen/html build/pages/api
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact 
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/pages
+
+  deploy:
+    if: github.ref == 'refs/heads/master'
+    needs: build
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
