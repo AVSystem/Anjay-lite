@@ -15,6 +15,7 @@
 #include <anj/anj_config.h>
 #include <anj/defs.h>
 
+#include "../../../src/anj/coap/coap.h"
 #include "../../../src/anj/io/io.h"
 
 #include <anj_unit_test.h>

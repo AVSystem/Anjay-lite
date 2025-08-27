@@ -1,0 +1,148 @@
+{% import 'macros.jinja2' as m with context -%}
+
+static int add_res_inst(void *res_insts,
+                        size_t insts_count,
+                        size_t res_inst_size,
+                        anj_riid_t *res_inst_ids,
+                        size_t ids_count,
+                        anj_riid_t riid,
+                        size_t *res_inst_idx) {
+    assert(res_inst_ids != NULL);
+    assert(res_insts != NULL);
+
+    // Check if there is space for a new instance
+    if (res_inst_ids[ids_count - 1] != ANJ_ID_INVALID) {
+        return ANJ_DM_ERR_NOT_FOUND;
+    }
+
+    for (uint16_t i = 0; i < ids_count; i++) {
+        if (res_inst_ids[i] == ANJ_ID_INVALID || res_inst_ids[i] >= riid) {
+            for (uint16_t j = ids_count - 1; j > i; --j) {
+                res_inst_ids[j] = res_inst_ids[j - 1];
+                memcpy(res_insts + j * res_inst_size,
+                       res_insts + (j - 1) * res_inst_size,
+                       res_inst_size);
+            }
+            res_inst_ids[i] = riid;
+            *res_inst_idx = i;
+            return 0;
+        }
+    }
+
+    return ANJ_DM_ERR_NOT_FOUND;
+}
+
+static int del_res_inst(void *res_insts,
+                        size_t insts_count,
+                        size_t res_inst_size,
+                        anj_riid_t *res_inst_ids,
+                        size_t ids_count,
+                        anj_riid_t riid) {
+    assert(res_inst_ids != NULL);
+    assert(res_insts != NULL);
+
+    // Find the instance to delete
+    for (uint16_t i = 0; i < ids_count - 1; i++) {
+        if (res_inst_ids[i] == riid) {
+            for (uint16_t j = i; j < ids_count - 1; j++) {
+                res_inst_ids[j] = res_inst_ids[j + 1];
+                memcpy(res_insts + j * res_inst_size,
+                       res_insts + (j + 1) * res_inst_size,
+                       res_inst_size);
+            }
+            res_inst_ids[ids_count - 1] = ANJ_ID_INVALID;
+            return 0;
+        }
+    }
+
+    return ANJ_DM_ERR_NOT_FOUND;
+}
+
+static int res_inst_create(anj_t *anj,
+                           const anj_dm_obj_t *obj,
+                           anj_iid_t iid,
+                           anj_rid_t rid,
+                           anj_riid_t riid) {
+
+    if (iid == ANJ_ID_INVALID) {
+        return ANJ_DM_ERR_BAD_REQUEST;
+    }
+{% if multiple_insts %}
+
+    {{ obj.name_snake }}_obj_inst_t *inst = get_obj_inst(obj, iid);
+{% endif %}
+
+    switch (rid) {
+{% for res in obj.resources if res.multiple %}
+    case RID_{{ res.name_upper }}: {
+        size_t res_inst_idx;
+{% if multiple_insts %}
+        int result = add_res_inst(inst->{{ res.name_snake }}_res_insts,
+                                  {{ res.name_upper }}_RES_INST_COUNT,
+                                  sizeof({{ res.name_snake }}_res_inst_t),
+                                  inst->{{ res.name_snake }}_res_insts_ids,
+                                  {{ res.name_upper }}_RES_INST_COUNT,
+                                  riid,
+                                  &res_inst_idx);
+{% else %}
+        int result = add_res_inst({{ res.name_snake }}_res_insts,
+                                  {{ res.name_upper }}_RES_INST_COUNT,
+                                  sizeof({{ res.name_snake }}_res_inst_t),
+                                  {{ res.name_snake }}_res_insts_ids,
+                                  {{ res.name_upper }}_RES_INST_COUNT,
+                                  riid,
+                                  &res_inst_idx);
+{% endif %}
+        if (result != 0) {
+            return result;
+        }
+
+        // TODO: Initialize new instance here
+        // {{ res.name_snake }}_res_insts[res_inst_idx]. ... = ...;
+
+        return 0;
+    }
+{%endfor %}
+    default:
+        return ANJ_DM_ERR_NOT_IMPLEMENTED;
+    }
+}
+
+static int res_inst_delete(anj_t *anj,
+                           const anj_dm_obj_t *obj,
+                           anj_iid_t iid,
+                           anj_rid_t rid,
+                           anj_riid_t riid) {
+
+    if (iid == ANJ_ID_INVALID) {
+        return ANJ_DM_ERR_BAD_REQUEST;
+    }
+{% if multiple_insts %}
+
+    {{ obj.name_snake }}_obj_inst_t *inst = get_obj_inst(obj, iid);
+{% endif %}
+
+    switch (rid) {
+{% for res in obj.resources if res.multiple %}
+    case RID_{{ res.name_upper }}: {
+{% if multiple_insts %}
+        return del_res_inst(inst->{{ res.name_snake }}_res_insts,
+                            {{ res.name_upper }}_RES_INST_COUNT,
+                            sizeof({{ res.name_snake }}_res_inst_t),
+                            inst->{{ res.name_snake }}_res_insts_ids,
+                            {{ res.name_upper }}_RES_INST_COUNT,
+                            riid);
+{% else %}
+        return del_res_inst({{ res.name_snake }}_res_insts,
+                            {{ res.name_upper }}_RES_INST_COUNT,
+                            sizeof({{ res.name_snake }}_res_inst_t),
+                            {{ res.name_snake }}_res_insts_ids,
+                            {{ res.name_upper }}_RES_INST_COUNT,
+                            riid);
+{% endif %}
+    }
+{% endfor %}
+    default:
+        return ANJ_DM_ERR_NOT_FOUND;
+    }
+}

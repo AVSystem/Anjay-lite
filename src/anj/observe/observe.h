@@ -7,31 +7,21 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_OBSERVE_H
-#define SRC_ANJ_OBSERVE_H
+#    define SRC_ANJ_OBSERVE_H
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <stdbool.h>
+#    include <stdint.h>
 
-#define ANJ_INTERNAL_INCLUDE_EXCHANGE
-#include <anj_internal/exchange.h>
-#undef ANJ_INTERNAL_INCLUDE_EXCHANGE
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
-#include "../coap/coap.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef ANJ_WITH_OBSERVE
-
-#    if !defined(ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER) \
-            || !defined(ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER)
-#        error "if observe module is enabled, its parameters has to be defined"
-#    endif
+#    ifdef ANJ_WITH_OBSERVE
 
 /** A constant that may be used to address all servers. */
-#    define ANJ_OBSERVE_ANY_SERVER UINT16_MAX
+#        define ANJ_OBSERVE_ANY_SERVER UINT16_MAX
 
 /**
  * Contains information about the type of changes of the data model.
@@ -57,7 +47,7 @@ typedef enum {
  * @code
  * anj_t anj;
  * // Using of this API is strongly associated with exchange module.
- * _anj_exchange_init exchange_ctx;
+ * _anj_exchange_ctx_t exchange_ctx;
  * _anj_exchange_handlers_t out_handlers;
  * _anj_exchange_init(&exchange_ctx, 0);
  * // Below handlers are provided by the user, refer to handlers documentation
@@ -234,7 +224,7 @@ void _anj_observe_remove_all_observations(anj_t *anj, uint16_t ssid);
  */
 void _anj_observe_remove_all_attr_storage(anj_t *anj, uint16_t ssid);
 
-#    ifdef ANJ_WITH_DISCOVER_ATTR
+#        ifdef ANJ_WITH_DISCOVER_ATTR
 /**
  * Retrieves the attribute storage record for the given server and path. This
  * function should be used for Discover operation processing.
@@ -257,7 +247,7 @@ int _anj_observe_get_attr_storage(anj_t *anj,
                                   bool with_parents_attr,
                                   const anj_uri_path_t *path,
                                   _anj_attr_notification_t *out_attr);
-#    endif // ANJ_WITH_DISCOVER_ATTR
+#        endif // ANJ_WITH_DISCOVER_ATTR
 
 /**
  * The @p time_to_next_notification specifies the time after which the next
@@ -322,14 +312,6 @@ int anj_observe_data_model_changed(anj_t *anj,
                                    anj_observe_change_type_t change_type,
                                    uint16_t ssid);
 
-#    define ANJ_INTERNAL_INCLUDE_OBSERVE
-#    include <anj_internal/observe.h>
-#    undef ANJ_INTERNAL_INCLUDE_OBSERVE
-
-#endif // ANJ_WITH_OBSERVE
-
-#ifdef __cplusplus
-}
-#endif
+#    endif // ANJ_WITH_OBSERVE
 
 #endif // SRC_ANJ_OBSERVE_H

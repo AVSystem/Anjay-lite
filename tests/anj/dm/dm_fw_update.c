@@ -391,7 +391,7 @@ ANJ_UNIT_TEST(dm_fw_update, write_uri) {
         .path = ANJ_MAKE_RESOURCE_PATH(5, 0, 1)
     };
     strcpy(expected_uri, EXAMPLE_URI);
-    result_to_return = ANJ_DM_FW_UPDATE_RESULT_SUCCESS;
+    result_to_return = ANJ_DM_FW_UPDATE_RESULT_INITIAL;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
@@ -664,7 +664,7 @@ ANJ_UNIT_TEST(dm_fw_update, execute) {
             .path = ANJ_MAKE_RESOURCE_PATH(5, 0, 1)
         };
         strcpy(expected_uri, EXAMPLE_URI);
-        result_to_return = ANJ_DM_FW_UPDATE_RESULT_SUCCESS;
+        result_to_return = ANJ_DM_FW_UPDATE_RESULT_INITIAL;
 
         ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
                 &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,

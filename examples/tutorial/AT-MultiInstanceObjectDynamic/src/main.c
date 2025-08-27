@@ -75,9 +75,9 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    srand((unsigned int) time(
-            NULL)); // use the current time as a seed for the random
-                    // generator used by update_sensor_value()
+    // Use current time as seed for random generator used by
+    // update_temperature_obj_value()
+    srand((unsigned int) time(NULL));
 
     anj_t anj;
     anj_dm_device_obj_t device_obj;
@@ -106,7 +106,7 @@ int main(int argc, char *argv[]) {
 
     while (true) {
         anj_core_step(&anj);
-        update_sensor_value(get_temperature_obj());
+        update_temperature_obj_value();
         usleep(50 * 1000);
     }
     return 0;

@@ -9,32 +9,46 @@
 Multi-Instance Object
 =====================
 
-This section describes implementation of a **multi-instance Object** defined in
+Overview
+--------
+
+This guide explains how to implement a **multi-instance Object** as defined in
 `OMA LwM2M Registry <https://www.openmobilealliance.org/specifications/registries/objects>`_.
 
-LwM2M Objects may have multiple Instances; sometimes the number of Instances may
-be variable and the Instances themselves may be creatable via LwM2M. Examples of
-such Objects include the Object that manages connections to LwM2M Servers or
-Object that represents optional software packages installed on the device.
+In LwM2M, some Objects may have multiple Instances. These Instances can be
+dynamically created, such as those used to manage server connections or represent
+installed software packages.
 
 As an example, we are going to implement
-`Temperature Object with ID 3303 in version 1.1 <https://raw.githubusercontent.com/OpenMobileAlliance/lwm2m-registry/prod/version_history/3303-1_1.xml>`_ by expanding the code developed in `Basic Object Implementation <../BasicClient/BC-BasicObjectImplementation.html>`_.
-Only the differences that need to be applied are described in this article.
+`Temperature Object with ID 3303 in version 1.1 <https://raw.githubusercontent.com/OpenMobileAlliance/lwm2m-registry/prod/version_history/3303-1_1.xml>`_ by extending the code presented in the `Basic Object Implementation <../BasicClient/BC-BasicObjectImplementation.html>`_.
+Only the required differences are described here. 
 
-Implementing the Object
------------------------
+Implement the Object
+--------------------
 
 .. note::
    Code related to this tutorial can be found under `examples/tutorial/AT-MultiInstanceObject`
    in the Anjay Lite source directory and is based on `examples/tutorial/BC-BasicObjectImplementation`
    example.
 
+.. note:: 
+    To generate code stubs for a multi-instance object, use the ``anjay_codegen.py`` script with the ``-ni`` option:
+
+    .. code-block:: bash
+
+        ./tools/anjay_codegen.py -i temperature_obj.xml -o temperature_obj.c -ni 5
+
+    For details, see the :ref:`Multiple instance object generation<multi-instance-generator>` section.
+
 Object and Object Instances State
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To allow keeping state of two independent Object Instances, first we need to
-introduce separate structures for an Object Instance (keeping Instance ID and
-Resources values) and for the Object itself, keeping object definition and its instances.
+To store the state of each Object Instance separately, define two data structures:
+
+- One for the individual Object Instance with Instance ID and Resources values
+
+- One for the Object definition and its Instances
+
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObject/src/temperature_obj.c
@@ -55,13 +69,13 @@ Resources values) and for the Object itself, keeping object definition and its i
     } temp_obj_ctx_t;
 
 
-Now, let's add a helper function to get a pointer to an instance with given `iid` (**Instance ID**).
+Next, add a helper function to retrieve the instance based on the `iid` (**Instance ID**):
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObject/src/temperature_obj.c
 
-    static temp_obj_inst_t *get_temp_inst(const anj_dm_obj_t *obj, anj_iid_t iid) {
-        temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+    static temp_obj_inst_t *get_temp_inst(anj_iid_t iid) {
+        temp_obj_ctx_t *ctx = get_ctx();
         for (uint16_t idx = 0; idx < TEMP_OBJ_NUMBER_OF_INSTANCES; idx++) {
             if (ctx->temp_insts[idx].iid == iid) {
                 return &ctx->temp_insts[idx];
@@ -75,12 +89,12 @@ Now, let's add a helper function to get a pointer to an instance with given `iid
 Read, write and execute Handlers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-All object handlers that are called from Anjay Lite DM (Data Model) Module have
-a `anj_iid_t iid` parameter, that was previously ignored. Now we will make use of it.
+Each handler receives an `anj_iid_t iid` parameter, which now must be used to
+access the correct instance.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObject/src/temperature_obj.c
-    :emphasize-lines: 3, 10-11, 15, 22, 29-30, 35, 43, 51-52, 56-57
+    :emphasize-lines: 3, 11-12, 16, 23, 31-32, 37, 45, 54-55, 59-60
 
     static int res_read(anj_t *anj,
                         const anj_dm_obj_t *obj,
@@ -89,9 +103,10 @@ a `anj_iid_t iid` parameter, that was previously ignored. Now we will make use o
                         anj_riid_t riid,
                         anj_res_value_t *out_value) {
         (void) anj;
+        (void) obj;
         (void) riid;
 
-        temp_obj_inst_t *temp_inst = get_temp_inst(obj, iid);
+        temp_obj_inst_t *temp_inst = get_temp_inst(iid);
         assert(temp_inst);
 
         switch (rid) {
@@ -102,37 +117,39 @@ a `anj_iid_t iid` parameter, that was previously ignored. Now we will make use o
     }
 
     static int res_write(anj_t *anj,
-                        const anj_dm_obj_t *obj,
-                        anj_iid_t iid,
-                        anj_rid_t rid,
-                        anj_riid_t riid,
-                        const anj_res_value_t *value) {
+                         const anj_dm_obj_t *obj,
+                         anj_iid_t iid,
+                         anj_rid_t rid,
+                         anj_riid_t riid,
+                         const anj_res_value_t *value) {
         (void) anj;
+        (void) obj;
         (void) riid;
 
-        temp_obj_inst_t *temp_inst = get_temp_inst(obj, iid);
+        temp_obj_inst_t *temp_inst = get_temp_inst(iid);
         assert(temp_inst);
 
         switch (rid) {
         case RID_APPLICATION_TYPE:
             return anj_dm_write_string_chunked(value,
-                                            temp_inst->application_type,
-                                            TEMP_OBJ_APPL_TYPE_MAX_SIZE, NULL);
+                                               temp_inst->application_type,
+                                               TEMP_OBJ_APPL_TYPE_MAX_SIZE, NULL);
             break;
         //...
     }
 
     static int res_execute(anj_t *anj,
-                        const anj_dm_obj_t *obj,
-                        anj_iid_t iid,
-                        anj_rid_t rid,
-                        const char *execute_arg,
-                        size_t execute_arg_len) {
+                           const anj_dm_obj_t *obj,
+                           anj_iid_t iid,
+                           anj_rid_t rid,
+                           const char *execute_arg,
+                           size_t execute_arg_len) {
         (void) anj;
+        (void) obj;
         (void) execute_arg;
         (void) execute_arg_len;
 
-        temp_obj_inst_t *temp_inst = get_temp_inst(obj, iid);
+        temp_obj_inst_t *temp_inst = get_temp_inst(iid);
         assert(temp_inst);
 
         switch (rid) {
@@ -149,7 +166,7 @@ a `anj_iid_t iid` parameter, that was previously ignored. Now we will make use o
 Object definition and Initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-First, we need to change the `anj_dm_obj_inst_t` structure to an array.
+First, define the `anj_dm_obj_inst_t` array for the Object Instances:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObject/src/temperature_obj.c
@@ -167,8 +184,7 @@ First, we need to change the `anj_dm_obj_inst_t` structure to an array.
         }
     };
 
-And then we can add a static initialization of the Object, including its
-Instances.
+Then add a static initialization of the Object, including its Instances:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObject/src/temperature_obj.c
@@ -195,20 +211,21 @@ Instances.
     };
 
 
-Supporting transactional Writes
--------------------------------
+Support transactional Writes
+----------------------------
 
 Transactions are performed on an Object level, not an Object Instance Level.
-This means we need to back up the state of all writable resources **in all Object Instances**.
+This means you need to back up the state of all writable resources **in all Object Instances**.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObject/src/temperature_obj.c
-    :emphasize-lines: 6-8, 26-30
+    :emphasize-lines: 7-9, 28-33
 
     static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
         (void) anj;
+        (void) obj;
 
-        temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+        temp_obj_ctx_t *ctx = get_ctx();
         for (int i = 0; i < TEMP_OBJ_NUMBER_OF_INSTANCES; i++) {
             temp_obj_inst_t *temp_inst = &ctx->temp_insts[i];
             memcpy(temp_inst->application_type_cached, temp_inst->application_type,
@@ -226,10 +243,11 @@ This means we need to back up the state of all writable resources **in all Objec
 
     static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
         (void) anj;
+        (void) obj;
 
         if (result) {
             // restore cached data
-            temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+            temp_obj_ctx_t *ctx = get_ctx();
             for (int i = 0; i < TEMP_OBJ_NUMBER_OF_INSTANCES; i++) {
                 temp_obj_inst_t *temp_inst = &ctx->temp_insts[i];
                 memcpy(temp_inst->application_type,

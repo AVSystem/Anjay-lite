@@ -7,6 +7,8 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <math.h>
@@ -22,9 +24,8 @@
 
 #include "coap/coap.h"
 #include "exchange.h"
+#include "exchange_cache.h"
 #include "utils.h"
-
-#define exchange_log(...) anj_log(exchange, __VA_ARGS__)
 
 static uint8_t
 default_read_payload_handler(void *arg_ptr,
@@ -90,13 +91,13 @@ static void exchange_param_init(_anj_exchange_ctx_t *ctx) {
         ctx->timeout_ms = ctx->server_exchange_timeout;
     } else {
         // calculate timeout for the first message, comply with RFC 7252 4.2
-        double random_factor = ((double) _anj_rand32_r(&ctx->timeout_rand_seed)
-                                / (double) UINT32_MAX)
-                               * (ctx->tx_params.ack_random_factor - 1.0);
+        double random_factor =
+                ((double) _anj_rand32_r(&ctx->rand_seed) / (double) UINT32_MAX)
+                * (ctx->tx_params.ack_random_factor - 1.0);
         ctx->timeout_ms = (uint64_t) (ack_timeout_ms * (random_factor + 1.0));
     }
     ctx->timeout_timestamp_ms = anj_time_real_now() + ctx->timeout_ms;
-    ctx->send_ack_timeout_timestamp_ms =
+    ctx->send_confirmation_timeout_timestamp_ms =
             anj_time_real_now() + _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS;
 }
 
@@ -109,10 +110,10 @@ static bool timeout_occurred(uint64_t timeout_timestamp_ms) {
     return anj_time_real_now() >= timeout_timestamp_ms;
 }
 
-static void handle_send_ack(_anj_exchange_ctx_t *ctx,
-                            _anj_exchange_event_t event) {
+static void handle_send_confirmation(_anj_exchange_ctx_t *ctx,
+                                     _anj_exchange_event_t event) {
     // no retransmission if the message is not sent in the allowed time
-    if (timeout_occurred(ctx->send_ack_timeout_timestamp_ms)) {
+    if (timeout_occurred(ctx->send_confirmation_timeout_timestamp_ms)) {
         exchange_log(L_ERROR, "sending timeout occurred");
         finalize_exchange(ctx, NULL, _ANJ_EXCHANGE_ERROR_TIMEOUT);
     } else if (event == ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION) {
@@ -129,6 +130,31 @@ static void handle_send_ack(_anj_exchange_ctx_t *ctx,
     }
 }
 
+// This function can be used only to handle server responses.
+static bool is_separate_response_mode(const _anj_coap_msg_t *msg) {
+    return msg->coap_binding_data.udp.type == ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+}
+
+/**
+ * Creates a new CoAP token. The token is a pseudo-random 8-byte value.
+ * During @ref _anj_coap_encode_udp call token is not created again.
+ */
+static void token_create(_anj_exchange_ctx_t *ctx, _anj_coap_token_t *token) {
+    token->size = _ANJ_COAP_MAX_TOKEN_LENGTH;
+    assert(_ANJ_COAP_MAX_TOKEN_LENGTH == 8);
+    uint64_t random_val = _anj_rand64_r(&ctx->rand_seed);
+    memcpy(token->bytes, &random_val, sizeof(random_val));
+}
+
+/**
+ * Creates a new CoAP Message ID.
+ * During @ref _anj_coap_encode_udp call message ID is not created again.
+ */
+static void init_msd_id(_anj_exchange_ctx_t *ctx, _anj_coap_msg_t *msg) {
+    assert(msg);
+    msg->coap_binding_data.udp.message_id = ++ctx->msg_id;
+}
+
 static void handle_server_response(_anj_exchange_ctx_t *ctx,
                                    _anj_coap_msg_t *in_out_msg) {
     if (in_out_msg->operation == ANJ_OP_COAP_EMPTY_MSG) {
@@ -139,7 +165,6 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
             exchange_log(
                     L_DEBUG,
                     "empty message received, waiting for separate response");
-            ctx->separate_response = true;
             reset_exchange_params(ctx);
             return;
         }
@@ -165,17 +190,18 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
         goto send_service_unavailable;
     }
 
-    if (ctx->block_number != in_out_msg->block.number) {
-        exchange_log(L_WARNING, "block number mismatch, ignoring");
-        return;
-    }
-
     if (in_out_msg->msg_code >= ANJ_COAP_CODE_BAD_REQUEST) {
         exchange_log(L_ERROR, "received error response: %" PRIu8,
                      in_out_msg->msg_code);
         finalize_exchange(ctx, NULL, in_out_msg->msg_code);
         return;
     }
+
+    if (ctx->block_number != in_out_msg->block.number) {
+        exchange_log(L_WARNING, "block number mismatch, ignoring");
+        return;
+    }
+
     if (in_out_msg->block.block_type != ANJ_OPTION_BLOCK_NOT_DEFINED) {
         exchange_log(L_DEBUG, "next block received, block number: %" PRIu32,
                      in_out_msg->block.number);
@@ -191,8 +217,8 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
                               && ctx->block_transfer);
 
     ctx->base_msg.payload_size = 0;
-    // BootstrapPack-Request is only LwM2M Client request that contains payload
-    // in response
+    // BootstrapPack-Request and Downloader GET are the only LwM2M Client
+    // request that contains payload in response
     if (in_out_msg->payload_size) {
         uint8_t result = ctx->handlers.write_payload(ctx->handlers.arg,
                                                      in_out_msg->payload,
@@ -202,7 +228,7 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
             .more_flag = false,
             .number = ++ctx->block_number,
             .block_type = ANJ_OPTION_BLOCK_2,
-            .size = ctx->block_size
+            .size = in_out_msg->block.size // get block size from the message
         };
         if (result) {
             exchange_log(L_ERROR,
@@ -212,6 +238,8 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
             finalize_exchange(ctx, NULL, result);
             return;
         }
+        // there is no client request that contain payload in both request and
+        // response
     } else if (ctx->block_transfer) {
         _anj_exchange_read_result_t read_result = { 0 };
         uint8_t result =
@@ -241,17 +269,23 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
     }
 
     if (ctx->block_transfer || ctx->base_msg.payload_size != 0) {
-        if (!ctx->request_prepared && ctx->separate_response) {
+        if (!ctx->request_prepared && is_separate_response_mode(in_out_msg)) {
             ctx->request_prepared = true;
             goto send_empty_ack;
         }
         ctx->state = ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION;
         reset_exchange_params(ctx);
-        _anj_coap_init_coap_udp_credentials(&ctx->base_msg);
+        init_msd_id(ctx, &ctx->base_msg);
+        token_create(ctx, &ctx->base_msg.token);
         *in_out_msg = ctx->base_msg;
         return;
     } else {
-        if (ctx->separate_response) {
+        if (is_separate_response_mode(in_out_msg)) {
+            // last block of the response, from external module point of view
+            // exchange can be finished here, call completion callback and set
+            // default callback to prevent the second call
+            ctx->handlers.completion(ctx->handlers.arg, in_out_msg, 0);
+            ctx->handlers.completion = default_exchange_completion_handler;
             ctx->confirmable = false;
             goto send_empty_ack;
         }
@@ -272,6 +306,10 @@ send_service_unavailable:
     in_out_msg->msg_code = ANJ_COAP_CODE_SERVICE_UNAVAILABLE;
     in_out_msg->payload_size = 0;
     in_out_msg->block.block_type = ANJ_OPTION_BLOCK_NOT_DEFINED;
+#ifdef ANJ_WITH_CACHE
+    // store the response in case of retransmission
+    _anj_exchange_cache_add(ctx->cache, &ctx->tx_params, in_out_msg);
+#endif // ANJ_WITH_CACHE
     return;
 }
 
@@ -298,19 +336,6 @@ static void handle_server_request(_anj_exchange_ctx_t *ctx,
                      "different request, response for request with "
                      "ANJ_COAP_CODE_SERVICE_UNAVAILABLE");
         goto send_service_unavailable;
-    }
-
-    // message_id and token are the same, so we are facing retransmission of the
-    // same request, we should send the same response as before
-    if (ctx->base_msg.coap_binding_data.udp.message_id
-                    == in_out_msg->coap_binding_data.udp.message_id
-            && _anj_tokens_equal(&ctx->base_msg.token, &in_out_msg->token)) {
-        exchange_log(L_INFO,
-                     "Retransmission detected, sending previous response");
-        *in_out_msg = ctx->base_msg;
-        ctx->state = ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION;
-        reset_exchange_params(ctx);
-        return;
     }
 
     ctx->block_number++;
@@ -407,8 +432,10 @@ send_response:
         in_out_msg->payload_size = payload_size;
     }
     in_out_msg->msg_code = response_code;
+#ifdef ANJ_WITH_CACHE
     // store the response in case of retransmission
-    ctx->base_msg = *in_out_msg;
+    _anj_exchange_cache_add(ctx->cache, &ctx->tx_params, in_out_msg);
+#endif // ANJ_WITH_CACHE
     return;
 
 send_service_unavailable:
@@ -417,6 +444,10 @@ send_service_unavailable:
     in_out_msg->payload_size = 0;
     in_out_msg->msg_code = ANJ_COAP_CODE_SERVICE_UNAVAILABLE;
     in_out_msg->block.block_type = ANJ_OPTION_BLOCK_NOT_DEFINED;
+#ifdef ANJ_WITH_CACHE
+    // store the response in case of retransmission
+    _anj_exchange_cache_add(ctx->cache, &ctx->tx_params, in_out_msg);
+#endif // ANJ_WITH_CACHE
     return;
 }
 
@@ -463,6 +494,10 @@ _anj_exchange_new_server_request(_anj_exchange_ctx_t *ctx,
         ctx->block_transfer = false;
         ctx->state = ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION;
         exchange_log(L_TRACE, "new response created");
+#ifdef ANJ_WITH_CACHE
+        // store the response in case of retransmission
+        _anj_exchange_cache_add(ctx->cache, &ctx->tx_params, in_out_msg);
+#endif // ANJ_WITH_CACHE
         return ANJ_EXCHANGE_STATE_MSG_TO_SEND;
     }
     ctx->block_transfer = in_out_msg->block.block_type == ANJ_OPTION_BLOCK_1
@@ -525,8 +560,10 @@ _anj_exchange_new_server_request(_anj_exchange_ctx_t *ctx,
 
     exchange_log(L_TRACE, "new response created");
     ctx->state = ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION;
+#ifdef ANJ_WITH_CACHE
     // store the response in case of retransmission
-    ctx->base_msg = *in_out_msg;
+    _anj_exchange_cache_add(ctx->cache, &ctx->tx_params, in_out_msg);
+#endif // ANJ_WITH_CACHE
     return ANJ_EXCHANGE_STATE_MSG_TO_SEND;
 }
 
@@ -541,7 +578,6 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
     uint8_t result = 0;
     ctx->block_size = _anj_determine_block_buffer_size(buff_len);
     ctx->payload_buff = buff;
-    ctx->separate_response = false;
     ctx->server_request = false;
     ctx->block_transfer = false;
     ctx->msg_code = 0;
@@ -554,12 +590,11 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
                     ? false
                     : true;
 
-    if (*op == ANJ_OP_INF_CON_NOTIFY || *op == ANJ_OP_INF_NON_CON_NOTIFY) {
-        const _anj_coap_token_t *token = &in_out_msg->token;
-        assert(token->size);
-    } else {
-        _anj_coap_init_coap_udp_credentials(in_out_msg);
+    if (*op != ANJ_OP_INF_CON_NOTIFY && *op != ANJ_OP_INF_NON_CON_NOTIFY) {
+        token_create(ctx, &in_out_msg->token);
     }
+    assert(&in_out_msg->token.size);
+    init_msd_id(ctx, in_out_msg);
 
     exchange_param_init(ctx);
 
@@ -611,15 +646,18 @@ _anj_exchange_state_t _anj_exchange_process(_anj_exchange_ctx_t *ctx,
     assert(ctx && in_out_msg);
     assert(ctx->state == ANJ_EXCHANGE_STATE_WAITING_MSG
            || ctx->state == ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION);
-    // new message can't be processed when waiting for ack
+    // new message can't be processed when waiting for send confirmation
     assert(event != ANJ_EXCHANGE_EVENT_NEW_MSG
            || ctx->state != ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION);
-    // send ack can't be processed when waiting for message
+    // send confirmation can't be processed when waiting for message
     assert(event != ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION
            || ctx->state != ANJ_EXCHANGE_STATE_WAITING_MSG);
+#ifdef ANJ_WITH_CACHE
+    assert(ctx->cache == NULL || !ctx->cache->handling_retransmission);
+#endif // ANJ_WITH_CACHE
 
     if (ctx->state == ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION) {
-        handle_send_ack(ctx, event);
+        handle_send_confirmation(ctx, event);
 
         // used in case of separate response, the next request can
         // be sent because an empty response has been sent and no error has
@@ -627,7 +665,6 @@ _anj_exchange_state_t _anj_exchange_process(_anj_exchange_ctx_t *ctx,
         if (ctx->state == ANJ_EXCHANGE_STATE_WAITING_MSG
                 && ctx->request_prepared) {
             ctx->request_prepared = false;
-            ctx->separate_response = false;
             *in_out_msg = ctx->base_msg;
             ctx->state = ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION;
             reset_exchange_params(ctx);
@@ -643,7 +680,7 @@ _anj_exchange_state_t _anj_exchange_process(_anj_exchange_ctx_t *ctx,
             handle_server_response(ctx, in_out_msg);
         }
         if (ctx->state == ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION) {
-            ctx->send_ack_timeout_timestamp_ms =
+            ctx->send_confirmation_timeout_timestamp_ms =
                     anj_time_real_now()
                     + _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS;
             return ANJ_EXCHANGE_STATE_MSG_TO_SEND;
@@ -665,7 +702,7 @@ _anj_exchange_state_t _anj_exchange_process(_anj_exchange_ctx_t *ctx,
                         time_real_now
                         + (uint64_t) pow(2.0, (double) ctx->retry_count)
                                   * ctx->timeout_ms;
-                ctx->send_ack_timeout_timestamp_ms =
+                ctx->send_confirmation_timeout_timestamp_ms =
                         time_real_now + _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS;
                 exchange_log(L_WARNING, "timeout occurred, retrying");
                 ctx->state = ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION;
@@ -701,7 +738,7 @@ _anj_exchange_state_t _anj_exchange_get_state(_anj_exchange_ctx_t *ctx) {
 }
 
 int _anj_exchange_set_udp_tx_params(
-        _anj_exchange_ctx_t *ctx, const _anj_exchange_udp_tx_params_t *params) {
+        _anj_exchange_ctx_t *ctx, const anj_exchange_udp_tx_params_t *params) {
     assert(ctx && params);
     if (params->ack_random_factor < 1.0 || params->ack_timeout_ms < 1000) {
         exchange_log(L_ERROR, "invalid UDP TX params");
@@ -732,6 +769,26 @@ void _anj_exchange_init(_anj_exchange_ctx_t *ctx, unsigned int random_seed) {
     ctx->state = ANJ_EXCHANGE_STATE_FINISHED;
     ctx->tx_params = _ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT;
     ctx->server_exchange_timeout = _ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT_MS;
-    ctx->timeout_rand_seed = random_seed;
+    ctx->rand_seed = random_seed;
+    ctx->msg_id = (uint16_t) _anj_rand32_r(&random_seed);
     exchange_log(L_DEBUG, "context initialized");
 }
+
+#ifdef ANJ_WITH_CACHE
+void _anj_exchange_setup_cache(_anj_exchange_ctx_t *ctx,
+                               _anj_exchange_cache_t *cache) {
+    assert(ctx && cache);
+    ctx->cache = cache;
+#    ifdef ANJ_WITH_CACHE
+    // there is no uint16_t value for "invalid MID" so we invalidate expiration
+    // time
+    ctx->cache->cache_recent.expiration_time = ANJ_TIME_UNDEFINED;
+    ctx->cache->handling_retransmission = false;
+#        if ANJ_CACHE_ENTRIES_NUMBER > 1
+    for (uint8_t i = 0; i < ANJ_ARRAY_SIZE(ctx->cache->cache_non_recent); i++) {
+        ctx->cache->cache_non_recent[i].expiration_time = ANJ_TIME_UNDEFINED;
+    }
+#        endif // ANJ_CACHE_ENTRIES_NUMBER > 1
+#    endif     // ANJ_WITH_CACHE
+}
+#endif // ANJ_WITH_CACHE

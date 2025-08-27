@@ -7,49 +7,49 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_IO_H
-#define ANJ_IO_H
+#    define ANJ_IO_H
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-#include <anj/core.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
-#include "../coap/coap.h"
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /** Invalid input arguments. */
-#define _ANJ_IO_ERR_INPUT_ARG (-1)
+#    define _ANJ_IO_ERR_INPUT_ARG (-1)
 /** Invalid data type. */
-#define _ANJ_IO_ERR_IO_TYPE (-2)
+#    define _ANJ_IO_ERR_IO_TYPE (-2)
 /** Given format does not match the specified input data type. */
-#define _ANJ_IO_ERR_FORMAT (-3)
+#    define _ANJ_IO_ERR_FORMAT (-3)
 /** Given format is unsupported */
-#define _ANJ_IO_ERR_UNSUPPORTED_FORMAT (-4)
+#    define _ANJ_IO_ERR_UNSUPPORTED_FORMAT (-4)
 /** Invalid call. */
-#define _ANJ_IO_ERR_LOGIC (-5)
+#    define _ANJ_IO_ERR_LOGIC (-5)
 /** Given path is not consistent with the value of depth. */
-#define _ANJ_IO_WARNING_DEPTH (-6)
+#    define _ANJ_IO_WARNING_DEPTH (-6)
 
 /** There is no more data to return from an input context. */
-#define _ANJ_IO_EOF 1
+#    define _ANJ_IO_EOF 1
 /**
  * Available payload has been exhausted. Please call
  * @ref _anj_io_in_ctx_feed_payload again to continue parsing. If no more data
  * is available, this shall be treated as an error.
  */
-#define _ANJ_IO_WANT_NEXT_PAYLOAD 2
+#    define _ANJ_IO_WANT_NEXT_PAYLOAD 2
 /**
  * The payload format does not contain enough metadata to determine data type of
  * the resource. Please call @ref _anj_io_in_ctx_get_entry again with a concrete
  * data type specified.
  */
-#define _ANJ_IO_WANT_TYPE_DISAMBIGUATION 3
+#    define _ANJ_IO_WANT_TYPE_DISAMBIGUATION 3
 /**
  * Please call anj_io_XXX_ctx_get_payload function again, there is more
  * available data to be copied to the output buffer.
@@ -196,14 +196,14 @@ int _anj_io_out_ctx_get_payload(_anj_io_out_ctx_t *ctx,
  */
 uint16_t _anj_io_out_ctx_get_format(_anj_io_out_ctx_t *ctx);
 
-#ifdef ANJ_WITH_EXTERNAL_DATA
+#    ifdef ANJ_WITH_EXTERNAL_DATA
 /**
  * Invoke @ref anj_close_external_data_t callback for @p entry record.
  *
  * @param      entry        Single record.
  */
 void _anj_io_out_ctx_close_external_data_cb(const anj_io_out_entry_t *entry);
-#endif // ANJ_WITH_EXTERNAL_DATA
+#    endif // ANJ_WITH_EXTERNAL_DATA
 
 /**
  * Initializes @p ctx so that it can be used to parse incoming payload
@@ -601,7 +601,7 @@ int _anj_io_register_ctx_get_payload(_anj_io_register_ctx_t *ctx,
                                      size_t out_buff_len,
                                      size_t *out_copied_bytes);
 
-#ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
+#    ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
 /**
  * Must be called to prepare @p ctx to build message payload of the
  * BOOTSTRAP-DISCOVER operation. Information about supported version of LwM2M is
@@ -772,9 +772,9 @@ int _anj_io_bootstrap_discover_ctx_get_payload(
         size_t out_buff_len,
         size_t *out_copied_bytes);
 
-#endif // ANJ_WITH_BOOTSTRAP_DISCOVER
+#    endif // ANJ_WITH_BOOTSTRAP_DISCOVER
 
-#ifdef ANJ_WITH_DISCOVER
+#    ifdef ANJ_WITH_DISCOVER
 
 /**
  * Must be called to prepare @p ctx to build message payload of the DISCOVER
@@ -971,10 +971,10 @@ int _anj_io_discover_ctx_get_payload(_anj_io_discover_ctx_t *ctx,
                                      size_t out_buff_len,
                                      size_t *out_copied_bytes);
 
-#endif // ANJ_WITH_DISCOVER
+#    endif // ANJ_WITH_DISCOVER
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_IO_H

@@ -7,18 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/anj_config.h>
+#include <anj/init.h>
 
-#define ANJ_INTERNAL_INCLUDE_LOG_CONFIG_CHECK
-#include <anj_internal/log/log_config_check.h>
-#undef ANJ_INTERNAL_INCLUDE_LOG_CONFIG_CHECK
-
-#ifdef ANJ_LOG_USES_BUILTIN_HANDLER_IMPL
+#ifdef _ANJ_LOG_USES_BUILTIN_HANDLER_IMPL
 
 #    include <assert.h>
 #    include <stdarg.h>
 #    include <stdbool.h>
-#    include <stddef.h>
 #    include <stdio.h>
 
 #    include <anj/compat/log_impl_decls.h>
@@ -157,4 +152,4 @@ void anj_log_handler_output(const char *output, size_t len) {
     fputc('\n', stderr);
 }
 #    endif // ANJ_LOG_HANDLER_OUTPUT_STDERR
-#endif     // ANJ_LOG_USES_BUILTIN_HANDLER_IMPL
+#endif     // _ANJ_LOG_USES_BUILTIN_HANDLER_IMPL

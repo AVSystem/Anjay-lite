@@ -23,8 +23,7 @@ const anj_dm_obj_t *get_temperature_obj(void);
  * recorded values based on the new reading.
  *
  * @param anj Pointer to the Anjay Lite instance.
- * @param obj Pointer to the Temperature Object.
  */
-void update_sensor_value(anj_t *anj, const anj_dm_obj_t *obj);
+void update_temperature_obj_value(anj_t *anj);
 
 #endif // _TEMPERATURE_OBJ_H_

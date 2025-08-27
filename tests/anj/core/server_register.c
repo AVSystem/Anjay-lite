@@ -19,8 +19,9 @@
 #include <anj/dm/server_object.h>
 
 #include "../../src/anj/exchange.h"
-#include "net_api_mock.h"
-#include "time_api_mock.h"
+
+#include "../mock/net_api_mock.h"
+#include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
@@ -468,8 +469,8 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
 
     // check if hostname and port are correct provided in next connection calls
-    mock.hostname = NULL;
-    mock.port = NULL;
+    mock.hostname[0] = '\0';
+    mock.port[0] = '\0';
 
     // fifth register try - finally success
     set_mock_time_advance(&actual_time, 2);
@@ -643,7 +644,7 @@ ANJ_UNIT_TEST(server_register, register_corrupted_coap_msg) {
 
 ANJ_UNIT_TEST(server_register, register_retransmisions) {
     EXTENDED_INIT();
-    _anj_exchange_udp_tx_params_t test_params = {
+    anj_exchange_udp_tx_params_t test_params = {
         .max_retransmit = 2,
         .ack_random_factor = 1.01,
         .ack_timeout_ms = 5000

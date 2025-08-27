@@ -7,18 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_IO_TEXT_DECODER_H
-#define SRC_ANJ_IO_TEXT_DECODER_H
+#    define SRC_ANJ_IO_TEXT_DECODER_H
 
-#include <stdbool.h>
-#include <stddef.h>
+#    include <stdbool.h>
+#    include <stddef.h>
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
-#include "io.h"
-
-#ifdef ANJ_WITH_PLAINTEXT
+#    ifdef ANJ_WITH_PLAINTEXT
 
 int _anj_text_decoder_init(_anj_io_in_ctx_t *ctx,
                            const anj_uri_path_t *request_uri);
@@ -35,6 +35,6 @@ int _anj_text_decoder_get_entry(_anj_io_in_ctx_t *ctx,
 
 int _anj_text_decoder_get_entry_count(_anj_io_in_ctx_t *ctx, size_t *out_count);
 
-#endif // ANJ_WITH_PLAINTEXT
+#    endif // ANJ_WITH_PLAINTEXT
 
 #endif // SRC_ANJ_IO_TEXT_DECODER_H

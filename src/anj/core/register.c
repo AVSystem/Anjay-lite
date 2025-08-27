@@ -7,20 +7,17 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
-#include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/log/log.h>
 
-#include "../coap/coap.h"
 #include "../dm/dm_integration.h"
-#include "../dm/dm_io.h"
-#include "../exchange.h"
 #include "register.h"
 
 #define register_log(...) anj_log(register, __VA_ARGS__)

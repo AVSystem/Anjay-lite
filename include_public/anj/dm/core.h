@@ -7,45 +7,47 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_CORE_H
-#define ANJ_DM_CORE_H
+#    define ANJ_DM_CORE_H
 
-#include <anj/core.h>
-#include <anj/defs.h>
-#include <anj/dm/defs.h>
+#    include <anj/defs.h>
+#    include <anj/dm/defs.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /** Error values that may be returned from data model handlers. @{ */
 /**
  * Request sent by the LwM2M Server was malformed or contained an invalid
  * value.
  */
-#define ANJ_DM_ERR_BAD_REQUEST (-(int) ANJ_COAP_CODE_BAD_REQUEST)
+#    define ANJ_DM_ERR_BAD_REQUEST (-(int) ANJ_COAP_CODE_BAD_REQUEST)
 /**
  * LwM2M Server is not allowed to perform the operation due to lack of
  * necessary access rights.
  */
-#define ANJ_DM_ERR_UNAUTHORIZED (-(int) ANJ_COAP_CODE_UNAUTHORIZED)
+#    define ANJ_DM_ERR_UNAUTHORIZED (-(int) ANJ_COAP_CODE_UNAUTHORIZED)
 /** Target of the operation (Object/Instance/Resource) does not exist. */
-#define ANJ_DM_ERR_NOT_FOUND (-(int) ANJ_COAP_CODE_NOT_FOUND)
+#    define ANJ_DM_ERR_NOT_FOUND (-(int) ANJ_COAP_CODE_NOT_FOUND)
 /**
  * Operation is not allowed in current device state or the attempted operation
  * is invalid for this target (Object/Instance/Resource)
  */
-#define ANJ_DM_ERR_METHOD_NOT_ALLOWED (-(int) ANJ_COAP_CODE_METHOD_NOT_ALLOWED)
+#    define ANJ_DM_ERR_METHOD_NOT_ALLOWED \
+        (-(int) ANJ_COAP_CODE_METHOD_NOT_ALLOWED)
 /** Unspecified error, no other error code was suitable. */
-#define ANJ_DM_ERR_INTERNAL (-(int) ANJ_COAP_CODE_INTERNAL_SERVER_ERROR)
+#    define ANJ_DM_ERR_INTERNAL (-(int) ANJ_COAP_CODE_INTERNAL_SERVER_ERROR)
 /** Operation is not implemented by the LwM2M Client. */
-#define ANJ_DM_ERR_NOT_IMPLEMENTED (-(int) ANJ_COAP_CODE_NOT_IMPLEMENTED)
+#    define ANJ_DM_ERR_NOT_IMPLEMENTED (-(int) ANJ_COAP_CODE_NOT_IMPLEMENTED)
 /**
  * LwM2M Client is busy processing some other request; LwM2M Server may retry
  * sending the same request after some delay.
  */
-#define ANJ_DM_ERR_SERVICE_UNAVAILABLE \
-    (-(int) ANJ_COAP_CODE_SERVICE_UNAVAILABLE)
+#    define ANJ_DM_ERR_SERVICE_UNAVAILABLE \
+        (-(int) ANJ_COAP_CODE_SERVICE_UNAVAILABLE)
 /** @} */
 
 /**
@@ -190,12 +192,12 @@ int anj_dm_write_string_chunked(const anj_res_value_t *value,
  */
 void anj_dm_bootstrap_cleanup(anj_t *anj);
 
-#define ANJ_INTERNAL_INCLUDE_DM_DEFS
-#include <anj_internal/dm/defs.h>
-#undef ANJ_INTERNAL_INCLUDE_DM_DEFS
+#    define ANJ_INTERNAL_INCLUDE_DM_DEFS
+#    include <anj_internal/dm/defs.h>
+#    undef ANJ_INTERNAL_INCLUDE_DM_DEFS
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DM_CORE_H

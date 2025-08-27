@@ -26,6 +26,11 @@ To help with this process, Anjay Lite includes tutorial examples featuring minim
    NetworkingAPI/MinimalSocketImplementation
    NetworkingAPI/ReuseLastPort
 
+.. note::
+   For practical guidance, see the :ref:`integrations` section, 
+   which features example implementations of custom networking layers for various platforms. 
+   Explore these sections to find platform-specific tips and ready-to-use code samples that can help accelerate your porting process.
+
 Functions to implement
 ----------------------
 

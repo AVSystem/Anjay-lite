@@ -7,28 +7,29 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_SERVER_OBJ_H
-#define ANJ_DM_SERVER_OBJ_H
+#    define ANJ_DM_SERVER_OBJ_H
 
-#include <stddef.h>
-#include <stdint.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-#include <anj/core.h>
-#include <anj/defs.h>
-#include <anj/dm/core.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
+#    include <anj/dm/core.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
-#ifdef ANJ_WITH_DEFAULT_SERVER_OBJ
+#    ifdef ANJ_WITH_DEFAULT_SERVER_OBJ
 
-#    ifdef ANJ_WITH_LWM2M12
-#        define ANJ_DM_SERVER_OBJ_BINDINGS "UMHTSN"
-#    else // ANJ_WITH_LWM2M12
-#        define ANJ_DM_SERVER_OBJ_BINDINGS "UTSN"
-#    endif // ANJ_WITH_LWM2M12
+#        ifdef ANJ_WITH_LWM2M12
+#            define ANJ_DM_SERVER_OBJ_BINDINGS "UMHTSN"
+#        else // ANJ_WITH_LWM2M12
+#            define ANJ_DM_SERVER_OBJ_BINDINGS "UTSN"
+#        endif // ANJ_WITH_LWM2M12
 
 /*
  * Server Object Instance context, used to store Instance specific data, don't
@@ -131,10 +132,10 @@ int anj_dm_server_obj_add_instance(
  */
 int anj_dm_server_obj_install(anj_t *anj, anj_dm_server_obj_t *server_obj_ctx);
 
-#endif // ANJ_WITH_DEFAULT_SERVER_OBJ
+#    endif // ANJ_WITH_DEFAULT_SERVER_OBJ
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DM_SERVER_OBJ_H

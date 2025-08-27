@@ -5,7 +5,7 @@
 # Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
 # See the attached LICENSE file for details.
 
-cmake_minimum_required(VERSION 3.6.0)
+cmake_minimum_required(VERSION 3.16.0)
 
 project(coap_tests C)
 
@@ -22,6 +22,8 @@ set(ANJ_COAP_WITH_TCP ON)
 set(ANJ_WITH_LWM2M12 ON)
 set(ANJ_COAP_MAX_ATTR_OPTION_SIZE 50)
 
+set(ANJ_WITH_COAP_DOWNLOADER ON)
+
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
@@ -34,11 +36,3 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../framework"
 
 target_link_libraries(coap_tests PRIVATE anj)
 target_link_libraries(coap_tests PRIVATE test_framework)
-
-if (ANJ_IWYU_PATH)
-    # Below OBJECT library is used only for iwyu checks
-    add_library(coap_tests_iwyu OBJECT ${coap_tests_sources})
-    target_include_directories(coap_tests_iwyu PRIVATE
-        $<TARGET_PROPERTY:coap_tests,INCLUDE_DIRECTORIES>)
-    use_iwyu_if_enabled(coap_tests_iwyu)
-endif ()

@@ -7,41 +7,34 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DEFS_H
-#define ANJ_DEFS_H
+#    define ANJ_DEFS_H
 
-#include <assert.h>
-#include <math.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdlib.h>
+#    include <assert.h>
+#    include <math.h>
+#    include <stdbool.h>
+#    include <stdint.h>
+#    include <stdlib.h>
 
-#include <anj/anj_config.h>
-
-#if defined(ANJ_WITH_LWM2M_CBOR) && !defined(ANJ_WITH_LWM2M12)
-#    error "ANJ_WITH_LWM2M_CBOR requires ANJ_WITH_LWM2M12 enabled"
-#endif // defined(ANJ_WITH_LWM2M_CBOR) && !defined(ANJ_WITH_LWM2M12)
-
-#if !defined(ANJ_WITH_SENML_CBOR) && !defined(ANJ_WITH_LWM2M_CBOR)
-#    error "At least one of ANJ_WITH_SENML_CBOR or ANJ_WITH_LWM2M_CBOR must be enabled."
-#endif // !defined(ANJ_WITH_SENML_CBOR) && !defined(ANJ_WITH_LWM2M_CBOR)
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /**
  * Macros used for constructing/parsing CoAP codes.
  *
  */
-#define ANJ_COAP_CODE_CLASS_MASK 0xE0
-#define ANJ_COAP_CODE_CLASS_SHIFT 5
-#define ANJ_COAP_CODE_DETAIL_MASK 0x1F
-#define ANJ_COAP_CODE_DETAIL_SHIFT 0
+#    define ANJ_COAP_CODE_CLASS_MASK 0xE0
+#    define ANJ_COAP_CODE_CLASS_SHIFT 5
+#    define ANJ_COAP_CODE_DETAIL_MASK 0x1F
+#    define ANJ_COAP_CODE_DETAIL_SHIFT 0
 
-#define ANJ_COAP_CODE(cls, detail)                                     \
-    ((((cls) << ANJ_COAP_CODE_CLASS_SHIFT) & ANJ_COAP_CODE_CLASS_MASK) \
-     | (((detail) << ANJ_COAP_CODE_DETAIL_SHIFT) & ANJ_COAP_CODE_DETAIL_MASK))
+#    define ANJ_COAP_CODE(cls, detail)                                     \
+        ((((cls) << ANJ_COAP_CODE_CLASS_SHIFT) & ANJ_COAP_CODE_CLASS_MASK) \
+         | (((detail) << ANJ_COAP_CODE_DETAIL_SHIFT)                       \
+            & ANJ_COAP_CODE_DETAIL_MASK))
 
 /**
  * @anchor anj_coap_code_constants
@@ -97,29 +90,29 @@ extern "C" {
 #define ANJ_COAP_CODE_ABORT    ANJ_COAP_CODE(7, 5)
 // clang-format on
 
-#define ANJ_OBJ_ID_SECURITY 0U
-#define ANJ_OBJ_ID_SERVER 1U
-#define ANJ_OBJ_ID_ACCESS_CONTROL 2U
-#define ANJ_OBJ_ID_DEVICE 3U
-#define ANJ_OBJ_ID_FIRMWARE_UPDATE 5U
-#define ANJ_OBJ_ID_OSCORE 21U
+#    define ANJ_OBJ_ID_SECURITY 0U
+#    define ANJ_OBJ_ID_SERVER 1U
+#    define ANJ_OBJ_ID_ACCESS_CONTROL 2U
+#    define ANJ_OBJ_ID_DEVICE 3U
+#    define ANJ_OBJ_ID_FIRMWARE_UPDATE 5U
+#    define ANJ_OBJ_ID_OSCORE 21U
 
 /** The values below do not include the terminating null character */
-#define ANJ_I64_STR_MAX_LEN (sizeof("-9223372036854775808") - 1)
-#define ANJ_U16_STR_MAX_LEN (sizeof("65535") - 1)
-#define ANJ_U32_STR_MAX_LEN (sizeof("4294967295") - 1)
-#define ANJ_U64_STR_MAX_LEN (sizeof("18446744073709551615") - 1)
-#define ANJ_DOUBLE_STR_MAX_LEN (sizeof("-2.2250738585072014E-308") - 1)
+#    define ANJ_I64_STR_MAX_LEN (sizeof("-9223372036854775808") - 1)
+#    define ANJ_U16_STR_MAX_LEN (sizeof("65535") - 1)
+#    define ANJ_U32_STR_MAX_LEN (sizeof("4294967295") - 1)
+#    define ANJ_U64_STR_MAX_LEN (sizeof("18446744073709551615") - 1)
+#    define ANJ_DOUBLE_STR_MAX_LEN (sizeof("-2.2250738585072014E-308") - 1)
 
-#define ANJ_ATTR_UINT_NONE (UINT32_MAX)
-#define ANJ_ATTR_DOUBLE_NONE (NAN)
+#    define ANJ_ATTR_UINT_NONE (UINT32_MAX)
+#    define ANJ_ATTR_DOUBLE_NONE (NAN)
 
 /**
  * Can be returned by @ref anj_get_external_data_t to inform the library that
  * this callback should be invoked again; it is also used internally - do not
  * modify this value!
  */
-#define ANJ_IO_NEED_NEXT_CALL 4
+#    define ANJ_IO_NEED_NEXT_CALL 4
 
 /** Object ID */
 typedef uint16_t anj_oid_t;
@@ -139,26 +132,35 @@ typedef uint16_t anj_riid_t;
  */
 typedef struct anj_struct anj_t;
 
+#    ifdef ANJ_WITH_COAP_DOWNLOADER
+/**
+ * Forward declaration of anj_coap_downloader_struct, which represents an object
+ * containing all statically allocated memory used by the Anjay Lite CoAP
+ * downloader module.
+ */
+typedef struct anj_coap_downloader_struct anj_coap_downloader_t;
+#    endif // ANJ_WITH_COAP_DOWNLOADER
+
 /**
  * LWM2M Server URI maximum size - as defined in LwM2M spec
  */
-#define ANJ_SERVER_URI_MAX_SIZE 255
+#    define ANJ_SERVER_URI_MAX_SIZE 255
 
 /**
  * Default value for the Disable Timeout resource in the Server Object
  */
-#define ANJ_DISABLE_TIMEOUT_DEFAULT_VALUE 86400
+#    define ANJ_DISABLE_TIMEOUT_DEFAULT_VALUE 86400
 
 /**
  * Default values for the communication retry mechanism resources.
  */
-#define ANJ_COMMUNICATION_RETRY_RES_DEFAULT \
-    (anj_communication_retry_res_t) {       \
-        .retry_count = 5,                   \
-        .retry_timer = 60,                  \
-        .seq_delay_timer = 24 * 60 * 60,    \
-        .seq_retry_count = 1                \
-    }
+#    define ANJ_COMMUNICATION_RETRY_RES_DEFAULT \
+        (anj_communication_retry_res_t) {       \
+            .retry_count = 5,                   \
+            .retry_timer = 60,                  \
+            .seq_delay_timer = 24 * 60 * 60,    \
+            .seq_retry_count = 1                \
+        }
 
 /** Communication retry mechanism resources from Server Object */
 typedef struct {
@@ -171,6 +173,22 @@ typedef struct {
     /** Communication Sequence Retry Count: RID=20 */
     uint16_t seq_retry_count;
 } anj_communication_retry_res_t;
+
+/**
+ * CoAP transmission params object.
+ *
+ * For LwM2M client requests, the timeout is random duration between
+ * ack_timeout_ms and ack_timeout_ms * ack_random_factor. For default values it
+ * is range from 2 to 3 seconds. Each retransmission doubles the timeout value.
+ */
+typedef struct {
+    /** RFC 7252: ACK_TIMEOUT */
+    uint64_t ack_timeout_ms;
+    /** RFC 7252: ACK_RANDOM_FACTOR */
+    double ack_random_factor;
+    /** RFC 7252: MAX_RETRANSMIT */
+    uint16_t max_retransmit;
+} anj_exchange_udp_tx_params_t;
 
 /**
  * Enumeration of identifiers used to index the @ref anj_uri_path_t.ids
@@ -208,13 +226,16 @@ typedef uint16_t anj_data_type_t;
  * - when parsing a SenML-ETCH JSON/CBOR payload for a Write-Composite operation
  *   and an entry without a value, requesting a removal of a specific Resource
  *   Instance, is encountered
+ * - when parsing a LwM2M CBOR or SenML-ETCH JSON/CBOR payload for a
+ *   Write-Composite operation and an entry with NULL value, requesting a
+ *   removal of a specific Resource Instance, is encountered
  * - when parsing a TLV or LwM2M CBOR payload and an aggregate (e.g. Object
  *   Instance or a multi-instance Resource) with zero nested elements is
  *   encountered
  *
  * @ref anj_res_value_t is not used for null data.
  */
-#define ANJ_DATA_TYPE_NULL ((anj_data_type_t) 0)
+#    define ANJ_DATA_TYPE_NULL ((anj_data_type_t) 0)
 
 /**
  * "Opaque" data type, as defined in Appendix C of the LwM2M spec.
@@ -222,7 +243,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>bytes_or_string</c> field of @ref anj_res_value_t is used to pass the
  * actual data.
  */
-#define ANJ_DATA_TYPE_BYTES ((anj_data_type_t) (1 << 0))
+#    define ANJ_DATA_TYPE_BYTES ((anj_data_type_t) (1 << 0))
 
 /**
  * "String" data type, as defined in Appendix C of the LwM2M spec.
@@ -233,7 +254,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>bytes_or_string</c> field of @ref anj_res_value_t is used to pass the
  * actual data.
  */
-#define ANJ_DATA_TYPE_STRING ((anj_data_type_t) (1 << 1))
+#    define ANJ_DATA_TYPE_STRING ((anj_data_type_t) (1 << 1))
 
 /**
  * "Integer" data type, as defined in Appendix C of the LwM2M spec.
@@ -241,7 +262,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>int_value</c> field of @ref anj_res_value_t is used to pass the
  * actual data.
  */
-#define ANJ_DATA_TYPE_INT ((anj_data_type_t) (1 << 2))
+#    define ANJ_DATA_TYPE_INT ((anj_data_type_t) (1 << 2))
 
 /**
  * "Float" data type, as defined in Appendix C of the LwM2M spec.
@@ -249,7 +270,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>double_value</c> field of @ref anj_res_value_t is used to pass the
  * actual data.
  */
-#define ANJ_DATA_TYPE_DOUBLE ((anj_data_type_t) (1 << 3))
+#    define ANJ_DATA_TYPE_DOUBLE ((anj_data_type_t) (1 << 3))
 
 /**
  * "Boolean" data type, as defined in Appendix C of the LwM2M spec.
@@ -257,7 +278,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>bool_value</c> field of @ref anj_res_value_t is used to pass the
  * actual data.
  */
-#define ANJ_DATA_TYPE_BOOL ((anj_data_type_t) (1 << 4))
+#    define ANJ_DATA_TYPE_BOOL ((anj_data_type_t) (1 << 4))
 
 /**
  * "Objlnk" data type, as defined in Appendix C of the LwM2M spec.
@@ -265,7 +286,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>objlnk</c> field of @ref anj_res_value_t is used to pass the actual
  * data.
  */
-#define ANJ_DATA_TYPE_OBJLNK ((anj_data_type_t) (1 << 5))
+#    define ANJ_DATA_TYPE_OBJLNK ((anj_data_type_t) (1 << 5))
 
 /**
  * "Unsigned Integer" data type, as defined in Appendix C of the LwM2M spec.
@@ -273,7 +294,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>uint_value</c> field of @ref anj_res_value_t is used to pass the
  * actual data.
  */
-#define ANJ_DATA_TYPE_UINT ((anj_data_type_t) (1 << 6))
+#    define ANJ_DATA_TYPE_UINT ((anj_data_type_t) (1 << 6))
 
 /**
  * "Time" data type, as defined in Appendix C of the LwM2M spec.
@@ -281,7 +302,7 @@ typedef uint16_t anj_data_type_t;
  * The <c>time_value</c> field of @ref anj_res_value_t is used to pass the
  * actual data.
  */
-#define ANJ_DATA_TYPE_TIME ((anj_data_type_t) (1 << 7))
+#    define ANJ_DATA_TYPE_TIME ((anj_data_type_t) (1 << 7))
 
 /**
  * When a bit mask of data types is applicable, this constant can be used to
@@ -291,13 +312,13 @@ typedef uint16_t anj_data_type_t;
  * ANJ_DATA_TYPE_FLAG_EXTERNAL, and that @ref ANJ_DATA_TYPE_NULL, having
  * a numeric value of 0, does not participate in bit masks.
  */
-#define ANJ_DATA_TYPE_ANY                                           \
-    ((anj_data_type_t) (ANJ_DATA_TYPE_BYTES | ANJ_DATA_TYPE_STRING  \
-                        | ANJ_DATA_TYPE_INT | ANJ_DATA_TYPE_DOUBLE  \
-                        | ANJ_DATA_TYPE_BOOL | ANJ_DATA_TYPE_OBJLNK \
-                        | ANJ_DATA_TYPE_UINT | ANJ_DATA_TYPE_TIME))
+#    define ANJ_DATA_TYPE_ANY                                           \
+        ((anj_data_type_t) (ANJ_DATA_TYPE_BYTES | ANJ_DATA_TYPE_STRING  \
+                            | ANJ_DATA_TYPE_INT | ANJ_DATA_TYPE_DOUBLE  \
+                            | ANJ_DATA_TYPE_BOOL | ANJ_DATA_TYPE_OBJLNK \
+                            | ANJ_DATA_TYPE_UINT | ANJ_DATA_TYPE_TIME))
 
-#ifdef ANJ_WITH_EXTERNAL_DATA
+#    ifdef ANJ_WITH_EXTERNAL_DATA
 /**
  * A flag that can be OR-ed with either @ref ANJ_DATA_TYPE_BYTES or
  * @ref ANJ_DATA_TYPE_STRING to indicate that the data is provided
@@ -317,7 +338,7 @@ typedef uint16_t anj_data_type_t;
  * CBOR or SenML CBOR), data is automatically encoded as an Indefinite-Length
  * String, split into chunks of up to 23 bytes.
  */
-#    define ANJ_DATA_TYPE_FLAG_EXTERNAL ((anj_data_type_t) (1 << 15))
+#        define ANJ_DATA_TYPE_FLAG_EXTERNAL ((anj_data_type_t) (1 << 15))
 
 /**
  * "Opaque" data type, as defined in Appendix C of the LwM2M specification,
@@ -326,8 +347,9 @@ typedef uint16_t anj_data_type_t;
  * The @p external_data field of @ref anj_res_value_t is used to supply the
  * data.
  */
-#    define ANJ_DATA_TYPE_EXTERNAL_BYTES \
-        ((anj_data_type_t) (ANJ_DATA_TYPE_BYTES | ANJ_DATA_TYPE_FLAG_EXTERNAL))
+#        define ANJ_DATA_TYPE_EXTERNAL_BYTES        \
+            ((anj_data_type_t) (ANJ_DATA_TYPE_BYTES \
+                                | ANJ_DATA_TYPE_FLAG_EXTERNAL))
 
 /**
  * "String" data type, as defined in Appendix C of the LwM2M specification,
@@ -336,8 +358,9 @@ typedef uint16_t anj_data_type_t;
  * The @p external_data field of @ref anj_res_value_t is used to supply the
  * data.
  */
-#    define ANJ_DATA_TYPE_EXTERNAL_STRING \
-        ((anj_data_type_t) (ANJ_DATA_TYPE_STRING | ANJ_DATA_TYPE_FLAG_EXTERNAL))
+#        define ANJ_DATA_TYPE_EXTERNAL_STRING        \
+            ((anj_data_type_t) (ANJ_DATA_TYPE_STRING \
+                                | ANJ_DATA_TYPE_FLAG_EXTERNAL))
 
 /**
  * A handler used to retrieve string or binary data from an external source.
@@ -402,7 +425,7 @@ typedef int anj_open_external_data_t(void *user_args);
  *                            application.
  */
 typedef void anj_close_external_data_t(void *user_args);
-#endif // ANJ_WITH_EXTERNAL_DATA
+#    endif // ANJ_WITH_EXTERNAL_DATA
 
 /**
  * Represents a (possibly partial) string or opaque value.
@@ -472,7 +495,7 @@ typedef union {
      */
     anj_bytes_or_string_value_t bytes_or_string;
 
-#ifdef ANJ_WITH_EXTERNAL_DATA
+#    ifdef ANJ_WITH_EXTERNAL_DATA
     /**
      * Configuration for resources that use an external data callback.
      *
@@ -515,7 +538,7 @@ typedef union {
          */
         void *user_args;
     } external_data;
-#endif // ANJ_WITH_EXTERNAL_DATA
+#    endif // ANJ_WITH_EXTERNAL_DATA
 
     /**
      * Integer value, valid when the underlying data type is
@@ -576,8 +599,8 @@ typedef struct anj_io_out_entry_struct {
     double timestamp;
 } anj_io_out_entry_t;
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DEFS_H

@@ -6,6 +6,9 @@
  * Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
  * See the attached LICENSE file for details.
  */
+
+#include <anj/init.h>
+
 #include <ctype.h>
 #include <float.h>
 #if defined(__GNUC__) && defined(__arm__) && defined(__ARM_ARCH)
@@ -13,14 +16,14 @@
 // https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=1067692
 #    include <sys/_stdint.h>
 #endif // defined(__GNUC__) && defined(__arm__) && defined(__ARM_ARCH)
-#include <inttypes.h>
+#include <inttypes.h> // IWYU pragma: keep
 #include <math.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/defs.h>
+#include <anj/log/log.h>
 #include <anj/utils.h>
 
 #include "utils.h"
@@ -75,6 +78,17 @@ bool anj_uri_path_increasing(const anj_uri_path_t *previous_path,
         }
     }
     return previous_path->uri_len < current_path->uri_len;
+}
+
+bool _anj_uri_path_to_security_or_oscore_obj(const anj_uri_path_t *path) {
+    assert(path);
+    if (anj_uri_path_has(path, ANJ_ID_OID)
+            && (path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_SECURITY
+                || path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_OSCORE)) {
+        anj_log(utils, L_ERROR, "Can't access this object");
+        return true;
+    }
+    return false;
 }
 
 bool _anj_tokens_equal(const _anj_coap_token_t *left,

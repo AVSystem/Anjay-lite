@@ -904,6 +904,7 @@ ANJ_UNIT_TEST(server_requests, read_operation_with_timeout) {
         .payload_size = 0,
         .content_format = _ANJ_COAP_FORMAT_NOT_DEFINED
     };
+    set_mock_time(0);
     _anj_exchange_ctx_t ctx;
     _anj_exchange_init(&ctx, 0);
     _anj_exchange_set_server_request_timeout(&ctx, 10000);
@@ -1164,14 +1165,14 @@ ANJ_UNIT_TEST(server_requests, read_with_interruption) {
     _anj_coap_msg_t new_req = msg;
     new_req.operation = ANJ_OP_DM_DISCOVER;
     new_req.token.size = 1;
-    new_req.coap_binding_data.udp.message_id = 0x3333;
+    new_req.coap_binding_data.udp.message_id = 0x3334;
     new_req.token.bytes[0] = 1;
     new_req.msg_code = ANJ_COAP_CODE_GET;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &new_req),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     uint8_t expected_ack[] =
             "\x61"         // ACK, tkl 1
-            "\xA3\x33\x33" // ANJ_COAP_CODE_SERVICE_UNAVAILABLE, msg id
+            "\xA3\x33\x34" // ANJ_COAP_CODE_SERVICE_UNAVAILABLE, msg id
             "\x01";        // token
     verify_payload(expected_ack, sizeof(expected_ack) - 1, &new_req);
 
@@ -1298,143 +1299,6 @@ ANJ_UNIT_TEST(server_requests, write_operation_with_block_mismatch) {
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
                                     &msg_with_mismatch),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
-
-    msg = process_block_write(&ctx, false, 2, 0x2223, 2);
-    uint8_t expected3[] = "\x61"          // ACK, tkl 1
-                          "\x44"          // Changed
-                          "\x22\x23\x02"  // msg id, token
-                          "\xd1\x0e\x20"; // block1 2
-    verify_payload(expected3, sizeof(expected3) - 1, &msg);
-
-    ASSERT_EQ(handlers_arg.read_counter, 1);
-    ASSERT_EQ(handlers_arg.write_counter, 3);
-    ASSERT_EQ(handlers_arg.complete_counter, 1);
-    ASSERT_EQ(handlers_arg.result, 0);
-    ASSERT_EQ(handlers_arg.buff_offset, 48);
-    ASSERT_EQ(handlers_arg.last_block, true);
-    ASSERT_EQ_BYTES_SIZED(handlers_arg.buff,
-                          "123456781234567811111111222222221111111122222222",
-                          handlers_arg.buff_offset);
-}
-
-// Test: Read operation with block response and retransmission.
-// Server doesn't get response from client, so it retransmits the
-// second request. We have to respond with the same ACK message.
-// read_payload_handler must not be called additional times.
-// Server LwM2M         |                    Client LwM2M
-// ------------------------------------------------------
-// READ            ---->
-//                       <---- 2.05 Content block2 0 more
-// READ block2 1   ---->
-//                       <---- 2.05 Content block2 0 more
-// READ block2 1   ---->
-//                       <---- 2.05 Content block2 1 more
-// READ block2 2   ---->
-//                       <---- 2.05 Content block2 2
-ANJ_UNIT_TEST(server_requests, read_operation_with_block_and_retransmission) {
-    handlers_arg_t handlers_arg = { 0 };
-    _anj_exchange_handlers_t handlers = {
-        .arg = &handlers_arg,
-        .write_payload = write_payload_handler,
-        .read_payload = read_payload_handler,
-        .completion = exchange_completion_handler
-    };
-    handlers_arg.out_payload_len = 16;
-    handlers_arg.out_payload = "1234567812345678";
-    handlers_arg.out_format = _ANJ_COAP_FORMAT_CBOR;
-    handlers_arg.ret_val = _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED;
-    TEST_INIT(ANJ_OP_DM_READ, ANJ_COAP_CODE_CONTENT,
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND, false, false);
-
-    uint8_t expected[] =
-            "\x61"         // ACK, tkl 1
-            "\x45"         // Content
-            "\x33\x33\x01" // msg id, token
-            "\xC1\x3C"     // content_format: cbor
-            "\xB1\x08"     // block2 0, size 16, more
-            "\xFF"
-            "\x31\x32\x33\x34\x35\x36\x37\x38\x31\x32\x33\x34\x35\x36\x37\x38";
-    verify_payload(expected, sizeof(expected) - 1, &msg);
-
-    msg = process_block_read(&ctx, ANJ_OP_DM_READ, true, 1, 0x2222);
-    uint8_t expected2[] =
-            "\x61"         // ACK, tkl 1
-            "\x45"         // Content
-            "\x22\x22\x02" // msg id, token
-            "\xC1\x3C"     // content_format: cbor
-            "\xB1\x18"     // block2 1, size 16, more
-            "\xFF"
-            "\x31\x32\x33\x34\x35\x36\x37\x38\x31\x32\x33\x34\x35\x36\x37\x38";
-    verify_payload(expected2, sizeof(expected2) - 1, &msg);
-
-    // retransmit the same request
-    msg = process_block_read(&ctx, ANJ_OP_DM_READ, true, 1, 0x2222);
-    verify_payload(expected2, sizeof(expected2) - 1, &msg);
-
-    handlers_arg.ret_val = 0;
-    msg = process_block_read(&ctx, ANJ_OP_DM_READ, false, 2, 0x2223);
-    uint8_t expected3[] =
-            "\x61"         // ACK, tkl 1
-            "\x45"         // Content
-            "\x22\x23\x02" // msg id, token
-            "\xC1\x3C"     // content_format: cbor
-            "\xB1\x20"     // block2 2, size 16
-            "\xFF"
-            "\x31\x32\x33\x34\x35\x36\x37\x38\x31\x32\x33\x34\x35\x36\x37\x38";
-    verify_payload(expected3, sizeof(expected3) - 1, &msg);
-
-    ASSERT_EQ(handlers_arg.read_counter, 3);
-    ASSERT_EQ(handlers_arg.write_counter, 0);
-    ASSERT_EQ(handlers_arg.complete_counter, 1);
-    ASSERT_EQ(handlers_arg.result, 0);
-}
-
-// Test: Write operation with block transfer and retransmission.
-// Server doesn't get response from client, so it retransmits the first request
-// twice. write_payload_handler must not be called additional times.
-// Server LwM2M             |                    Client LwM2M
-// ----------------------------------------------------------
-// WRITE block1 0 more ---->
-//                          <---- 2.05 Continue block1 0 more
-// WRITE block1 0 more ---->
-//                          <---- 2.05 Continue block1 0 more
-// WRITE block1 0 more ---->
-//                          <---- 2.05 Continue block1 0 more
-// WRITE block1 1 more ---->
-//                          <---- 2.05 Continue block1 1 more
-// WRITE block1 2      ---->
-//                          <---- 2.05 Changed block1 2
-ANJ_UNIT_TEST(server_requests, write_operation_with_block_and_retransmission) {
-    handlers_arg_t handlers_arg = { 0 };
-    _anj_exchange_handlers_t handlers = {
-        .arg = &handlers_arg,
-        .write_payload = write_payload_handler,
-        .read_payload = read_payload_handler,
-        .completion = exchange_completion_handler
-    };
-    handlers_arg.ret_val = 0;
-    TEST_INIT(ANJ_OP_DM_WRITE_REPLACE, ANJ_COAP_CODE_CHANGED,
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND, true, true);
-    uint8_t expected[] = "\x61"          // ACK, tkl 1
-                         "\x5F"          // Continue
-                         "\x33\x33\x01"  // msg id, token
-                         "\xd1\x0e\x08"; // block1 0 more
-    verify_payload(expected, sizeof(expected) - 1, &msg);
-    ASSERT_EQ(handlers_arg.last_block, false);
-
-    // retransmit the same request twice
-    msg = process_block_write(&ctx, true, 0, 0x3333, 1);
-    verify_payload(expected, sizeof(expected) - 1, &msg);
-    msg = process_block_write(&ctx, true, 0, 0x3333, 1);
-    verify_payload(expected, sizeof(expected) - 1, &msg);
-
-    msg = process_block_write(&ctx, true, 1, 0x2222, 2);
-    uint8_t expected2[] = "\x61"          // ACK, tkl 1
-                          "\x5F"          // Continue
-                          "\x22\x22\x02"  // msg id, token
-                          "\xd1\x0e\x18"; // block1 1 more
-    verify_payload(expected2, sizeof(expected2) - 1, &msg);
-    ASSERT_EQ(handlers_arg.last_block, false);
 
     msg = process_block_write(&ctx, false, 2, 0x2223, 2);
     uint8_t expected3[] = "\x61"          // ACK, tkl 1

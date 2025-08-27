@@ -47,7 +47,7 @@ the Client or the Server. The state machine relies on two key resources:
 - Update Result Resource (/5/0/5) — stores the result of the last download or
   update attempt.
 
-Anjay Lite’s Firmware Update API handles the protocol logic behind the state
+Anjay Lite's Firmware Update API handles the protocol logic behind the state
 machine. As a developer, you only need to implement the I/O operations,
 verification, and firmware application logic.
 
@@ -73,7 +73,7 @@ The update process typically follows these steps:
 	- Sends the firmware directly to the Client using the `Package` resource
 	  (`/5/0/0`).
 
-	In both cases, the Client acts only in response to the Server’s request.
+	In both cases, the Client acts only in response to the Server's request.
 
 Firmware Update modes
 ^^^^^^^^^^^^^^^^^^^^^

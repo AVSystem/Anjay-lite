@@ -7,19 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_IO_INTERNAL_H
-#define SRC_ANJ_IO_INTERNAL_H
+#    define SRC_ANJ_IO_INTERNAL_H
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <anj/defs.h>
 
-#include "io.h"
+#    include "io.h"
 
-#define CBOR_TAG_INTEGER_DATE_TIME 0x01
+#    define CBOR_TAG_INTEGER_DATE_TIME 0x01
 
 /**
  * Enumeration for supported SenML labels. Their numeric values correspond to
@@ -38,7 +39,7 @@ typedef enum {
     SENML_EXT_LABEL_OBJLNK = 0x766C6F /* "vlo */
 } senml_label_t;
 
-#define SENML_EXT_OBJLNK_REPR "vlo"
+#    define SENML_EXT_OBJLNK_REPR "vlo"
 
 /* See "2.1.  Major Types" in RFC 7049 */
 typedef enum {
@@ -92,7 +93,7 @@ typedef enum {
     CBOR_VALUE_FLOAT_64 = CBOR_EXT_LENGTH_8BYTE
 } cbor_primitive_value_t;
 
-#define CBOR_INDEFINITE_STRUCTURE_BREAK 0xFF
+#    define CBOR_INDEFINITE_STRUCTURE_BREAK 0xFF
 
 void _anj_io_reset_internal_buff(_anj_io_buff_t *ctx);
 
@@ -112,11 +113,11 @@ void _anj_io_get_payload_from_internal_buff(_anj_io_buff_t *ctx,
                                             size_t out_buff_len,
                                             size_t *copied_bytes);
 
-#ifdef ANJ_WITH_EXTERNAL_DATA
+#    ifdef ANJ_WITH_EXTERNAL_DATA
 int _anj_call_get_external_data(const anj_io_out_entry_t *entry,
                                 void *buffer,
                                 size_t *inout_size,
                                 size_t offset);
-#endif // ANJ_WITH_EXTERNAL_DATA
+#    endif // ANJ_WITH_EXTERNAL_DATA
 
 #endif // SRC_ANJ_IO_INTERNAL_H

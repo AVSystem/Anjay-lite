@@ -7,17 +7,19 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_UTILS_H
-#define SRC_ANJ_UTILS_H
+#    define SRC_ANJ_UTILS_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <anj/defs.h>
+#    include <anj/utils.h>
 
-#include "coap/coap.h"
+#    include "coap/coap.h"
 
 /**
  * Returns a pseudo-random integer from range [0, UINT32_MAX].
@@ -31,6 +33,15 @@ static inline uint64_t _anj_rand64_r(_anj_rand_seed_t *seed) {
     return (((uint64_t) _anj_rand32_r(seed)) << 32)
            | ((uint64_t) _anj_rand32_r(seed));
 }
+
+/**
+ * Check if path points to Security or OSCORE object.
+ *
+ * @param path  Path that will be verified.
+ *
+ * @return true if path points to Security or OSCORE object.
+ */
+bool _anj_uri_path_to_security_or_oscore_obj(const anj_uri_path_t *path);
 
 /**
  * Compares two tokens.

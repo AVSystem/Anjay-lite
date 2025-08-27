@@ -16,9 +16,11 @@ Contents:
       :titlesonly:
 
       Introduction
-      Compiling_client_applications
+      Compile_client_applications
       BasicClient
       AdvancedTopics
       FirmwareUpdateTutorial
       BetaLimitationsandWorkarounds
       PortingGuideForNonPOSIXPlatforms
+      Integrations
+      Tools

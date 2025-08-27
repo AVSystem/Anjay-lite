@@ -7,13 +7,15 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/net/anj_net_api.h>
+#include <anj/compat/net/anj_net_wrapper.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/log/log.h>
@@ -21,7 +23,7 @@
 
 #include "../coap/coap.h"
 #include "../exchange.h"
-#include "../utils.h"
+#include "../exchange_cache.h"
 #include "core_utils.h"
 #include "server.h"
 
@@ -47,7 +49,7 @@ int _anj_server_connect(_anj_server_connection_ctx_t *ctx,
         result = anj_net_create_ctx(ctx->type, &ctx->net_ctx, net_socket_cfg);
         if (!anj_net_is_ok(result)) {
             log(L_ERROR, "Could not create socket: %d", result);
-            return net_again_is_error(result);
+            return result;
         }
         ctx->type = type;
         log(L_DEBUG, "Socket created successfully");
@@ -226,12 +228,39 @@ int _anj_server_handle_request(anj_t *anj) {
     _anj_coap_msg_t msg;
     memset(&msg, 0, sizeof(msg));
     while (1) {
-        if (exchange_state == ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION
-                || exchange_state == ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
+#ifdef ANJ_WITH_CACHE
+        if (anj->exchange_cache.handling_retransmission) {
+            _anj_exchange_cache_get(&anj->exchange_cache, &msg);
+            result = _anj_coap_encode_udp(&msg,
+                                          anj->out_buffer,
+                                          ANJ_OUT_MSG_BUFFER_SIZE,
+                                          &anj->out_msg_len);
+            if (result) {
+                ANJ_CORE_LOG_COAP_ERROR(result);
+                // If something goes wrong then just drop retransmitted request
+                anj->exchange_cache.handling_retransmission = false;
+                continue;
+            }
+            result = _anj_server_send(&anj->connection_ctx, anj->out_buffer,
+                                      anj->out_msg_len);
+
+            if (anj_net_is_again(result)) {
+                return result;
+            }
+            anj->exchange_cache.handling_retransmission = false;
+            if (result) {
+                return result;
+            }
+        } else
+#endif // ANJ_WITH_CACHE
+                if (exchange_state
+                            == ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION
+                    || exchange_state == ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
             // For both cases we need to send a message but for new message we
             // also need to build CoAP message first.
             if (exchange_state == ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
-                result = _anj_coap_encode_udp(&msg, anj->out_buffer,
+                result = _anj_coap_encode_udp(&msg,
+                                              anj->out_buffer,
                                               ANJ_OUT_MSG_BUFFER_SIZE,
                                               &anj->out_msg_len);
                 if (result) {
@@ -280,10 +309,19 @@ int _anj_server_handle_request(anj_t *anj) {
                     ANJ_CORE_LOG_COAP_ERROR(result);
                     // drop message and continue waiting
                 } else {
-                    exchange_state =
-                            _anj_exchange_process(&anj->exchange_ctx,
-                                                  ANJ_EXCHANGE_EVENT_NEW_MSG,
-                                                  &msg);
+#ifdef ANJ_WITH_CACHE
+                    // check if it isn't a retransmission
+                    if (_anj_exchange_cache_check(
+                                &anj->exchange_cache,
+                                msg.coap_binding_data.udp.message_id)
+                            == _ANJ_EXCHANGE_CACHE_MISS)
+#endif // ANJ_WITH_CACHE
+                    {
+                        exchange_state = _anj_exchange_process(
+                                &anj->exchange_ctx,
+                                ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                &msg);
+                    }
                 }
             }
         }
@@ -356,7 +394,7 @@ int _anj_server_prepare_server_request(anj_t *anj,
 }
 
 uint64_t _anj_server_calculate_max_transmit_wait(
-        const _anj_exchange_udp_tx_params_t *params) {
+        const anj_exchange_udp_tx_params_t *params) {
     // TODO: add TCP support
     // MAX_TRANSMIT_WAIT = ACK_TIMEOUT * ((2 ** (MAX_RETRANSMIT + 1)) - 1) *
     //                     ACK_RANDOM_FACTOR

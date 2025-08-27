@@ -26,6 +26,9 @@
 #include <anj_unit_test.h>
 
 #ifdef ANJ_WITH_OBSERVE
+
+#    define ONE_DAY_MS 86400000
+
 uint64_t anj_time_now(void);
 uint64_t anj_time_real_now(void);
 void set_mock_time(uint64_t time);
@@ -244,6 +247,8 @@ static anj_dm_obj_t obj_4 = {
                                                - 1];                         \
                 ctx_ref.observations[i].last_notify_timestamp =              \
                         anj_time_real_now();                                 \
+                ctx_ref.observations[i].next_conf_notify_timestamp =         \
+                        anj_time_real_now() + ONE_DAY_MS;                    \
                 ctx_ref.observations[i].effective_attr =                     \
                         (_anj_attr_notification_t) { 0 };                    \
                 ctx_ref.observations[i].content_format_opt =                 \
@@ -288,6 +293,8 @@ static anj_dm_obj_t obj_4 = {
                                      [(i == 0 ? records_number : i) - 1];    \
                     ctx_ref.observations[i].last_notify_timestamp =          \
                             anj_time_real_now();                             \
+                    ctx_ref.observations[i].next_conf_notify_timestamp =     \
+                            anj_time_real_now() + ONE_DAY_MS;                \
                     ctx_ref.observations[i].effective_attr = Attr;           \
                     ctx_ref.observations[i].observation_attr = Attr;         \
                     ctx_ref.observations[i].content_format_opt =             \
@@ -550,6 +557,8 @@ ANJ_UNIT_TEST(observe_comp_op, composite_observation_four_records_block) {
         ctx_ref.observations[i].prev =
                 &anj.observe_ctx.observations[(i == 0 ? 4 : i) - 1];
         ctx_ref.observations[i].last_notify_timestamp = anj_time_real_now();
+        ctx_ref.observations[i].next_conf_notify_timestamp =
+                anj_time_real_now() + ONE_DAY_MS;
         ctx_ref.observations[i].effective_attr =
                 (_anj_attr_notification_t) { 0 };
         ctx_ref.observations[i].content_format_opt =
@@ -650,6 +659,8 @@ ANJ_UNIT_TEST(observe_comp_op,
         ctx_ref.observations[i].prev =
                 &anj.observe_ctx.observations[(i == 2 ? 4 : i) - 1];
         ctx_ref.observations[i].last_notify_timestamp = anj_time_real_now();
+        ctx_ref.observations[i].next_conf_notify_timestamp =
+                anj_time_real_now() + ONE_DAY_MS;
         ctx_ref.observations[i].effective_attr = (_anj_attr_notification_t) {
             .has_max_period = true,
             .max_period = 420
@@ -1847,6 +1858,8 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
     ctx_ref.observations[0].observe_active = true;
     ctx_ref.observations[0].prev = &anj.observe_ctx.observations[1];
     ctx_ref.observations[0].last_notify_timestamp = anj_time_real_now();
+    ctx_ref.observations[0].next_conf_notify_timestamp =
+            anj_time_real_now() + ONE_DAY_MS;
     ctx_ref.observations[0].content_format_opt = _ANJ_COAP_FORMAT_SENML_CBOR;
     ctx_ref.observations[0].accept_opt = _ANJ_COAP_FORMAT_SENML_CBOR;
 
@@ -1857,6 +1870,8 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
     ctx_ref.observations[1].observe_active = true;
     ctx_ref.observations[1].prev = &anj.observe_ctx.observations[0];
     ctx_ref.observations[1].last_notify_timestamp = anj_time_real_now();
+    ctx_ref.observations[1].next_conf_notify_timestamp =
+            anj_time_real_now() + ONE_DAY_MS;
     ctx_ref.observations[1].content_format_opt = _ANJ_COAP_FORMAT_SENML_CBOR;
     ctx_ref.observations[1].accept_opt = _ANJ_COAP_FORMAT_SENML_CBOR;
 

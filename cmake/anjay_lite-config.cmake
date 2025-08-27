@@ -5,7 +5,7 @@
 # Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
 # See the attached LICENSE file for details.
 
-cmake_minimum_required(VERSION 3.6.0)
+cmake_minimum_required(VERSION 3.16.0)
 
 project(anjay_lite)
 
@@ -44,7 +44,7 @@ define_overridable_option(ANJ_OUT_PAYLOAD_BUFFER_SIZE STRING 1024 "Payload buffe
 # data model configuration
 define_overridable_option(ANJ_DM_MAX_OBJECTS_NUMBER STRING 10 "Max LwM2M Objects defined in data model")
 define_overridable_option(ANJ_WITH_COMPOSITE_OPERATIONS BOOL ON "Enable composite operations support")
-define_overridable_option(ANJ_DM_MAX_COMPOSITE_ENTRIES STRING 5 "Max entries (paths) in a composite operations")
+define_overridable_option(ANJ_DM_MAX_COMP_READ_ENTRIES STRING 5 "Max entries (paths) in a composite read operation")
 
 # device object configuration
 define_overridable_option(ANJ_WITH_DEFAULT_DEVICE_OBJ BOOL ON "Enable default implementation of Device Object")
@@ -68,6 +68,11 @@ define_overridable_option(ANJ_FOTA_WITH_HTTP BOOL OFF "Enable HTTP support in FW
 define_overridable_option(ANJ_FOTA_WITH_HTTPS BOOL OFF "Enable HTTPS support in FW Update Object")
 define_overridable_option(ANJ_FOTA_WITH_COAP_TCP BOOL OFF "Enable TCP support in FW Update Object")
 define_overridable_option(ANJ_FOTA_WITH_COAPS_TCP BOOL OFF "Enable TLS support in FW Update Object")
+
+# CoAP downloader configuration
+define_overridable_option(ANJ_WITH_COAP_DOWNLOADER BOOL OFF "Enable CoAP Downloader support")
+define_overridable_option(ANJ_COAP_DOWNLOADER_MAX_PATHS_NUMBER STRING 3 "Max CoAP Paths number in CoAP Downloader")
+define_overridable_option(ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE STRING 1200 "Max CoAP message size used in CoAP Downloader")
 
 # observe configuration
 define_overridable_option(ANJ_WITH_OBSERVE BOOL ON "Enable Observe-Notify mechanism")
@@ -115,6 +120,8 @@ define_overridable_option(ANJ_COAP_MAX_OPTIONS_NUMBER STRING 15 "Max number of C
 define_overridable_option(ANJ_COAP_MAX_ATTR_OPTION_SIZE STRING 40 "Max Attribute-related CoAP option size")
 define_overridable_option(ANJ_COAP_MAX_LOCATION_PATHS_NUMBER STRING 2 "Max CoAP Location-Paths number in Registration Interface")
 define_overridable_option(ANJ_COAP_MAX_LOCATION_PATH_SIZE STRING 40 "Max size of a single CoAP Location-Path in Registration Interface")
+define_overridable_option(ANJ_WITH_CACHE BOOL ON "Enable responses caching")
+define_overridable_option(ANJ_CACHE_ENTRIES_NUMBER STRING 10 "Non-recent cache entries number")
 
 # logger configuration
 define_overridable_option(ANJ_LOG_FULL BOOL ON "Enable full logger: includes module, level, file, and line info")
@@ -132,6 +139,11 @@ define_overridable_option(ANJ_LOG_FILTERING_CONFIG_HEADER STRING "" "Path to hea
 define_overridable_option(ANJ_WITH_LWM2M12 BOOL ON "Enable LwM2M protocol version 1.2 support")
 define_overridable_option(ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS BOOL ON "Enable custom string<->number conversion function")
 define_overridable_option(ANJ_PLATFORM_BIG_ENDIAN BOOL OFF "Define platform endianess as big endian")
+
+# MbedTLS configuration
+define_overridable_option(ANJ_WITH_MBEDTLS BOOL OFF "Enable MbedTLS support")
+define_overridable_option(MBEDTLS_VERSION STRING "" "MbedTLS version to use when MBEDTLS_ROOT_DIR is not set, default is 3.6.0")
+define_overridable_option(MBEDTLS_ROOT_DIR STRING "" "Path to MbedTLS root directory (if not set, MbedTLS will be fetched from GitHub)")
 
 set(repo_root "${CMAKE_CURRENT_LIST_DIR}/..")
 set(config_root "${CMAKE_BINARY_DIR}/anj_config")
@@ -155,14 +167,6 @@ if(NOT HAVE_MATH_LIBRARY)
         message(FATAL_ERROR "Math library is required. Provide it using HAVE_MATH_LIBRARY variable.")
     endif()
 endif()
-
-function(use_iwyu_if_enabled TARGET)
-  if (ANJ_IWYU_PATH)
-    set_target_properties(${TARGET} PROPERTIES
-            C_INCLUDE_WHAT_YOU_USE
-            "${ANJ_IWYU_PATH};-Xiwyu;--keep=*/anj/anj_config.h")
-  endif()
-endfunction()
 
 add_library(anj STATIC ${anj_sources})
 target_include_directories(
@@ -205,4 +209,9 @@ if(gcc_or_clang)
   if(ANJ_TESTING)
     target_compile_options(anj PUBLIC -Wno-pedantic -Wno-c++-compat)
   endif()
+endif()
+
+if(ANJ_WITH_MBEDTLS)
+  include("${repo_root}/cmake/anjay_lite_mbedtls.cmake")
+  target_link_libraries(anj PUBLIC ${MBEDTLS_TARGETS})
 endif()

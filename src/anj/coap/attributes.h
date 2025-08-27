@@ -7,13 +7,15 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_COAP_ATTRIBUTES_H
-#define SRC_ANJ_COAP_ATTRIBUTES_H
+#    define SRC_ANJ_COAP_ATTRIBUTES_H
 
-#include <stdbool.h>
+#    include <stdbool.h>
 
-#include "coap.h"
-#include "options.h"
+#    include "coap.h"
+#    include "options.h"
 
 int anj_attr_notification_attr_decode(const anj_coap_options_t *opts,
                                       _anj_attr_notification_t *attr);

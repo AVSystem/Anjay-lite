@@ -6,23 +6,35 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Multiple-Instance Resource
-==========================
+Multi-Instance Resource
+=======================
 
 Overview
 ---------
 
-This tutorial demonstrates how to implement a **multiple-instance resource** in Anjay Lite, based on a *Binary App Data Container* (Object ID: 19)
+This guide explains how to implement a **multiple-instance resource** in Anjay Lite,
+based on a *Binary App Data Container* (Object ID: 19)
 defined in the `LwM2M Registry <https://raw.githubusercontent.com/OpenMobileAlliance/lwm2m-registry/prod/version_history/19-1_0.xml>`_.
 
-In this tutorial, we implement only the mandatory Resource `/0`, which can hold multiple instances of binary data, each identified by a Resource
-Instance ID (RIID). This allows for efficient storage and retrieval of multiple values under a single Resource ID (RID).
+In this tutorial, we implement only the mandatory Resource `/0`, which can hold
+multiple instances of binary data, each identified by a Resource Instance ID (RIID).
+This allows for efficient storage and retrieval of multiple values under a single Resource ID (RID).
 
 .. note::
 
     Complete code of this example can be found in
     `examples/tutorial/AT-MultiInstanceResource` subdirectory of main Anjay Lite
     project repository.
+
+.. note::
+    To generate code stubs for multiple-instance resources, use the ``anjay_codegen.py`` script with the ``-nri`` option:
+
+    .. code-block:: bash
+
+        ./tools/anjay_codegen.py -i binary_app_data_container.xml -o binary_app_data_container.c -nri <rid1> <n1> -nri <rid2> <n2> <...>
+
+ 
+    For details, see the :ref:`Multiple resource instances generation<multi-resource-instances-generator>` section. 
 
 Implement Static Resource
 -------------------------
@@ -137,7 +149,7 @@ The `res_read` function handles read operations. It retrieves a pointer to the a
 
 **Write Data**
 
-The `res_write` function handles write operations. It uses a`nj_dm_write_bytes_chunked` to write binary data in chunks.
+The `res_write` function handles write operations. It uses `anj_dm_write_bytes_chunked` to write binary data in chunks.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceResource/src/binary_app_data_container.c

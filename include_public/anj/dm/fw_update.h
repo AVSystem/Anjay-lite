@@ -7,37 +7,24 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_FW_UPDATE_H
-#define ANJ_DM_FW_UPDATE_H
+#    define ANJ_DM_FW_UPDATE_H
 
-#include <stddef.h>
-#include <stdint.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
+#    include <anj/core.h>
+#    include <anj/dm/core.h>
 
-#include <anj/core.h>
-#include <anj/dm/core.h>
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifdef ANJ_WITH_DEFAULT_FOTA_OBJ
-
-#    if !defined(ANJ_FOTA_WITH_PULL_METHOD) \
-            && !defined(ANJ_FOTA_WITH_PUSH_METHOD)
-#        error "if FW Update object is enabled, at least one of push or pull methods needs to be enabled"
 #    endif
 
-#    if defined(ANJ_FOTA_WITH_PULL_METHOD) && !defined(ANJ_FOTA_WITH_COAP)   \
-            && !defined(ANJ_FOTA_WITH_COAPS) && !defined(ANJ_FOTA_WITH_HTTP) \
-            && !defined(ANJ_FOTA_WITH_HTTPS)                                 \
-            && !defined(ANJ_FOTA_WITH_COAP_TCP)                              \
-            && !defined(ANJ_FOTA_WITH_COAPS_TCP)
-#        error "if pull method is enabled, at least one of CoAP, CoAPS, HTTP, HTTPS, TCP or TLS needs to be enabled"
-#    endif
+#    ifdef ANJ_WITH_DEFAULT_FOTA_OBJ
 
-#    define ANJ_DM_FW_UPDATE_URI_MAX_LEN 255
+#        define ANJ_DM_FW_UPDATE_URI_MAX_LEN 255
 
 /*
  * Numeric values of the Firmware Update Protocol Support resource. See LwM2M
@@ -92,7 +79,7 @@ typedef enum {
  *                 @ref anj_dm_fw_update_object_install in
  *                 <c>entity_ctx->repr.user_ptr</c>
  *
- * @returns The callback shall return @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if
+ * @returns The callback shall return @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if
  *          successful or an appropriate reason for the write failure:
  *          @ref ANJ_DM_FW_UPDATE_RESULT_NOT_ENOUGH_SPACE
  *          @ref ANJ_DM_FW_UPDATE_RESULT_OUT_OF_MEMORY
@@ -323,13 +310,13 @@ typedef struct {
      * callbacks. Can be used to e.g. determine the the context or distiguish FW
      * Update Object entities in a multiple LwM2M Clients system */
     void *user_ptr;
-#    if defined(ANJ_FOTA_WITH_PULL_METHOD)
+#        if defined(ANJ_FOTA_WITH_PULL_METHOD)
     /* /5/0/1 Package URI Resource value holder */
     char uri[ANJ_DM_FW_UPDATE_URI_MAX_LEN + 1];
-#    endif // defined (ANJ_FOTA_WITH_PULL_METHOD)
-#    if defined(ANJ_FOTA_WITH_PUSH_METHOD)
+#        endif // defined (ANJ_FOTA_WITH_PULL_METHOD)
+#        if defined(ANJ_FOTA_WITH_PUSH_METHOD)
     bool write_start_called;
-#    endif // defined (ANJ_FOTA_WITH_PUSH_METHOD)
+#        endif // defined (ANJ_FOTA_WITH_PUSH_METHOD)
 } anj_dm_fw_update_repr_t;
 
 /*
@@ -418,10 +405,10 @@ int anj_dm_fw_update_object_set_download_result(
         anj_dm_fw_update_entity_ctx_t *entity_ctx,
         anj_dm_fw_update_result_t result);
 
-#endif // ANJ_WITH_DEFAULT_FOTA_OBJ
+#    endif // ANJ_WITH_DEFAULT_FOTA_OBJ
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DM_FW_UPDATE_H

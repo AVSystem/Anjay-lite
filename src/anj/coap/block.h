@@ -7,11 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
-#ifndef SRC_ANJ_COAP_BLOCK_H
-#define SRC_ANJ_COAP_BLOCK_H
+#include <anj/init.h>
 
-#include "coap.h"
-#include "options.h"
+#ifndef SRC_ANJ_COAP_BLOCK_H
+#    define SRC_ANJ_COAP_BLOCK_H
+
+#    include "coap.h"
+#    include "options.h"
 
 int _anj_block_decode(anj_coap_options_t *opts, _anj_block_t *block);
 

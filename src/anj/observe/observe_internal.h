@@ -7,25 +7,26 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_OBSERVE_OBSERVE_CORE_H
-#define SRC_ANJ_OBSERVE_OBSERVE_CORE_H
+#    define SRC_ANJ_OBSERVE_OBSERVE_CORE_H
 
-#include <string.h>
+#    include <string.h>
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
-#include <anj/log/log.h>
+#    include <anj/defs.h>
+#    include <anj/log/log.h>
 
-#include "../coap/coap.h"
-#include "observe.h"
+#    include "../coap/coap.h"
+#    include "observe.h"
 
-#ifdef ANJ_WITH_OBSERVE
+#    ifdef ANJ_WITH_OBSERVE
 
-#    define observe_log(...) anj_log(observe, __VA_ARGS__)
+#        define observe_log(...) anj_log(observe, __VA_ARGS__)
 
-#    define MSG_TYPE_OBSERVE_RESPONSE 1
-#    define MSG_TYPE_CANCEL_OBSERVE_RESPONSE 2
-#    define MSG_TYPE_NOTIFY 3
+#        define MSG_TYPE_OBSERVE_RESPONSE 1
+#        define MSG_TYPE_CANCEL_OBSERVE_RESPONSE 2
+#        define MSG_TYPE_NOTIFY 3
 
 /* Attributes */
 
@@ -74,10 +75,11 @@ void _anj_observe_write_anj_res_to_observe_val(
         const anj_data_type_t *type);
 void _anj_observe_verify_effective_attributes(
         _anj_observe_observation_t *observation);
-#    ifdef ANJ_WITH_OBSERVE_COMPOSITE
-void _anj_observe_composite_refresh_timestamp(_anj_observe_ctx_t *ctx);
-#    endif // ANJ_WITH_OBSERVE_COMPOSITE
 
-#endif // ANJ_WITH_OBSERVE
+void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
+                                    uint64_t timestamp,
+                                    bool confirmable);
+
+#    endif // ANJ_WITH_OBSERVE
 
 #endif // SRC_ANJ_OBSERVE_OBSERVE_CORE_H

@@ -7,16 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stddef.h>
 
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/defs.h>
 #include <anj/log/log.h>
 #include <anj/utils.h>
 
-#include "../utils.h"
 #include "dm_core.h"
 #include "dm_io.h"
 

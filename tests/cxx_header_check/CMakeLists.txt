@@ -5,7 +5,7 @@
 # Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
 # See the attached LICENSE file for details.
 
-cmake_minimum_required(VERSION 3.6.0)
+cmake_minimum_required(VERSION 3.16.0)
 
 project(anj_cxx_header_check CXX)
 

@@ -7,15 +7,17 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/defs.h>
 #include <anj/utils.h>
 
+#include "../exchange.h"
 #include "../utils.h"
 #include "attributes.h"
 #include "block.h"
@@ -28,16 +30,6 @@
 #    include "udp_header.h"
 #endif // ANJ_COAP_WITH_UDP
 #include "options.h"
-
-static uint16_t g_anj_msg_id;
-static _anj_rand_seed_t g_rand_seed;
-
-static void anj_token_create(_anj_coap_token_t *token) {
-    token->size = _ANJ_COAP_MAX_TOKEN_LENGTH;
-    assert(_ANJ_COAP_MAX_TOKEN_LENGTH == 8);
-    uint64_t random_val = _anj_rand64_r(&g_rand_seed);
-    memcpy(token->bytes, &random_val, sizeof(random_val));
-}
 
 static int add_uri_path(anj_coap_options_t *opts, const _anj_coap_msg_t *msg) {
     int res = 0;
@@ -84,6 +76,19 @@ static int anj_attr_create_ack_prepare(anj_coap_options_t *opts,
                                      str_buff, str_size);
     return res;
 }
+
+#ifdef ANJ_WITH_COAP_DOWNLOADER
+static int anj_attr_downloader_prepare(anj_coap_options_t *opts,
+                                       const _anj_attr_downloader_t *attr) {
+    int res;
+    for (size_t i = 0; i < attr->paths_count; i++) {
+        res = _anj_coap_options_add_data(opts, _ANJ_COAP_OPTION_URI_PATH,
+                                         attr->path[i], attr->path_len[i]);
+        _RET_IF_ERROR(res);
+    }
+    return 0;
+}
+#endif // ANJ_WITH_COAP_DOWNLOADER
 
 static int coap_standard_msg_options_add(anj_coap_options_t *opts,
                                          const _anj_coap_msg_t *msg) {
@@ -159,6 +164,11 @@ static int coap_standard_msg_options_add(anj_coap_options_t *opts,
                && msg->msg_code == ANJ_COAP_CODE_CREATED) {
         res = anj_attr_create_ack_prepare(opts, &msg->attr.create_attr);
     }
+#ifdef ANJ_WITH_COAP_DOWNLOADER
+    else if (msg->operation == ANJ_OP_COAP_DOWNLOADER_GET) {
+        res = anj_attr_downloader_prepare(opts, &msg->attr.downloader_attr);
+    }
+#endif // ANJ_WITH_COAP_DOWNLOADER
 
     return res;
 }
@@ -241,18 +251,14 @@ static int recognize_msg_code(_anj_coap_msg_t *msg) {
     case ANJ_OP_COAP_PONG:
         msg->msg_code = ANJ_COAP_CODE_PONG;
         break;
+    case ANJ_OP_COAP_DOWNLOADER_GET:
+        msg->msg_code = ANJ_COAP_CODE_GET;
+        break;
     default:
         return _ANJ_ERR_COAP_BAD_MSG;
     }
 
     return 0;
-}
-
-void _anj_coap_init_coap_udp_credentials(_anj_coap_msg_t *msg) {
-    assert(msg);
-    anj_token_create(&msg->token);
-    msg->coap_binding_data.udp.message_id = ++g_anj_msg_id;
-    msg->coap_binding_data.udp.message_id_set = true;
 }
 
 #ifdef ANJ_COAP_WITH_UDP
@@ -310,50 +316,33 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
     assert(out_buff_size > _ANJ_COAP_UDP_HEADER_LENGTH);
 
     if (msg->operation == ANJ_OP_INF_CON_NOTIFY) {
-        // new msg_id, token reuse
         assert(msg->token.size != 0);
         msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
-        msg->coap_binding_data.udp.message_id = ++g_anj_msg_id;
     } else if (msg->operation == ANJ_OP_INF_NON_CON_NOTIFY) {
-        // new msg_id, token reuse
         assert(msg->token.size != 0);
         msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE;
-        msg->coap_binding_data.udp.message_id = ++g_anj_msg_id;
     } else if (msg->operation == ANJ_OP_RESPONSE
                || msg->operation == ANJ_OP_INF_INITIAL_NOTIFY) {
-        // msg_id and token reuse
         assert(msg->token.size != 0);
         msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     } else if (msg->operation == ANJ_OP_COAP_RESET) {
-        // msg_id reuse, token not defined
         msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_RESET;
         msg->payload_size = 0;
         msg->token.size = 0;
     } else if (msg->operation == ANJ_OP_COAP_PING_UDP) {
-        // new msg_id and token not defined
         msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
         msg->payload_size = 0;
         msg->token.size = 0;
-        msg->coap_binding_data.udp.message_id = ++g_anj_msg_id;
     } else if (msg->operation == ANJ_OP_COAP_EMPTY_MSG) {
-        // msg_id reuse, token not defined
         msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg->token.size = 0;
         msg->payload_size = 0;
     } else {
-        // client request with new msg_id and token
+        // client request
         msg->coap_binding_data.udp.type =
                 (msg->operation == ANJ_OP_INF_NON_CON_SEND)
                         ? ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE
                         : ANJ_COAP_UDP_TYPE_CONFIRMABLE;
-        if (msg->token.size == 0) {
-            anj_token_create(&msg->token);
-        }
-
-        if (!msg->coap_binding_data.udp.message_id_set) {
-            msg->coap_binding_data.udp.message_id = ++g_anj_msg_id;
-            msg->coap_binding_data.udp.message_id_set = true;
-        }
     }
 
     int res;
@@ -371,6 +360,9 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
         .payload = msg->payload,
         .payload_size = msg->payload_size,
     };
+    // if the msg has no token set prior to calling this function,
+    // token.size is set properly and it's safe to call memcpy here regardless
+    // of msg->token.bytes
     memcpy(coap_msg.token, msg->token.bytes, msg->token.size);
 
     res = _anj_coap_udp_header_serialize(&coap_msg, out_buff, out_buff_size);
@@ -563,11 +555,6 @@ int _anj_coap_encode_tcp(_anj_coap_msg_t *msg,
         // token not defined
         msg->token.size = 0;
         msg->payload_size = 0;
-    } else {
-        // client request with new token
-        if (msg->token.size == 0) {
-            anj_token_create(&msg->token);
-        }
     }
 
     int res;
@@ -601,11 +588,6 @@ int _anj_coap_encode_tcp(_anj_coap_msg_t *msg,
                                        out_msg_size);
 }
 #endif // ANJ_COAP_WITH_TCP
-
-void _anj_coap_init(uint32_t random_seed) {
-    g_rand_seed = (_anj_rand_seed_t) random_seed;
-    g_anj_msg_id = (uint16_t) _anj_rand32_r(&g_rand_seed);
-}
 
 #define _ANJ_COAP_PAYLOAD_MARKER_SIZE 1
 // How accept option size is calculated:

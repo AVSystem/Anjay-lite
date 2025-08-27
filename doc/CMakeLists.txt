@@ -21,7 +21,7 @@ set(SNIPPET_SOURCE_MD5FILE ${SPHINX_DIR})
 file(MAKE_DIRECTORY ${repo_root}/doc/build)
 
 if(EXISTS "${SPHINX_SOURCE}/conf.py.in")
-    set(DOC_VERSION "1.0.0-beta.1")
+    set(DOC_VERSION "1.0.0-beta.2")
 
     configure_file(${SPHINX_SOURCE}/conf.py.in
                    ${SPHINX_DIR}/conf.py

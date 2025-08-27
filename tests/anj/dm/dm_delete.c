@@ -527,4 +527,25 @@ ANJ_UNIT_TEST(dm_delete, delete_res_error_callback) {
     ANJ_UNIT_ASSERT_EQUAL(call_result, -1);
     res_inst_operation_return_eror = false;
 }
+
+ANJ_UNIT_TEST(dm_delete, delete_res_error_not_authorized) {
+    TEST_INIT(anj, obj);
+    anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SECURITY, 0);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
+                                                  &path),
+                          ANJ_DM_ERR_UNAUTHORIZED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_UNAUTHORIZED);
+
+    path = ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_OSCORE, 0);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
+                                                  &path),
+                          ANJ_DM_ERR_UNAUTHORIZED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_UNAUTHORIZED);
+
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_delete, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_res_delete, 0);
+}
 #endif // ANJ_WITH_LWM2M12

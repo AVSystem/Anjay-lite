@@ -5,7 +5,7 @@
 # Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
 # See the attached LICENSE file for details.
 
-cmake_minimum_required(VERSION 3.6.0)
+cmake_minimum_required(VERSION 3.16.0)
 
 project(core_tests C)
 
@@ -25,12 +25,16 @@ set(ANJ_COAP_MAX_LOCATION_PATHS_NUMBER 3)
 set(ANJ_COAP_MAX_LOCATION_PATH_SIZE 5)
 set(ANJ_WITH_LWM2M12 ON)
 set(ANJ_WITH_EXTERNAL_DATA ON)
+set(ANJ_DM_MAX_OBJECTS_NUMBER 15)
+
+set(ANJ_WITH_COAP_DOWNLOADER ON)
+set(ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE 100)
 
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
 
-file(GLOB core_tests_sources "*.c")
+file(GLOB core_tests_sources "*.c" "../mock/*.c")
 add_executable(core_tests ${core_tests_sources})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../framework"
@@ -38,11 +42,3 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../framework"
 
 target_link_libraries(core_tests PRIVATE anj)
 target_link_libraries(core_tests PRIVATE test_framework)
-
-if (ANJ_IWYU_PATH)
-    # Below OBJECT library is used only for iwyu checks
-    add_library(core_tests_iwyu OBJECT ${core_tests_sources})
-    target_include_directories(core_tests_iwyu PRIVATE
-        $<TARGET_PROPERTY:core_tests,INCLUDE_DIRECTORIES>)
-    use_iwyu_if_enabled(core_tests_iwyu)
-endif ()

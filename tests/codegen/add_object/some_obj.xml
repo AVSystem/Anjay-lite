@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+AVSystem Anjay Lite LwM2M SDK
+All rights reserved.
+
+Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
+See the attached LICENSE file for details.
+-->
+<LWM2M xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://openmobilealliance.org/tech/profiles/LWM2M.xsd">
+<Object ObjectType="MODefinition">
+        <Name>Sample</Name>
+        <Description1><![CDATA[LwM2M Object description.]]></Description1>
+        <ObjectID>9999</ObjectID>
+        <ObjectURN></ObjectURN>
+        <MultipleInstances>Multiple</MultipleInstances>
+        <Mandatory>Optional</Mandatory>
+        <Resources>
+            <Item ID="0">
+                <Name>Sample A</Name>
+                <Operations>RW</Operations>
+                <MultipleInstances>Single</MultipleInstances>
+                <Mandatory>Mandatory</Mandatory>
+                <Type>String</Type>
+                <RangeEnumeration></RangeEnumeration>
+                <Units></Units>
+                <Description><![CDATA[Some description.]]></Description>
+            </Item>
+            <Item ID="1">
+                <Name>Sample B</Name>
+                <Operations>RW</Operations>
+                <MultipleInstances>Single</MultipleInstances>
+                <Mandatory>Mandatory</Mandatory>
+                <Type>Integer</Type>
+                <RangeEnumeration></RangeEnumeration>
+                <Units></Units>
+                <Description><![CDATA[Some description.]]></Description>
+            </Item>
+            <Item ID="2">
+                <Name>Sample C</Name>
+                <Operations>RW</Operations>
+                <MultipleInstances>Multiple</MultipleInstances>
+                <Mandatory>Mandatory</Mandatory>
+                <Type>Boolean</Type>
+                <RangeEnumeration/>
+                <Units></Units>
+                <Description><![CDATA[Some description.]]></Description>
+            </Item>
+            <Item ID="3">
+                <Name>Sample D</Name>
+                <Operations>E</Operations>
+                <MultipleInstances>Single</MultipleInstances>
+                <Mandatory>Mandatory</Mandatory>
+                <Type></Type>
+                <RangeEnumeration/>
+                <Units></Units>
+                <Description><![CDATA[Some description.]]></Description>
+            </Item>
+        </Resources>
+        <Description2></Description2>
+    </Object>
+</LWM2M>

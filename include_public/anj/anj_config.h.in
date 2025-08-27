@@ -74,12 +74,13 @@
 #cmakedefine ANJ_WITH_COMPOSITE_OPERATIONS
 
 /**
- * Configures the maximum number of entries (paths) in a composite operation.
+ * Configures the maximum number of entries (paths) in a composite read
+ * operation.
  *
  * Default value: 5
  * This option is meaningful if @ref ANJ_WITH_COMPOSITE_OPERATIONS is enabled.
  */
-#cmakedefine ANJ_DM_MAX_COMPOSITE_ENTRIES @ANJ_DM_MAX_COMPOSITE_ENTRIES@
+#cmakedefine ANJ_DM_MAX_COMP_READ_ENTRIES @ANJ_DM_MAX_COMP_READ_ENTRIES@
 
 /******************************************************************************\
  * Device Object configuration
@@ -197,6 +198,34 @@
  * Enable FOTA with CoAP over TLS support.
  */
 #cmakedefine ANJ_FOTA_WITH_COAPS_TCP
+
+/******************************************************************************\
+ * CoAP Downloader configuration
+\******************************************************************************/
+/**
+ * Enable CoAP Downloader Interface.
+ *
+ * This interface allows to download resources using CoAP protocol.
+ * It is used along with FOTA Object, but can also be used independently.
+ */
+#cmakedefine ANJ_WITH_COAP_DOWNLOADER
+
+/**
+ * Configures the maximum number of paths that can be used in CoAP Download request.
+ *
+ * Default value: 3
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_COAP_DOWNLOADER_MAX_PATHS_NUMBER @ANJ_COAP_DOWNLOADER_MAX_PATHS_NUMBER@
+
+/**
+ * Configures the maximum size of a single request/response message in CoAP Downloader.
+ * This is the size of the whole message, including CoAP header and payload.
+ *
+ * Default value: 1200
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE @ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE@
 
 /******************************************************************************\
  * Observe configuration
@@ -441,7 +470,7 @@
  * Configures the maximum allowed number of Options present in CoAP header, in a
  * single frame.
  *
- * Default value: 10
+ * Default value: 15
  * If an incomming message has more options, Anjay Lite will not process it or
  * respond to it.
  */
@@ -478,6 +507,24 @@
  * It affects statically allocated RAM.
  */
 #cmakedefine ANJ_COAP_MAX_LOCATION_PATH_SIZE @ANJ_COAP_MAX_LOCATION_PATH_SIZE@
+
+/**
+ * Enables respones caching mechanism.
+ * When eneabled, Anjay Lite caches responses to ensure that duplicate messages
+ * (e.g. due to retransmissions or retries) are processed exactly once. This
+ * guarantees idempotent behavior for operations with side effects.
+ *
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_WITH_CACHE
+
+/**
+ * Configures the number of cached responses.
+ *
+ * Default value: 10
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_CACHE_ENTRIES_NUMBER @ANJ_CACHE_ENTRIES_NUMBER@
 
 /******************************************************************************\
  * Logger configuration
@@ -608,5 +655,10 @@
  * endian.
  */
 #cmakedefine ANJ_PLATFORM_BIG_ENDIAN
+
+/**
+ * Enable support for MbedTLS library.
+ */
+#cmakedefine ANJ_WITH_MBEDTLS
 
 #endif // ANJ_CONFIG_H

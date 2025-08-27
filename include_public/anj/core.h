@@ -7,56 +7,40 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_CORE_H
-#define ANJ_CORE_H
+#    define ANJ_CORE_H
 
-#include <anj/anj_config.h>
-#include <anj/compat/net/anj_net_api.h>
-#include <anj/defs.h>
-#include <anj/dm/core.h>
+#    include <anj/compat/net/anj_net_api.h>
+#    include <anj/defs.h>
+#    include <anj/dm/core.h>
 
-#define ANJ_INTERNAL_INCLUDE_EXCHANGE
-#include <anj_internal/exchange.h>
-#undef ANJ_INTERNAL_INCLUDE_EXCHANGE
+#    define ANJ_INTERNAL_INCLUDE_EXCHANGE
+#    include <anj_internal/exchange.h> // IWYU pragma: export
+#    undef ANJ_INTERNAL_INCLUDE_EXCHANGE
 
-#ifdef ANJ_WITH_BOOTSTRAP
-#    define ANJ_INTERNAL_INCLUDE_BOOTSTRAP
-#    include <anj_internal/bootstrap.h>
-#    undef ANJ_INTERNAL_INCLUDE_BOOTSTRAP
-#endif // ANJ_WITH_BOOTSTRAP
+#    ifdef ANJ_WITH_BOOTSTRAP
+#        define ANJ_INTERNAL_INCLUDE_BOOTSTRAP
+#        include <anj_internal/bootstrap.h> // IWYU pragma: export
+#        undef ANJ_INTERNAL_INCLUDE_BOOTSTRAP
+#    endif // ANJ_WITH_BOOTSTRAP
 
-#ifdef ANJ_WITH_LWM2M_SEND
-#    include <anj/lwm2m_send.h>
-#endif // ANJ_WITH_LWM2M_SEND
+#    ifdef ANJ_WITH_LWM2M_SEND
+#        include <anj/lwm2m_send.h>
+#    endif // ANJ_WITH_LWM2M_SEND
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
-#if defined(ANJ_COAP_WITH_TCP) && defined(ANJ_COAP_WITH_UDP)
-#    define ANJ_SUPPORTED_BINDING_MODES "UT"
-#elif defined(ANJ_COAP_WITH_TCP)
-#    define ANJ_SUPPORTED_BINDING_MODES "T"
-#elif defined(ANJ_COAP_WITH_UDP)
-#    define ANJ_SUPPORTED_BINDING_MODES "U"
-#else
-#    error "At least one binding mode must be enabled"
-#endif
-
-#if defined(ANJ_WITH_DISCOVER_ATTR) && !defined(ANJ_WITH_OBSERVE)
-#    error "if discover attributes are enabled, observe module needs to be enabled"
-#endif
-
-#if !defined(ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER) \
-        || !defined(ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER)
-#    error "if observe module is enabled, its parameters has to be defined"
-#endif
-
-#if defined(ANJ_WITH_OBSERVE_COMPOSITE) \
-        && (!defined(ANJ_WITH_OBSERVE)  \
-            || !defined(ANJ_WITH_COMPOSITE_OPERATIONS))
-#    error "if composite observations are enabled, observations and composite operations have to be enabled"
-#endif
+#    if defined(ANJ_COAP_WITH_TCP) && defined(ANJ_COAP_WITH_UDP)
+#        define ANJ_SUPPORTED_BINDING_MODES "UT"
+#    elif defined(ANJ_COAP_WITH_TCP)
+#        define ANJ_SUPPORTED_BINDING_MODES "T"
+#    else
+#        define ANJ_SUPPORTED_BINDING_MODES "U"
+#    endif
 
 /**
  * This enum represents the possible states of a server connection.
@@ -218,7 +202,7 @@ typedef struct anjay_configuration_struct {
      * UDP transmission parameters, for LwM2M client requests. If NULL, default
      * values will be used.
      */
-    const _anj_exchange_udp_tx_params_t *udp_tx_params;
+    const anj_exchange_udp_tx_params_t *udp_tx_params;
 
     /**
      * Time to wait for the next block of the LwM2M Server request. If not set,
@@ -226,7 +210,7 @@ typedef struct anjay_configuration_struct {
      * is used.
      */
     uint64_t exchange_request_timeout_ms;
-#ifdef ANJ_WITH_BOOTSTRAP
+#    ifdef ANJ_WITH_BOOTSTRAP
 
     /**
      * The number of successive communication attempts before which a
@@ -253,7 +237,7 @@ typedef struct anjay_configuration_struct {
      * the CoAP EXCHANGE_LIFETIME value.
      */
     uint32_t bootstrap_timeout;
-#endif // ANJ_WITH_BOOTSTRAP
+#    endif // ANJ_WITH_BOOTSTRAP
 } anj_configuration_t;
 
 /**
@@ -477,7 +461,7 @@ void anj_core_request_update(anj_t *anj);
 /**
  * Shuts down the Anjay Lite client instance.
  *
- * This function halts all active LwM2M operations and clears the client’s
+ * This function halts all active LwM2M operations and clears the client's
  * internal state. Once called, the @p anj object becomes unusable unless it is
  * reinitialized using @ref anj_core_init.
  *
@@ -528,12 +512,12 @@ void anj_core_request_update(anj_t *anj);
  */
 int anj_core_shutdown(anj_t *anj);
 
-#define ANJ_INTERNAL_INCLUDE_CORE
-#include <anj_internal/core.h>
-#undef ANJ_INTERNAL_INCLUDE_CORE
+#    define ANJ_INTERNAL_INCLUDE_CORE
+#    include <anj_internal/core.h> // IWYU pragma: export
+#    undef ANJ_INTERNAL_INCLUDE_CORE
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_CORE_H

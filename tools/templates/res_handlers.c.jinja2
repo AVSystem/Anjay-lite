@@ -1,0 +1,95 @@
+{%- import 'macros.jinja2' as m with context -%}
+
+{% if obj.has_any_readable_resources %}
+static int res_read(anj_t *anj,
+                    const anj_dm_obj_t *obj,
+                    anj_iid_t iid,
+                    anj_rid_t rid,
+                    anj_riid_t riid,
+                    anj_res_value_t *out_value) {
+
+{% if multiple_insts %}
+    {{ obj.name_snake }}_obj_inst_t *inst = get_obj_inst(obj, iid);
+{% else %}
+    {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(obj);
+{% endif %}   
+    switch (rid) {
+{% for res in obj.resources if 'R' in res.operations %}
+    case RID_{{ res.name_upper }}: {
+{% if res.multiple and multiple_insts %}
+        {{ res.name_snake }}_res_inst_t *res_inst = get_res_inst_{{ res.name_snake }}(inst, riid);
+{% elif res.multiple %}
+        {{ res.name_snake }}_res_inst_t *res_inst = get_res_inst_{{ res.name_snake }}(riid);
+{% endif %}
+        // TODO: Implement write to out_value
+        // out_value->{{ res.union_res_value_field }} = ...
+        return ANJ_DM_ERR_NOT_IMPLEMENTED;
+    }
+{% endfor %}
+    default:
+        return ANJ_DM_ERR_NOT_FOUND;
+    }
+}
+{% endif -%}
+{% if obj.has_any_writable_resources +%}
+static int res_write(anj_t *anj,
+                     const anj_dm_obj_t *obj,
+                     anj_iid_t iid,
+                     anj_rid_t rid,
+                     anj_riid_t riid,
+                     const anj_res_value_t *value) {
+
+{% if multiple_insts %}
+    {{ obj.name_snake }}_obj_inst_t *inst = get_obj_inst(obj, iid);
+{% else %}
+    {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(obj);
+{% endif %}
+    switch (rid) {
+{% for res in obj.resources if 'W' in res.operations %}
+    case RID_{{ res.name_upper }}: {
+{% if res.multiple and multiple_insts %}
+        {{ res.name_snake }}_res_inst_t *res_inst = get_res_inst_{{ res.name_snake }}(inst, riid);
+{% elif res.multiple %}
+        {{ res.name_snake }}_res_inst_t *res_inst = get_res_inst_{{ res.name_snake }}(riid);
+{% endif %}
+        // TODO: Implement read from value
+{% if res.type == "string" or res.type == "corelnk" %}
+        // return anj_dm_write_string_chunked(value, /* TODO: */);
+{% elif res.type == "opaque" %}
+        // return anj_dm_write_bytes_chunked(value, /* TODO: */);
+{% else %}
+        // ... =  value->{{ res.union_res_value_field }};
+{% endif %}
+        return ANJ_DM_ERR_NOT_IMPLEMENTED;
+    }
+{% endfor %}
+    default:
+        return ANJ_DM_ERR_NOT_FOUND;
+    }
+}
+{% endif -%}
+{% if obj.has_any_executable_resources +%}
+static int res_execute(anj_t *anj,
+                       const anj_dm_obj_t *obj,
+                       anj_iid_t iid,
+                       anj_rid_t rid,
+                       const char *execute_arg,
+                       size_t execute_arg_len) {
+
+{% if multiple_insts %}
+    {{ obj.name_snake }}_obj_inst_t *inst = get_obj_inst(obj, iid);
+{% else %}
+    {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(obj);
+{% endif %}   
+    switch (rid) {
+{% for res in obj.resources if 'E' in res.operations %}
+    case RID_{{ res.name_upper }}: {
+        // TODO: Implement execute logic
+        return ANJ_DM_ERR_NOT_IMPLEMENTED;
+    }
+{% endfor %}
+    default:
+        return ANJ_DM_ERR_NOT_FOUND;
+    }
+}
+{% endif -%}

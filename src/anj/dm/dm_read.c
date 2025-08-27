@@ -7,20 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/defs.h>
 #include <anj/log/log.h>
 #include <anj/utils.h>
 
-#include "../coap/coap.h"
-#include "../io/io.h"
 #include "../utils.h"
 #include "dm_core.h"
 #include "dm_io.h"
@@ -125,6 +125,10 @@ static bool object_can_be_read(const anj_dm_obj_t *obj) {
 #if defined(ANJ_WITH_COMPOSITE_OPERATIONS) || defined(ANJ_WITH_OBSERVE)
 int _anj_dm_path_has_readable_resources(_anj_dm_data_model_t *dm,
                                         const anj_uri_path_t *path) {
+
+    if (path != NULL && _anj_uri_path_to_security_or_oscore_obj(path)) {
+        return ANJ_DM_ERR_NOT_FOUND;
+    }
 #    ifdef ANJ_WITH_COMPOSITE_OPERATIONS
     if (!anj_uri_path_has(path, ANJ_ID_OID)) {
         for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
@@ -271,10 +275,10 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
 
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
     int ret;
-    // composite_current_object variable is used for root path
+    // comp_read_current_object variable is used for root path
     if (dm->operation == ANJ_OP_DM_READ_COMP && dm->op_count == 0
-            && dm->composite_current_object != 0
-            && dm->composite_current_object < dm->objs_count) {
+            && dm->comp_read_current_object != 0
+            && dm->comp_read_current_object < dm->objs_count) {
         ret = _anj_dm_composite_next_path(anj, &ANJ_MAKE_ROOT_PATH());
         if (ret && ret != _ANJ_DM_NO_RECORD) {
             return ret;
@@ -295,9 +299,9 @@ void _anj_dm_get_readable_res_count(anj_t *anj, size_t *out_res_count) {
 }
 
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-int _anj_dm_get_composite_readable_res_count(anj_t *anj,
-                                             const anj_uri_path_t *path,
-                                             size_t *out_res_count) {
+int _anj_dm_count_readable_res_if_allowed(anj_t *anj,
+                                          const anj_uri_path_t *path,
+                                          size_t *out_res_count) {
     assert(anj && path && out_res_count);
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress && !dm->result);
@@ -323,6 +327,10 @@ int _anj_dm_get_composite_readable_res_count(anj_t *anj,
         }
     } else {
         for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
+            if (dm->objs[idx]->oid == ANJ_OBJ_ID_SECURITY
+                    || dm->objs[idx]->oid == ANJ_OBJ_ID_OSCORE) {
+                continue;
+            }
             count += get_readable_res_count_from_object(dm->objs[idx]);
         }
     }
@@ -340,15 +348,26 @@ int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path) {
     _anj_dm_read_ctx_t *read_ctx = &dm->op_ctx.read_ctx;
     bool root_path = !anj_uri_path_has(path, ANJ_ID_OID);
 
-    assert(!anj_uri_path_equal(path, &read_ctx->path) || root_path);
     assert(dm->op_count == 0);
 
     anj_uri_path_t object_path;
     do {
         ret = 0;
         if (root_path) {
+            while (dm->comp_read_current_object < dm->objs_count
+                   && (dm->objs[dm->comp_read_current_object]->oid
+                               == ANJ_OBJ_ID_SECURITY
+                       || dm->objs[dm->comp_read_current_object]->oid
+                                  == ANJ_OBJ_ID_OSCORE)) {
+                dm->comp_read_current_object++;
+            }
+
+            if (dm->comp_read_current_object >= dm->objs_count) {
+                return _ANJ_DM_NO_RECORD;
+            }
+
             object_path = ANJ_MAKE_OBJECT_PATH(
-                    dm->objs[dm->composite_current_object++]->oid);
+                    dm->objs[dm->comp_read_current_object++]->oid);
             path = &object_path;
         }
 
@@ -366,13 +385,12 @@ int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path) {
             ret = _ANJ_DM_NO_RECORD;
         }
     } while (ret == _ANJ_DM_NO_RECORD && root_path
-             && dm->composite_current_object < dm->objs_count);
+             && dm->comp_read_current_object < dm->objs_count);
 
     if (ret) {
         return ret;
     }
 
-    read_ctx->path = *path;
     read_ctx->inst_idx = 0;
     read_ctx->res_idx = 0;
     read_ctx->res_inst_idx = 0;

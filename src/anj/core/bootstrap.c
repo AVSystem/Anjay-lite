@@ -7,12 +7,12 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
-#include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
@@ -20,7 +20,6 @@
 
 #include "../coap/coap.h"
 #include "../dm/dm_integration.h"
-#include "../exchange.h"
 #include "bootstrap.h"
 
 #ifdef ANJ_WITH_BOOTSTRAP

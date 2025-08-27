@@ -7,35 +7,28 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_REGISTER_H
-#define ANJ_REGISTER_H
+#    define ANJ_REGISTER_H
 
-#include <stdbool.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stdint.h>
 
-#include <anj/defs.h>
-
-#define ANJ_INTERNAL_INCLUDE_EXCHANGE
-#include <anj_internal/exchange.h>
-#undef ANJ_INTERNAL_INCLUDE_EXCHANGE
-
-#include "../coap/coap.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
 /**
  * A group of codes that can be returned by @ref _anj_register_operation_status.
  */
 
 /** Registration interface operation still in progress. */
-#define _ANJ_REGISTER_OPERATION_IN_PROGRESS 0
+#    define _ANJ_REGISTER_OPERATION_IN_PROGRESS 0
 /** Registration interface operation has been successfully finished. */
-#define _ANJ_REGISTER_OPERATION_FINISHED 1
+#    define _ANJ_REGISTER_OPERATION_FINISHED 1
 /** Indicates that the registration interface operation has failed or context
  * has never been used. */
-#define _ANJ_REGISTER_OPERATION_ERROR -1
+#    define _ANJ_REGISTER_OPERATION_ERROR -1
 
 /**
  * Initializes the register module context. Should be called once before any
@@ -130,13 +123,5 @@ void _anj_register_deregister(anj_t *anj,
  *   function is call right after @ref _anj_register_ctx_init call.
  */
 int _anj_register_operation_status(anj_t *anj);
-
-#define ANJ_INTERNAL_INCLUDE_REGISTER
-#include <anj_internal/register.h>
-#undef ANJ_INTERNAL_INCLUDE_REGISTER
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // ANJ_REGISTER_H

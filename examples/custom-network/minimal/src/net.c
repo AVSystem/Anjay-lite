@@ -24,7 +24,7 @@
 #include <unistd.h>
 
 #define INVALID_SOCKET -1
-#define NET_GENERAL_ERROR -3
+#define NET_GENERAL_ERROR -1
 typedef int sockfd_t;
 
 typedef struct net_ctx_posix_impl {

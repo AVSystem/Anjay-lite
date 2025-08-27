@@ -7,28 +7,17 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_IMPL_H
-#define ANJ_DM_IMPL_H
+#    define ANJ_DM_IMPL_H
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include "dm_io.h"
-
-#define ANJ_INTERNAL_INCLUDE_EXCHANGE
-#include <anj_internal/exchange.h>
-#undef ANJ_INTERNAL_INCLUDE_EXCHANGE
-
-#include "../coap/coap.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#if defined(ANJ_WITH_COMPOSITE_OPERATIONS) \
-        && !defined(ANJ_DM_MAX_COMPOSITE_ENTRIES)
-#    error "if composite operations are enabled, their parameters have to be defined"
-#endif
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
 /**
  * Processes all LwM2M Server requests related to the data model, call it after
@@ -229,9 +218,5 @@ int _anj_dm_get_server_obj_instance_data(anj_t *anj,
 int _anj_dm_get_security_obj_instance_iid(anj_t *anj,
                                           uint16_t ssid,
                                           anj_iid_t *out_iid);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif // ANJ_DM_IMPL_H

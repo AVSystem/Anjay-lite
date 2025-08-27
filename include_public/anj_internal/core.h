@@ -19,20 +19,24 @@ extern "C" {
 #endif
 
 #define ANJ_INTERNAL_INCLUDE_DM_DEFS
-#include <anj_internal/dm/defs.h>
+#include <anj_internal/dm/defs.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_DM_DEFS
 
 #define ANJ_INTERNAL_INCLUDE_REGISTER
-#include <anj_internal/register.h>
+#include <anj_internal/register.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_REGISTER
 
 #define ANJ_INTERNAL_INCLUDE_OBSERVE
-#include <anj_internal/observe.h>
+#include <anj_internal/observe.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_OBSERVE
 
 #define ANJ_INTERNAL_INCLUDE_IO_CTX
-#include <anj_internal/io_ctx.h>
+#include <anj_internal/io_ctx.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_IO_CTX
+
+#define ANJ_INTERNAL_INCLUDE_SERVER
+#include <anj_internal/server.h>
+#undef ANJ_INTERNAL_INCLUDE_SERVER
 
 /**
  * @anj_internal_api_do_not_use
@@ -46,15 +50,6 @@ extern "C" {
 #else
 #    define _ANJ_LWM2M_VERSION_STR "1.1"
 #endif // ANJ_WITH_LWM2M12
-
-/** @anj_internal_api_do_not_use */
-typedef struct anj_server_connection_ctx_struct {
-    anj_net_ctx_t *net_ctx;
-    int32_t mtu;
-    size_t bytes_sent;
-    anj_net_binding_type_t type;
-    bool send_in_progress;
-} _anj_server_connection_ctx_t;
 
 /**
  * @anj_internal_api_do_not_use
@@ -172,6 +167,9 @@ typedef struct anj_struct {
     uint8_t out_buffer[ANJ_OUT_MSG_BUFFER_SIZE];
     uint8_t payload_buffer[ANJ_OUT_PAYLOAD_BUFFER_SIZE];
     _anj_exchange_ctx_t exchange_ctx;
+#ifdef ANJ_WITH_CACHE
+    _anj_exchange_cache_t exchange_cache;
+#endif // ANJ_WITH_CACHE
     size_t out_msg_len;
 } _anj_t;
 

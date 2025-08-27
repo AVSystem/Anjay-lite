@@ -7,25 +7,27 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_SRC_CORE_SERVER_REGISTER_H
-#define ANJ_SRC_CORE_SERVER_REGISTER_H
+#    define ANJ_SRC_CORE_SERVER_REGISTER_H
 
-#include <anj/core.h>
-#include <anj/defs.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
-#include "core.h"
+#    include "core.h"
 
-#define _ANJ_SRV_REG_STATE_CONNECTION_IN_PROGRESS 1
-#define _ANJ_SRV_REG_STATE_REGISTER_IN_PROGRESS 2
-#define _ANJ_SRV_REG_STATE_ERROR_HANDLING_IN_PROGRESS 3
+#    define _ANJ_SRV_REG_STATE_CONNECTION_IN_PROGRESS 1
+#    define _ANJ_SRV_REG_STATE_REGISTER_IN_PROGRESS 2
+#    define _ANJ_SRV_REG_STATE_ERROR_HANDLING_IN_PROGRESS 3
 // disconnect and reconnect
-#define _ANJ_SRV_REG_STATE_DISCONNECT_IN_PROGRESS 4
+#    define _ANJ_SRV_REG_STATE_DISCONNECT_IN_PROGRESS 4
 // disconnect with network context cleanup and reconnect
-#define _ANJ_SRV_REG_STATE_CLEANUP_IN_PROGRESS 5
+#    define _ANJ_SRV_REG_STATE_CLEANUP_IN_PROGRESS 5
 // disconnect with network context cleanup and go to registration failure state
-#define _ANJ_SRV_REG_STATE_CLEANUP_WITH_FAILURE_IN_PROGRESS 6
-#define _ANJ_SRV_REG_STATE_RESTART_IN_PROGRESS 7
-#define _ANJ_SRV_REG_STATE_REGISTRATION_FAILURE_IN_PROGRESS 8
+#    define _ANJ_SRV_REG_STATE_CLEANUP_WITH_FAILURE_IN_PROGRESS 6
+#    define _ANJ_SRV_REG_STATE_RESTART_IN_PROGRESS 7
+#    define _ANJ_SRV_REG_STATE_REGISTRATION_FAILURE_IN_PROGRESS 8
 
 /**
  * Starts the process of registering the client to the LwM2M server. All errors

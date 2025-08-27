@@ -7,18 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_TLS_H
-#define ANJ_TLS_H
+#    define ANJ_TLS_H
 
-#include <anj/anj_config.h>
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
-#ifdef ANJ_WITH_TLS_BINDING
+#    ifdef ANJ_WITH_TLS_BINDING
 
-#    include <anj/compat/net/anj_net_api.h>
+#        include <anj/compat/net/anj_net_api.h>
 
 anj_net_get_system_socket_t anj_tls_get_system_socket;
 anj_net_close_t anj_tls_close;
@@ -40,10 +40,10 @@ anj_net_get_state_t anj_tls_get_state;
 anj_net_set_dane_tlsa_array_t anj_tls_set_dane_tls_array;
 anj_net_set_tls_handshake_timeouts_t anj_tls_set_handshake_timeout;
 
-#endif // ANJ_WITH_TLS_BINDING
+#    endif // ANJ_WITH_TLS_BINDING
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_TLS_H

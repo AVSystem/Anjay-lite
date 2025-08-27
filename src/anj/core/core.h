@@ -7,14 +7,16 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_SRC_CORE_CORE_H
-#define ANJ_SRC_CORE_CORE_H
+#    define ANJ_SRC_CORE_CORE_H
 
-#include <stdbool.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stdint.h>
 
-#include <anj/core.h>
-#include <anj/defs.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
 /**
  * Returns codes that can be returned by function called in the @ref

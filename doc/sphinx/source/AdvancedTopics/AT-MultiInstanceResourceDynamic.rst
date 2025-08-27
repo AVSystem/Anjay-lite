@@ -6,13 +6,13 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Dynamic Multiple-Instance Resource
-==================================
+Multi-Instance Resource Dynamic
+===============================
 
 Overview
 --------
 
-This tutorial demonstrates how to implement a **dynamic multiple-instance resource** in Anjay Lite,
+This guide explains how to implement a **dynamic multiple-instance resource** in Anjay Lite,
 based on an extended version of the :doc:`Multiple-instance resource example <AT-MultiInstanceResource>`.
 Unlike the static variant, this version supports creating and deleting resource instances at runtime,
 and dynamically reports which instances currently exist. The set of active Resource Instance IDs (RIIDs)
@@ -24,6 +24,15 @@ or other lists that are not known at compile time.
     Complete code of this example can be found in
     `examples/tutorial/AT-MultiInstanceResourceDynamic` subdirectory of main Anjay Lite
     project repository.
+
+.. note::
+    To generate code stubs for multiple-instance resources with dynamic instance support, use the ``anjay_codegen.py`` script with the ``-dri`` and ``-nri`` flags:
+
+    .. code-block:: bash
+
+        ./tools/anjay_codegen.py -i binary_app_data_container.xml -o binary_app_data_container.c -dri -nri <rid1> <max1> -nri <rid2> <max2> <...>
+ 
+    For details, see the :ref:`Dynamic multiple resources instances generation<multi-resource-instances-dynamic-generator>` section.
 
 Implement Dynamic Resource
 --------------------------
@@ -127,6 +136,8 @@ The last slot is then marked as empty by setting it to `ANJ_ID_INVALID`.
 
    Always ensure that the `res_insts` array is sorted in ascending order of RIIDs, and instances that are not present
    are marked as `ANJ_ID_INVALID`.
+
+.. _reset-instance-context:
 
 Reset Instance Context
 ----------------------

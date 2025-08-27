@@ -7,22 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/log/log.h>
 #include <anj/utils.h>
 
-#include "../coap/coap.h"
 #include "../dm/dm_integration.h"
-#include "../exchange.h"
-#include "../utils.h"
 #include "observe.h"
 #include "observe_internal.h"
 
@@ -159,19 +157,8 @@ static void anj_exchange_completion(void *arg_ptr,
         _anj_observe_remove_observation(ctx);
         observe_log(L_ERROR, "Failed to send notification");
     } else {
-        observe_log(L_INFO, "Notification sent");
-
-#    ifdef ANJ_WITH_OBSERVE_COMPOSITE
-        if (ctx->processing_observation->prev) {
-            _anj_observe_composite_refresh_timestamp(ctx);
-        } else
-#    endif
-        {
-            ctx->processing_observation->last_notify_timestamp =
-                    anj_time_real_now();
-        }
-
         set_notification_flag(ctx, false);
+        observe_log(L_INFO, "Notification sent");
     }
 }
 
@@ -179,8 +166,6 @@ static int create_notification(anj_t *anj,
                                _anj_exchange_handlers_t *out_handlers,
                                const _anj_observe_server_state_t *server_state,
                                _anj_coap_msg_t *out_msg) {
-    bool con_attr = false;
-    bool has_con_attr = false;
     int result;
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
     if ((result = update_last_sent_value(anj))) {
@@ -196,6 +181,8 @@ static int create_notification(anj_t *anj,
 
     _anj_observe_set_uri_paths_and_format(anj);
 #    ifdef ANJ_WITH_LWM2M12
+    bool con_attr = false;
+    bool has_con_attr = false;
 #        ifdef ANJ_WITH_OBSERVE_COMPOSITE
     if (ctx->processing_observation->prev) {
         const _anj_observe_observation_t *iterator =
@@ -222,6 +209,12 @@ static int create_notification(anj_t *anj,
 #    else  // ANJ_WITH_LWM2M12
     out_msg->operation = ANJ_OP_INF_NON_CON_NOTIFY;
 #    endif // ANJ_WITH_LWM2M12
+    // send a confirmable notification at least once every 24 hours
+    if (anj_time_real_now()
+            >= ctx->processing_observation->next_conf_notify_timestamp) {
+        out_msg->operation = ANJ_OP_INF_CON_NOTIFY;
+    }
+
     // set token
     memcpy(&out_msg->token, &ctx->processing_observation->token,
            sizeof(_anj_coap_token_t));
@@ -231,7 +224,9 @@ static int create_notification(anj_t *anj,
     out_msg->observe_number = ctx->processing_observation->observe_number;
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     sync_composite_observe_number(ctx->processing_observation);
-#    endif // ANJ_WITH_OBSERVE_COMPOSITE
+#    endif
+    _anj_observe_refresh_timestamp(ctx, anj_time_real_now(),
+                                   out_msg->operation == ANJ_OP_INF_CON_NOTIFY);
     return 0;
 }
 
@@ -352,8 +347,14 @@ int anj_observe_time_to_next_notification(
     assert(anj && server_state && time_to_next_notification);
     assert(server_state->ssid > 0 && server_state->ssid < UINT16_MAX);
 
-    return observe_process_or_get_time(anj, NULL, server_state, NULL,
-                                       time_to_next_notification, true);
+    /* We might be in middle of handling notification when this function is
+     * called */
+    _anj_observe_observation_t *previous_processing_observation =
+            anj->observe_ctx.processing_observation;
+    int ret = observe_process_or_get_time(anj, NULL, server_state, NULL,
+                                          time_to_next_notification, true);
+    anj->observe_ctx.processing_observation = previous_processing_observation;
+    return ret;
 }
 
 // a > b
@@ -487,6 +488,10 @@ int anj_observe_data_model_changed(anj_t *anj,
     int ret_val = 0;
     int result = 0;
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
+    /* We might be in middle of handling notification when this function is
+     * called */
+    _anj_observe_observation_t *previous_processing_observation =
+            ctx->processing_observation;
     switch (change_type) {
     case ANJ_OBSERVE_CHANGE_TYPE_ADDED:
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
@@ -579,6 +584,7 @@ int anj_observe_data_model_changed(anj_t *anj,
         ANJ_UNREACHABLE("incorrect operation type");
     }
 
+    ctx->processing_observation = previous_processing_observation;
     return ret_val;
 }
 

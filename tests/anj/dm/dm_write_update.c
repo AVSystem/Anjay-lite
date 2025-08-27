@@ -54,8 +54,8 @@ static int res_write(anj_t *anj,
         return -1;
     }
     if (iid == 1 && rid == 7) {
-        return anj_dm_write_string_chunked(
-                value, string_buffer, buffer_size, NULL);
+        return anj_dm_write_string_chunked(value, string_buffer, buffer_size,
+                                           NULL);
     }
     return 0;
 }
@@ -422,14 +422,15 @@ ANJ_UNIT_TEST(dm_write_update, error_no_writable) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
-                          ANJ_DM_ERR_BAD_REQUEST);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_BAD_REQUEST);
+                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj),
+                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_BAD_REQUEST);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_METHOD_NOT_ALLOWED);
 }
 
 ANJ_UNIT_TEST(dm_write_update, error_path) {
@@ -471,6 +472,17 @@ ANJ_UNIT_TEST(dm_write_update, error_path_multi_instance) {
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+}
+
+ANJ_UNIT_TEST(dm_write_update, error_unauthorized) {
+    TEST_INIT(anj, obj);
+
+    anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(0, 0, 0);
+    ANJ_UNIT_ASSERT_EQUAL(
+            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
+                                    &path),
+            ANJ_DM_ERR_UNAUTHORIZED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_UNAUTHORIZED);
 }
 
 ANJ_UNIT_TEST(dm_write_update, handler_error) {

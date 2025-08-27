@@ -9,18 +9,20 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/device_object.h>
 #include <anj/dm/security_object.h>
 #include <anj/dm/server_object.h>
 #include <anj/utils.h>
 
-#include "net_api_mock.h"
-#include "time_api_mock.h"
+#include "../mock/net_api_mock.h"
+#include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
@@ -151,18 +153,18 @@ static char update_response[] = "\x68"         // header v 0x01, Ack, tkl 8
     anj_core_step(&anj);                                \
     mock.bytes_sent = 0
 
-#define HANDLE_UPDATE(Request)                                   \
-    anj_core_step(&anj);                                         \
-    COPY_TOKEN_AND_MSG_ID(Request, 8);                           \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(Request) - 1, mock.bytes_sent); \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(                           \
-            mock.send_data_buffer, Request, mock.bytes_sent);    \
-    ADD_RESPONSE(update_response);                               \
-    anj_core_step(&anj);                                         \
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,          \
-                          ANJ_CONN_STATUS_REGISTERED);           \
-    mock.bytes_sent = 0;                                         \
-    anj_core_step(&anj);                                         \
+#define HANDLE_UPDATE(Request)                                        \
+    anj_core_step(&anj);                                              \
+    COPY_TOKEN_AND_MSG_ID(Request, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(Request) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, Request, \
+                                      mock.bytes_sent);               \
+    ADD_RESPONSE(update_response);                                    \
+    anj_core_step(&anj);                                              \
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,               \
+                          ANJ_CONN_STATUS_REGISTERED);                \
+    mock.bytes_sent = 0;                                              \
+    anj_core_step(&anj);                                              \
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0)
 
 #define MAX_TRANSMIT_WAIT 93
@@ -260,8 +262,8 @@ ANJ_UNIT_TEST(registration_session, update_with_data_model) {
     set_mock_time(actual_time);
     HANDLE_UPDATE(update);
 
-    anj_core_data_model_changed(
-            &anj, &ANJ_MAKE_INSTANCE_PATH(1, 3), ANJ_CORE_CHANGE_TYPE_ADDED);
+    anj_core_data_model_changed(&anj, &ANJ_MAKE_INSTANCE_PATH(1, 3),
+                                ANJ_CORE_CHANGE_TYPE_ADDED);
     HANDLE_UPDATE(update_with_data_model);
 }
 
@@ -349,16 +351,16 @@ ANJ_UNIT_TEST(registration_session, update_retransmissions) {
     };
     ser_inst.comm_retry_res = &comm_retry_res;
     ADD_INSTANCES();
-    anj_core_data_model_changed(
-            &anj, &ANJ_MAKE_OBJECT_PATH(1), ANJ_CORE_CHANGE_TYPE_ADDED);
+    anj_core_data_model_changed(&anj, &ANJ_MAKE_OBJECT_PATH(1),
+                                ANJ_CORE_CHANGE_TYPE_ADDED);
     PROCESS_REGISTRATION();
 
     anj_core_server_obj_registration_update_trigger_executed(&anj);
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, update, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, update,
+                                      mock.bytes_sent);
     mock.bytes_sent = 0;
 
     // first retry - because of resonse timeout
@@ -367,8 +369,8 @@ ANJ_UNIT_TEST(registration_session, update_retransmissions) {
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, update, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, update,
+                                      mock.bytes_sent);
     mock.bytes_sent = 0;
 
     // second retry
@@ -376,8 +378,8 @@ ANJ_UNIT_TEST(registration_session, update_retransmissions) {
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, update, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, update,
+                                      mock.bytes_sent);
     mock.bytes_sent = 0;
     ADD_RESPONSE(update_response);
     anj_core_step(&anj);
@@ -393,8 +395,8 @@ ANJ_UNIT_TEST(registration_session, update_connection_error) {
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, update, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, update,
+                                      mock.bytes_sent);
     // error response always leads to reregistration
     mock.bytes_to_send = 0;
     mock.call_result[ANJ_NET_FUN_RECV] = -14;
@@ -423,8 +425,8 @@ ANJ_UNIT_TEST(registration_session, update_error_response) {
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, update, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, update,
+                                      mock.bytes_sent);
     // error response always leads to reregistration
     ADD_RESPONSE(error_response);
     anj_core_step(&anj);
@@ -442,9 +444,9 @@ ANJ_UNIT_TEST(registration_session, update_error_response) {
     mock.bytes_to_recv = sizeof(Request) - 1; \
     mock.data_to_recv = (uint8_t *) Request
 
-#define CHECK_RESPONSE(Respone)                               \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(                        \
-            mock.send_data_buffer, Respone, mock.bytes_sent); \
+#define CHECK_RESPONSE(Respone)                                       \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, Respone, \
+                                      mock.bytes_sent);               \
     ANJ_UNIT_ASSERT_EQUAL(sizeof(Respone) - 1, mock.bytes_sent)
 
 static char read_request[] = "\x42"         // header v 0x01, Confirmable
@@ -499,6 +501,7 @@ ANJ_UNIT_TEST(registration_session, server_requests) {
     // write request with lifetime in result after write request update with
     // lifetime is immediately sent
     write_request[11] = 0x31; // change uri-path_3 to /1
+    write_request[2] = 0x48;  // change MID
     ADD_REQUEST(write_request);
     anj_core_step(&anj);
     // lifetime changed next update contains lifetime
@@ -553,6 +556,8 @@ ANJ_UNIT_TEST(registration_session, server_requests_error_handling) {
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 
     // read request - ACK timeout
+    // change msgid to not reveice message from cache
+    read_request[2] = 0x46;
     ADD_REQUEST(read_request);
     mock.bytes_to_send = 0;
     anj_core_step(&anj);
@@ -563,6 +568,8 @@ ANJ_UNIT_TEST(registration_session, server_requests_error_handling) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
     mock.bytes_to_send = 100;
+
+    read_request[2] = 0x45;
 }
 
 ANJ_UNIT_TEST(registration_session, server_requests_network_error) {
@@ -698,18 +705,18 @@ static char deregistrer_response[] =
         "\x42\x00\x00"                      // Code=Deleted
         "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"; // token
 
-#define HANDLE_DEREGISTER(Response)                                  \
-    anj_core_step(&anj);                                             \
-    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                           \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent); \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(                               \
-            mock.send_data_buffer, deregistrer, mock.bytes_sent);    \
-    ADD_RESPONSE(Response);                                          \
-    anj_core_step(&anj);                                             \
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,              \
-                          ANJ_CONN_STATUS_SUSPENDED);                \
-    mock.bytes_sent = 0;                                             \
-    anj_core_step(&anj);                                             \
+#define HANDLE_DEREGISTER(Response)                                       \
+    anj_core_step(&anj);                                                  \
+    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregistrer, \
+                                      mock.bytes_sent);                   \
+    ADD_RESPONSE(Response);                                               \
+    anj_core_step(&anj);                                                  \
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                   \
+                          ANJ_CONN_STATUS_SUSPENDED);                     \
+    mock.bytes_sent = 0;                                                  \
+    anj_core_step(&anj);                                                  \
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0)
 
 ANJ_UNIT_TEST(registration_session, server_disable_by_server) {
@@ -1074,8 +1081,8 @@ ANJ_UNIT_TEST(registration_session, queue_mode_update_error) {
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, update, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, update,
+                                      mock.bytes_sent);
     // error response always leads to reregistration
     ADD_RESPONSE(error_response);
     anj_core_step(&anj);
@@ -1180,16 +1187,16 @@ ANJ_UNIT_TEST(registration_session, shutdown) {
                           cleanup_retries + 2);
 }
 
-#define HANDLE_DEREGISTER_WITH_REGISTRATION()                        \
-    anj_core_step(&anj);                                             \
-    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                           \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent); \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(                               \
-            mock.send_data_buffer, deregistrer, mock.bytes_sent);    \
-    ADD_RESPONSE(deregistrer_response);                              \
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;          \
-    anj_core_step(&anj);                                             \
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,              \
+#define HANDLE_DEREGISTER_WITH_REGISTRATION()                             \
+    anj_core_step(&anj);                                                  \
+    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregistrer, \
+                                      mock.bytes_sent);                   \
+    ADD_RESPONSE(deregistrer_response);                                   \
+    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;               \
+    anj_core_step(&anj);                                                  \
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                   \
                           ANJ_CONN_STATUS_REGISTERING);
 
 ANJ_UNIT_TEST(registration_session, restart) {
@@ -1284,19 +1291,19 @@ static char expected_bootstrap[] =
         "\x47\x65\x70\x3d\x6e\x61\x6d\x65"  // uri-query: ep=name
         "\x07\x70\x63\x74\x3d\x31\x31\x32"; // uri-query: pct=112
 
-#define HANDLE_DEREGISTER_WITH_BOOTSTRAP()                           \
-    anj_core_step(&anj);                                             \
-    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                           \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent); \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(                               \
-            mock.send_data_buffer, deregistrer, mock.bytes_sent);    \
-    ADD_RESPONSE(deregistrer_response);                              \
-    anj_core_step(&anj);                                             \
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,              \
-                          ANJ_CONN_STATUS_BOOTSTRAPPING);            \
-    COPY_TOKEN_AND_MSG_ID(expected_bootstrap, 8);                    \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,         \
-                                      expected_bootstrap,            \
+#define HANDLE_DEREGISTER_WITH_BOOTSTRAP()                                \
+    anj_core_step(&anj);                                                  \
+    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregistrer, \
+                                      mock.bytes_sent);                   \
+    ADD_RESPONSE(deregistrer_response);                                   \
+    anj_core_step(&anj);                                                  \
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                   \
+                          ANJ_CONN_STATUS_BOOTSTRAPPING);                 \
+    COPY_TOKEN_AND_MSG_ID(expected_bootstrap, 8);                         \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,              \
+                                      expected_bootstrap,                 \
                                       sizeof(expected_bootstrap) - 1);
 
 ANJ_UNIT_TEST(registration_session, suspend_from_bootstrap) {
@@ -1412,9 +1419,9 @@ ANJ_UNIT_TEST(registration_session, queue_mode_with_reuse_port_error) {
     PROCESS_REGISTRATION();
 }
 
-static char CoAP_PING[] = "\x40\x00\x00\x00"; // Confirmable, tkl 0, empty msg
+static char CoAP_PING[] = "\x40\x00\x01\x01"; // Confirmable, tkl 0, empty msg
 static char RST_response[] = "\x70"           // ACK, tkl 0
-                             "\x00\x00\x00";  // empty msg
+                             "\x00\x01\x01";  // empty msg
 
 ANJ_UNIT_TEST(registration_session, CoAP_ping) {
     EXTENDED_INIT();
@@ -1428,4 +1435,690 @@ ANJ_UNIT_TEST(registration_session, CoAP_ping) {
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
+}
+
+static char write_mute_send_enable_request[] =
+        "\x42"         // header v 0x01, Confirmable, TKL=2
+        "\x02\x47\x26" // POST code 0.2, MID 0x4726
+        "\x56\x78"     // token
+        "\xB1\x31"     // uri-path /1
+        "\x01\x31"     // uri-path /1
+        "\x12\x2d\x16" // content format TLV
+        "\xFF"         // payload marker
+        "\xc1\x17"     // TLV resource 23
+        "\x01";        // true
+
+static char write_mute_send_enable_response[] =
+        "\x62"      // Header: Ver=1, Type=2 (ACK), TKL=2
+        "\x44"      // Code: 2.04 Changed
+        "\x47\x26"  // Message ID: 0x4726
+        "\x56\x78"; // Token: 0x5678
+
+static char write_mute_send_disable_request[] =
+        "\x42"         // header v 0x01, Confirmable, TKL=2
+        "\x02\x47\x26" // POST code 0.2, MID 0x4726
+        "\x56\x78"     // token
+        "\xB1\x31"     // uri-path /1
+        "\x01\x31"     // uri-path /1
+        "\x12\x2d\x16" // content format TLV
+        "\xFF"         // payload marker
+        "\xc1\x17"     // TLV resource 23
+        "\x00";        // false
+
+static char execute_request[] =
+        "\x42"         // Header: Ver=1, Type=0 (CON), TKL=2
+        "\x02\x47\x25" // Code=EXECUTE (0.05), MID=0x4725
+        "\x12\x34"     // Token
+        "\xB1\x33"     // Uri-Path: /3
+        "\x01\x30"     // Uri-Path: /0
+        "\x01\x34";    // Uri-Path: /4
+
+static char execute_ack_response[] = "\x62"      // Ver=1, Type=2 (ACK), TKL=2
+                                     "\x44"      // Code=2.04 (Changed)
+                                     "\x47\x25"  // Message ID = 0x4725
+                                     "\x12\x34"; // Token = 0x1234
+
+static int g_reboot_execute_counter;
+
+static void reboot_cb(void *arg, anj_t *anj) {
+    (void) anj;
+    (void) arg;
+    g_reboot_execute_counter++;
+}
+
+#define ADD_DEVICE_OBJECT()                                               \
+    char serial_number[] = "53r141-number";                               \
+    anj_dm_device_obj_t device_obj;                                       \
+    anj_dm_device_object_init_t dev_obj_init = {                          \
+        .reboot_cb = reboot_cb,                                           \
+        .serial_number = serial_number                                    \
+    };                                                                    \
+    ANJ_UNIT_ASSERT_SUCCESS(                                              \
+            anj_dm_device_obj_install(&anj, &device_obj, &dev_obj_init)); \
+    g_reboot_execute_counter = 0
+
+/**
+ * Send request and expect responses as follows:
+ * - send execute request
+ * - expect execution and response
+ * - send same execute request
+ * - expect no execution but same response
+ */
+ANJ_UNIT_TEST(registration_session, retransmission_latest_execute) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    ADD_REQUEST(execute_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(execute_ack_response);
+    ASSERT_EQ(g_reboot_execute_counter, 1);
+
+    // clear response buffer
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    ADD_REQUEST(execute_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(execute_ack_response);
+    // counter not incremented - request was not executed, only responded to
+    ASSERT_EQ(g_reboot_execute_counter, 1);
+}
+
+/**
+ * Send request and expect responses as follows:
+ * - send write request
+ * - expect writing and response
+ * - send wite request with same MID but other payload
+ * - expect no writing but same response
+ */
+ANJ_UNIT_TEST(registration_session, retransmission_latest_write) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    ASSERT_FALSE(anj.server_instance.mute_send);
+    ADD_REQUEST(write_mute_send_enable_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_mute_send_enable_response);
+    ASSERT_TRUE(anj.server_instance.mute_send);
+
+    // clear response buffer
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    ADD_REQUEST(write_mute_send_disable_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_mute_send_enable_response);
+    // Mute Send stays enabled, as for first request
+    ASSERT_TRUE(anj.server_instance.mute_send);
+}
+
+/**
+ * Send request and expect responses as follows:
+ * - send execute request
+ * - expect execution and response
+ * - send write request
+ * - expect writing and response
+ * - send same execute request
+ * - expect no execution and no response
+ */
+ANJ_UNIT_TEST(registration_session, retransmission_non_latest_execute) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    ADD_REQUEST(execute_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(execute_ack_response);
+    ASSERT_EQ(g_reboot_execute_counter, 1);
+
+    // clear response buffer
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    ASSERT_FALSE(anj.server_instance.mute_send);
+    ADD_REQUEST(write_mute_send_enable_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_mute_send_enable_response);
+    ASSERT_TRUE(anj.server_instance.mute_send);
+
+    // clear response buffer
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    ADD_REQUEST(execute_request);
+    anj_core_step(&anj);
+    // no response
+    ASSERT_EQ(mock.bytes_sent, 0);
+    ASSERT_EQ(g_reboot_execute_counter, 1);
+}
+
+/**
+ * Send request and expect responses as follows:
+ * - send write request
+ * - expect writing and response
+ * - send execute request
+ * - expect execution and response
+ * - send same write request
+ * - expect no writing and no response
+ */
+ANJ_UNIT_TEST(registration_session, retransmission_non_latest_write) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    ASSERT_FALSE(anj.server_instance.mute_send);
+    ADD_REQUEST(write_mute_send_enable_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_mute_send_enable_response);
+    ASSERT_TRUE(anj.server_instance.mute_send);
+
+    // clear response buffer
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    ADD_REQUEST(execute_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(execute_ack_response);
+    ASSERT_EQ(g_reboot_execute_counter, 1);
+
+    // clear response buffer
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    ADD_REQUEST(write_mute_send_disable_request);
+    anj_core_step(&anj);
+    // no response
+    ASSERT_EQ(mock.bytes_sent, 0);
+    // Mute Send stays enabled, as for first request
+    ASSERT_TRUE(anj.server_instance.mute_send);
+}
+
+static char read_serial_number_request[] =
+        "\x42"         // Header: Ver=1, Type=0 (CON), TKL=2
+        "\x01\x47\x27" // Code: 0.01 (GET), MID: 0x4727
+        "\x56\x78"     // Token: 0x5678
+        "\xB1\x33"     // Uri-Path: "3"
+        "\x01\x30"     // Uri-Path: "0"
+        "\x01\x32"     // Uri-Path: "2"
+        "\x61\x00";    // Accept: 0 (text/plain)
+
+static char read_serial_number_response[] =
+        "\x62"     // ACK
+        "\x45"     // 2.05 Content
+        "\x47\x27" // MID
+        "\x56\x78" // Token
+        "\xC0"     // Content-Format = 0 (text/plain)
+        "\xFF"     // payload marker
+        "53r141-number";
+
+static char read_serial_number_service_unavailable[] =
+        "\x62"      // ACK
+        "\xA3"      // 5.03 Service Unavailable
+        "\x47\x27"  // MID
+        "\x56\x78"; // Token
+
+/**
+ * Send read request twice and verify that the responses are the same
+ */
+ANJ_UNIT_TEST(registration_session, retransmission_read) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+
+    // change serial number value
+    snprintf(serial_number, ANJ_ARRAY_SIZE(serial_number), "new-value");
+
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // retransmission
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+}
+
+/**
+ * - receive read request
+ * - handle it
+ * - open another exchange
+ * - receive same read request
+ * - handle it regardles of being in exchange as we have a ready response to
+ * send right away
+ */
+ANJ_UNIT_TEST(registration_session, send_cached_during_another_exchange) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    // receive read request and respond properly
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+
+    // change serial number value
+    snprintf(serial_number, ANJ_ARRAY_SIZE(serial_number), "new-value");
+
+    // add an object to force a payload in Update message
+    anj_dm_obj_t obj_x = {
+        .oid = 9900
+    };
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_x));
+    anj_core_step(&anj);
+    ASSERT_NE(mock.bytes_sent, 0);
+
+    // clear buffer with update
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // send the same request and see if it's handled same way again
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+
+    // receive response to the update request
+    ADD_RESPONSE(update_response);
+    anj_core_step(&anj);
+
+    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+}
+
+/**
+ * - open an exchange and wait for response
+ * - receive read request and respond with 5.03
+ * - recevie response and close the exchange
+ * - receive same read request
+ * - send cached 5.03 again
+ */
+ANJ_UNIT_TEST(registration_session, cache_service_unavailable) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    // advance time to trigger update
+    set_mock_time(76);
+    anj_core_step(&anj);
+    ASSERT_NE(mock.bytes_sent, 0);
+
+    // clear buffer with update
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // receive read request and respond with 5.03
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_service_unavailable);
+
+    // receive response to the update request
+    ADD_RESPONSE(update_response);
+    anj_core_step(&anj);
+
+    // clear buffer with update
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // send the same request and see if it's handled same way again
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_service_unavailable);
+}
+
+static char read_path_that_dont_exists[] =
+        "\x42"         // Header: Ver=1, Type=0 (CON), TKL=2
+        "\x01\x47\x27" // Code: 0.01 (GET), MID: 0x4727
+        "\x56\x78"     // Token: 0x5678
+        "\xB1\x39"     // Uri-Path: "9"
+        "\x01\x39"     // Uri-Path: "9"
+        "\x01\x39"     // Uri-Path: "9"
+        "\x61\x00";    // Accept: 0 (text/plain)
+
+static char read_path_that_dont_exists_response[] = "\x62"     // ACK
+                                                    "\x84"     // 4.04 Not found
+                                                    "\x47\x27" // MID
+                                                    "\x56\x78"; // Token
+
+ANJ_UNIT_TEST(registration_session, cache_response_with_error) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    ADD_REQUEST(read_path_that_dont_exists);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_path_that_dont_exists_response);
+
+    // This time request for existing path, but with the same msgid as previous
+    // request
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_path_that_dont_exists_response);
+}
+
+static char ret_update_with_data_model_block_1[] =
+        "\x48"                             // Confirmable, tkl 8
+        "\x02\x00\x00"                     // POST, msg_id
+        "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
+        "\xb2\x72\x64"                     // uri path /rd
+        "\x04\x35\x61\x33\x66"             // uri path /5a3f
+        "\x11\x28"     // content_format: application/link-format
+        "\xD1\x02\x0A" // block1 0, size 64, more
+        "\xFF"
+        "</1>;ver=1.2,</1/1>,</3>;ver=1.0,</3/0>,</9900>,</9901>,</9902>,";
+
+static char ret_update_with_data_model_block_2[] =
+        "\x48"                             // Confirmable, tkl 8
+        "\x02\x00\x00"                     // POST, msg_id
+        "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
+        "\xb2\x72\x64"                     // uri path /rd
+        "\x04\x35\x61\x33\x66"             // uri path /5a3f
+        "\x11\x28"     // content_format: application/link-format
+        "\xD1\x02\x1A" // block1 1, size 64, more
+        "\xFF"
+        "</9903>,</9904>,</9905>,</9906>,</9907>,</9908>,</9909>,</9910>,";
+
+static char ret_update_with_data_model_block_3[] =
+        "\x48"                             // Confirmable, tkl 8
+        "\x02\x00\x00"                     // POST, msg_id
+        "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
+        "\xb2\x72\x64"                     // uri path /rd
+        "\x04\x35\x61\x33\x66"             // uri path /5a3f
+        "\x11\x28"     // content_format: application/link-format
+        "\xD1\x02\x22" // block1 2, size 64
+        "\xFF"
+        "</9911>";
+
+static char ret_update_response_block_2[] =
+        "\x68"                             // ACK, tkl 1
+        "\x5F\x00\x00"                     // Continue
+        "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
+        "\xd1\x0e\x1A";                    // block1 1, size 64, more
+
+static char ret_update_response_block_3[] =
+        "\x68"                             // ACK, tkl 1
+        "\x44\x00\x00"                     // Changed code 2.04
+        "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
+        "\xd1\x0e\x22";                    // block1 2, size 64
+
+ANJ_UNIT_TEST(registration_session,
+              upstream_block_request_retransmission_previous_downlink_request) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    // receive read request and respond properly
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+
+    // change serial number value
+    snprintf(serial_number, ANJ_ARRAY_SIZE(serial_number), "new-value");
+
+    // anj_core_data_model_changed is called in anj_dm_add_obj
+    anj_dm_obj_t obj_x[12] = { 0 };
+    for (int i = 0; i < 12; i++) {
+        obj_x[i].oid = 9900 + i;
+        ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &(obj_x[i])));
+    }
+
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(ret_update_with_data_model_block_1, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      ret_update_with_data_model_block_1,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(ret_update_with_data_model_block_1) - 1,
+                          mock.bytes_sent);
+
+    // send the same request and see if it's handled same way again
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+
+    ADD_RESPONSE(update_response_block_1);
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(ret_update_with_data_model_block_2, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      ret_update_with_data_model_block_2,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(ret_update_with_data_model_block_2) - 1,
+                          mock.bytes_sent);
+
+    // send the same request and see if it's handled same way again
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+
+    ADD_RESPONSE(ret_update_response_block_2);
+    anj_core_step(&anj);
+
+    COPY_TOKEN_AND_MSG_ID(ret_update_with_data_model_block_3, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      ret_update_with_data_model_block_3,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(ret_update_with_data_model_block_3) - 1,
+                          mock.bytes_sent);
+
+    // send the same request and see if it's handled same way again
+    ADD_REQUEST(read_serial_number_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(read_serial_number_response);
+
+    ADD_RESPONSE(ret_update_response_block_3);
+    anj_core_step(&anj);
+
+    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+}
+
+ANJ_UNIT_TEST(registration_session, retransmission_eagain) {
+    EXTENDED_INIT();
+    PROCESS_REGISTRATION();
+
+    ASSERT_FALSE(anj.server_instance.mute_send);
+    ADD_REQUEST(write_mute_send_enable_request);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_mute_send_enable_response);
+    ASSERT_TRUE(anj.server_instance.mute_send);
+
+    // anj_core_data_model_changed is called in anj_dm_add_obj
+    anj_dm_obj_t obj_x[7] = { 0 };
+    for (int i = 0; i < 7; i++) {
+        obj_x[i].oid = 9900 + i;
+        ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &(obj_x[i])));
+    }
+
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(update_with_data_model_block_1, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      update_with_data_model_block_1,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(update_with_data_model_block_1) - 1,
+                          mock.bytes_sent);
+
+    // send request with equal msg id, _anj_server_send will return eagain
+    mock.bytes_to_send = 0;
+    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EAGAIN;
+    ADD_REQUEST(write_mute_send_disable_request);
+    anj_core_step(&anj);
+    // previous value
+    mock.bytes_to_send = 100;
+    mock.call_result[ANJ_NET_FUN_SEND] = 0;
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_mute_send_enable_response);
+    ASSERT_TRUE(anj.server_instance.mute_send);
+
+    ADD_RESPONSE(update_response_block_1);
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(update_with_data_model_block_2, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      update_with_data_model_block_2,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(update_with_data_model_block_2) - 1,
+                          mock.bytes_sent);
+    ADD_RESPONSE(update_response_block_2);
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+}
+
+static char res_buff[100] = { 0 };
+static int res_write(anj_t *anj,
+                     const anj_dm_obj_t *obj,
+                     anj_iid_t iid,
+                     anj_rid_t rid,
+                     anj_riid_t riid,
+                     const anj_res_value_t *value) {
+    (void) anj;
+    (void) obj;
+    if (iid == 0 && rid == 0) {
+        return anj_dm_write_string_chunked(value, res_buff, sizeof(res_buff),
+                                           NULL);
+    }
+    return 0;
+}
+
+static anj_dm_obj_t obj_111 = {
+    .oid = 111,
+    .insts = &(anj_dm_obj_inst_t) {
+        .iid = 0,
+        .res_count = 1,
+        .resources =
+                (anj_dm_res_t[])
+                        {
+                            {
+                                .rid = 0,
+                                .operation = ANJ_DM_RES_W,
+                                .type = ANJ_DATA_TYPE_STRING
+                            }
+                        }
+    },
+    .max_inst_count = 1,
+    .handlers = &(anj_dm_handlers_t) {
+        .res_write = res_write
+    }
+};
+
+static char block_write_request_1[] =
+        "\x42"              // header v 0x01, Confirmable
+        "\x03\x47\x24"      // PUT code 0.1
+        "\x12\x34"          // token
+        "\xB3\x31\x31\x31"  // uri-path_1 URI_PATH 11 /111
+        "\x01\x30"          // uri-path_2             /0
+        "\x01\x30"          // uri-path_3             /0
+        "\x10"              // content_format 12 PLAINTEXT 0
+        "\xD1\x02\x08"      // block1 0, size 16, more
+        "\xFF"              // payload marker
+        "very long string"; // payload
+
+static char block_write_request_2[] =
+        "\x42"              // header v 0x01, Confirmable
+        "\x03\x47\x25"      // PUT code 0.1
+        "\x12\x34"          // token
+        "\xB3\x31\x31\x31"  // uri-path_1 URI_PATH 11 /111
+        "\x01\x30"          // uri-path_2             /0
+        "\x01\x30"          // uri-path_3             /0
+        "\x10"              // content_format 12 PLAINTEXT 0
+        "\xD1\x02\x18"      // block1 1, size 16, more
+        "\xFF"              // payload marker
+        " split into thre"; // payload
+
+static char block_write_request_3[] =
+        "\x42"             // header v 0x01, Confirmable
+        "\x03\x47\x26"     // PUT code 0.1
+        "\x12\x34"         // token
+        "\xB3\x31\x31\x31" // uri-path_1 URI_PATH 11 /111
+        "\x01\x30"         // uri-path_2             /0
+        "\x01\x30"         // uri-path_3             /0
+        "\x10"             // content_format 12 PLAINTEXT 0
+        "\xD1\x02\x20"     // block1 2, size 16
+        "\xFF"             // payload marker
+        "e requests";      // payload
+
+static char write_response_1[] = "\x62"          // ACK, tkl 3
+                                 "\x5F\x47\x24"  // Continue
+                                 "\x12\x34"      // token
+                                 "\xd1\x0e\x08"; // block1 0, size 16, more
+
+static char write_response_2[] = "\x62"          // ACK, tkl 3
+                                 "\x5F\x47\x25"  // Continue
+                                 "\x12\x34"      // token
+                                 "\xd1\x0e\x18"; // block1 1, size 16, more
+
+static char write_response_3[] = "\x62"          // ACK, tkl 3
+                                 "\x44\x47\x26"  // CHANGED code 2.4
+                                 "\x12\x34"      // token
+                                 "\xd1\x0e\x20"; // block1 2, size 16
+
+ANJ_UNIT_TEST(registration_session, retransmission_write_block) {
+    EXTENDED_INIT();
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_111));
+    PROCESS_REGISTRATION();
+
+    ADD_REQUEST(block_write_request_1);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_response_1);
+
+    // clear buffer with response
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // retransmission of first block
+    ADD_REQUEST(block_write_request_1);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_response_1);
+
+    // clear buffer with response
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // retransmission of first block, sent return eagain
+    mock.bytes_to_send = 0;
+    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EAGAIN;
+    ADD_REQUEST(block_write_request_1);
+    anj_core_step(&anj);
+    ASSERT_EQ(mock.bytes_sent, 0);
+    // previous value
+    mock.bytes_to_send = 100;
+    mock.call_result[ANJ_NET_FUN_SEND] = 0;
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_response_1);
+
+    ADD_REQUEST(block_write_request_2);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_response_2);
+
+    // clear buffer with response
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // retransmission of first block, no response since it is not latest cached
+    // one
+    ADD_REQUEST(block_write_request_1);
+    anj_core_step(&anj);
+    ASSERT_EQ(mock.bytes_sent, 0);
+
+    // retransmission of second block
+    ADD_REQUEST(block_write_request_2);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_response_2);
+
+    ADD_REQUEST(block_write_request_3);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_response_3);
+
+    // clear buffer with response
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    // retransmission of third block
+    ADD_REQUEST(block_write_request_3);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(write_response_3);
+
+    ANJ_UNIT_ASSERT_EQUAL_BYTES(res_buff,
+                                "very long string split into three requests");
+
+    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 }

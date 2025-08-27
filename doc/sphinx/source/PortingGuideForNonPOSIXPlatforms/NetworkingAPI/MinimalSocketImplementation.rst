@@ -37,7 +37,7 @@ layer, apply the following changes in `CMakeLists.txt`:
 .. snippet-source:: examples/custom-network/minimal/CMakeLists.txt
     :emphasize-lines: 7-9,16
 
-    cmake_minimum_required(VERSION 3.6.0)
+    cmake_minimum_required(VERSION 3.16.0)
 
     project(anjay_lite_minimal_network_api C)
 
@@ -123,14 +123,16 @@ memory for the ``net_ctx_posix_impl_t`` structure and initialize its values.
    omitting the need to use the ``malloc`` function.
 
 .. note::
-   Value ``NET_GENERAL_ERROR`` is defined as ``-3`` in the example to prevent
-   collision with existing error codes used by the network API. Please refer
-   to `include_public/anj/compat/net/anj_net_api.h` for a full list of reserved error
-   codes and description when specific network API functions can return them.
-   The network API function are allowed to return other error codes then
-   ``NET_GENERAL_ERROR`` or the error codes reserved in `anj_net_api.h`. This
-   might help in the development process but Anjay Lite will treat them in the
-   same way.
+   The only positive values that network API functions may return are error codes
+   with the ``ANJ_NET_E`` prefix defined in the
+   `include_public/anj/compat/net/anj_net_api.h` file (e.g. ``ANJ_NET_EAGAIN``); all
+   other positive values are forbidden - they are reserved for client-side logic for
+   potential new error codes. Please refer to `anj_net_api.h` for a full list of
+   defined error codes and description when specific network API functions can return
+   them. 
+
+   ``NET_GENERAL_ERROR`` is defined as ``-1``; however, any negative value may be
+   returned to indicate an error, Anjay Lite will treat them in the same way.
 
 Connect
 -------
@@ -341,7 +343,7 @@ Shutdown
 --------
 
 The ``anj_udp_shutdown`` function is straightforward but requires updating the socket
-context’s state to ``ANJ_NET_SOCKET_STATE_SHUTDOWN`` upon completion.
+context's state to ``ANJ_NET_SOCKET_STATE_SHUTDOWN`` upon completion.
 
 .. highlight:: c
 .. snippet-source:: examples/custom-network/minimal/src/net.c

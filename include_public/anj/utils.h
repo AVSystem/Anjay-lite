@@ -7,100 +7,105 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_UTILS_H
-#define ANJ_UTILS_H
+#    define ANJ_UTILS_H
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
+#    include <stddef.h>
+#    include <stdint.h>
+#    include <stdlib.h>
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <anj/defs.h>
 
-#define ANJ_INTERNAL_INCLUDE_UTILS
-#include <anj_internal/utils.h>
-#undef ANJ_INTERNAL_INCLUDE_UTILS
+#    define ANJ_INTERNAL_INCLUDE_UTILS
+#    include <anj_internal/utils.h>
+#    undef ANJ_INTERNAL_INCLUDE_UTILS
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /**
  * Value reserved by the LwM2M spec for all kinds of IDs (Object IDs, Object
  * Instance IDs, Resource IDs, Resource Instance IDs, Short Server IDs).
  */
-#define ANJ_ID_INVALID UINT16_MAX
+#    define ANJ_ID_INVALID UINT16_MAX
 
-#define ANJ_CONTAINER_OF(ptr, type, member) \
-    ((type *) (void *) ((char *) (intptr_t) (ptr) -offsetof(type, member)))
-#define ANJ_MIN(a, b) ((a) < (b) ? (a) : (b))
-#define ANJ_MAX(a, b) ((a) < (b) ? (b) : (a))
-#define ANJ_ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#    define ANJ_CONTAINER_OF(ptr, type, member) \
+        ((type *) (void *) ((char *) (intptr_t) (ptr) -offsetof(type, member)))
+#    define ANJ_MIN(a, b) ((a) < (b) ? (a) : (b))
+#    define ANJ_MAX(a, b) ((a) < (b) ? (b) : (a))
+#    define ANJ_ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
 /**
  * Stringifies a token.
  */
-#define ANJ_QUOTE(Value) #Value
+#    define ANJ_QUOTE(Value) #    Value
 
 /**
  * Stringifies a token with performing additional macro expansion step.
  *
  * @param Value Token to stringify.
  */
-#define ANJ_QUOTE_MACRO(Value) ANJ_QUOTE(Value)
+#    define ANJ_QUOTE_MACRO(Value) ANJ_QUOTE(Value)
 
 /*
  * Definition of an assert with hard-coded string literal message that does not
  * trigger compiler warnings.
  */
-#define ANJ_ASSERT(cond, msg) assert((cond) && (bool) "" msg)
+#    define ANJ_ASSERT(cond, msg) assert((cond) && (bool) "" msg)
 
 /*
  * Marks an execution path as breaking some invariants, which should never
  * happen in correct code.
  */
-#define ANJ_UNREACHABLE(msg) ANJ_ASSERT(0, msg)
+#    define ANJ_UNREACHABLE(msg) ANJ_ASSERT(0, msg)
 
 /**@{*/
 /**
  * Concatenates tokens passed as arguments. Can be used to do macro expansion
  * before standard C preprocessor concatenation.
  */
-#define ANJ_CONCAT(...)                                              \
-    _ANJ_CONCAT_INTERNAL__(                                          \
-            _ANJ_CONCAT_INTERNAL__(_ANJ_CONCAT_INTERNAL_,            \
-                                   _ANJ_VARARG_LENGTH(__VA_ARGS__)), \
-            __)                                                      \
-    (__VA_ARGS__)
+#    define ANJ_CONCAT(...)                                              \
+        _ANJ_CONCAT_INTERNAL__(                                          \
+                _ANJ_CONCAT_INTERNAL__(_ANJ_CONCAT_INTERNAL_,            \
+                                       _ANJ_VARARG_LENGTH(__VA_ARGS__)), \
+                __)                                                      \
+        (__VA_ARGS__)
 /**@}*/
 
 /**
  * C89-compliant replacement for <c>static_assert</c>.
  */
-#define ANJ_STATIC_ASSERT(condition, message)    \
-    struct ANJ_CONCAT(static_assert_, message) { \
-        char message[(condition) ? 1 : -1];      \
-    }
+#    define ANJ_STATIC_ASSERT(condition, message)    \
+        struct ANJ_CONCAT(static_assert_, message) { \
+            char message[(condition) ? 1 : -1];      \
+        }
 
 /**
  * Below group of ANJ_MAKE_*_PATH macros are used to construct in place
  * an unnamed structure (compound literal) of an anj_uri_path_t type.
  */
-#define ANJ_MAKE_RESOURCE_INSTANCE_PATH(Oid, Iid, Rid, Riid) \
-    _ANJ_MAKE_URI_PATH(Oid, Iid, Rid, Riid, 4)
+#    define ANJ_MAKE_RESOURCE_INSTANCE_PATH(Oid, Iid, Rid, Riid) \
+        _ANJ_MAKE_URI_PATH(Oid, Iid, Rid, Riid, 4)
 
-#define ANJ_MAKE_RESOURCE_PATH(Oid, Iid, Rid) \
-    _ANJ_MAKE_URI_PATH(Oid, Iid, Rid, ANJ_ID_INVALID, 3)
+#    define ANJ_MAKE_RESOURCE_PATH(Oid, Iid, Rid) \
+        _ANJ_MAKE_URI_PATH(Oid, Iid, Rid, ANJ_ID_INVALID, 3)
 
-#define ANJ_MAKE_INSTANCE_PATH(Oid, Iid) \
-    _ANJ_MAKE_URI_PATH(Oid, Iid, ANJ_ID_INVALID, ANJ_ID_INVALID, 2)
+#    define ANJ_MAKE_INSTANCE_PATH(Oid, Iid) \
+        _ANJ_MAKE_URI_PATH(Oid, Iid, ANJ_ID_INVALID, ANJ_ID_INVALID, 2)
 
-#define ANJ_MAKE_OBJECT_PATH(Oid) \
-    _ANJ_MAKE_URI_PATH(Oid, ANJ_ID_INVALID, ANJ_ID_INVALID, ANJ_ID_INVALID, 1)
+#    define ANJ_MAKE_OBJECT_PATH(Oid) \
+        _ANJ_MAKE_URI_PATH(           \
+                Oid, ANJ_ID_INVALID, ANJ_ID_INVALID, ANJ_ID_INVALID, 1)
 
-#define ANJ_MAKE_ROOT_PATH() \
-    _ANJ_MAKE_URI_PATH(      \
-            ANJ_ID_INVALID, ANJ_ID_INVALID, ANJ_ID_INVALID, ANJ_ID_INVALID, 0)
+#    define ANJ_MAKE_ROOT_PATH()           \
+        _ANJ_MAKE_URI_PATH(ANJ_ID_INVALID, \
+                           ANJ_ID_INVALID, \
+                           ANJ_ID_INVALID, \
+                           ANJ_ID_INVALID, \
+                           0)
 
 static inline bool anj_uri_path_equal(const anj_uri_path_t *left,
                                       const anj_uri_path_t *right) {
@@ -310,8 +315,8 @@ int anj_string_to_double_value(double *out_val,
                                const char *buff,
                                size_t buff_len);
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_UTILS_H

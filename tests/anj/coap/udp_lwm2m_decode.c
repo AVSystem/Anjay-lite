@@ -676,8 +676,30 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_response_with_etag) {
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
     ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
-    ANJ_UNIT_ASSERT_EQUAL(out_data.etag.size, 3);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED("332", out_data.etag.bytes, 3);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.attr.downloader_attr.etag.size, 3);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
+            "332", out_data.attr.downloader_attr.etag.bytes, 3);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.attr.downloader_attr.total_size, 0);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_CHANGED);
+}
+
+ANJ_UNIT_TEST(anj_decode_udp, decode_response_with_etag_and_size) {
+    uint8_t MSG[] = "\x68"         // header v 0x01, Ack, tkl 8
+                    "\x44\x37\x21" // CHANGED code 2.4
+                    "\x12\x34\x56\x78\x11\x11\x11\x11" // token
+                    "\x43\x33\x33\x32"                 // etag 3 332
+                    "\xD3\x0B\x31\x3c\x60"             // size2 3226720
+            ;
+
+    _anj_coap_msg_t out_data = { 0 };
+    ANJ_UNIT_ASSERT_SUCCESS(
+            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
+
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.attr.downloader_attr.etag.size, 3);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
+            "332", out_data.attr.downloader_attr.etag.bytes, 3);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.attr.downloader_attr.total_size, 3226720);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_CHANGED);
 }
 

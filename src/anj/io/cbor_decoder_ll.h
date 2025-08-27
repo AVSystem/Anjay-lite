@@ -7,20 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_IO_CBOR_DECODER_LL_H
-#define SRC_ANJ_IO_CBOR_DECODER_LL_H
+#    define SRC_ANJ_IO_CBOR_DECODER_LL_H
 
-#include <stdbool.h>
-#include <stddef.h>
+#    include <stdbool.h>
+#    include <stddef.h>
 
-#include "io.h"
+#    include <anj/core.h>
 
-#include <anj/anj_config.h>
+#    if defined(ANJ_WITH_SENML_CBOR) || defined(ANJ_WITH_LWM2M_CBOR) \
+            || defined(ANJ_WITH_CBOR)
 
-#if defined(ANJ_WITH_SENML_CBOR) || defined(ANJ_WITH_LWM2M_CBOR) \
-        || defined(ANJ_WITH_CBOR)
-
-#    define ANJ_CBOR_LL_DECODER_ITEMS_INDEFINITE (-1)
+#        define ANJ_CBOR_LL_DECODER_ITEMS_INDEFINITE (-1)
 
 /**
  * Initializes the low-level CBOR decoder.
@@ -267,7 +267,7 @@ int anj_cbor_ll_decoder_bytes_get_some(
         size_t *out_buf_size,
         bool *out_message_finished);
 
-#    if _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
+#        if _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
 /**
  * Prepares to the consumption of the array.
  *
@@ -358,9 +358,9 @@ int anj_cbor_ll_decoder_enter_map(_anj_cbor_ll_decoder_t *ctx,
  */
 int anj_cbor_ll_decoder_nesting_level(_anj_cbor_ll_decoder_t *ctx,
                                       size_t *out_nesting_level);
-#    endif // _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
+#        endif // _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
 
-#endif // defined(ANJ_WITH_SENML_CBOR) || defined(ANJ_WITH_LWM2M_CBOR) ||
-       // defined(ANJ_WITH_CBOR)
+#    endif // defined(ANJ_WITH_SENML_CBOR) || defined(ANJ_WITH_LWM2M_CBOR) ||
+           // defined(ANJ_WITH_CBOR)
 
 #endif // SRC_ANJ_IO_CBOR_DECODER_LL_H

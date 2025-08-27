@@ -4,7 +4,7 @@ The core Anjay Lite LwM2M Client Library is entirely developed and maintained by
 AVSystem and is free of any third-party open-source code dependencies.
 
 This file lists licenses of any third-party components that are used solely in
-the SDK’s supporting infrastructure, such as documentation generation (e.g.
+the SDK's supporting infrastructure, such as documentation generation (e.g.
 Doxygen) or development tooling. These components are not part of the runtime
 library itself.
 

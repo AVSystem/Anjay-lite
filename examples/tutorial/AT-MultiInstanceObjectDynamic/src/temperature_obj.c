@@ -112,8 +112,10 @@ typedef struct {
     temp_obj_inst_t temp_insts_cached[TEMP_OBJ_NUMBER_OF_INSTANCES];
 } temp_obj_ctx_t;
 
-static temp_obj_inst_t *get_temp_inst(const anj_dm_obj_t *obj, anj_iid_t iid) {
-    temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+static inline temp_obj_ctx_t *get_ctx(void);
+
+static temp_obj_inst_t *get_temp_inst(anj_iid_t iid) {
+    temp_obj_ctx_t *ctx = get_ctx();
     for (uint16_t idx = 0; idx < TEMP_OBJ_NUMBER_OF_INSTANCES; idx++) {
         if (ctx->temp_insts[idx].iid == iid) {
             return &ctx->temp_insts[idx];
@@ -144,8 +146,8 @@ static double next_temperature_with_limit(double current_temp,
     return new_temp;
 }
 
-void update_sensor_value(const anj_dm_obj_t *obj) {
-    temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+void update_temperature_obj_value(void) {
+    temp_obj_ctx_t *ctx = get_ctx();
 
     for (int i = 0; i < TEMP_OBJ_NUMBER_OF_INSTANCES; i++) {
         temp_obj_inst_t *inst = &ctx->temp_insts[i];
@@ -169,9 +171,10 @@ static int res_read(anj_t *anj,
                     anj_riid_t riid,
                     anj_res_value_t *out_value) {
     (void) anj;
+    (void) obj;
     (void) riid;
 
-    temp_obj_inst_t *temp_inst = get_temp_inst(obj, iid);
+    temp_obj_inst_t *temp_inst = get_temp_inst(iid);
     assert(temp_inst);
 
     switch (rid) {
@@ -209,9 +212,10 @@ static int res_write(anj_t *anj,
                      anj_riid_t riid,
                      const anj_res_value_t *value) {
     (void) anj;
+    (void) obj;
     (void) riid;
 
-    temp_obj_inst_t *temp_inst = get_temp_inst(obj, iid);
+    temp_obj_inst_t *temp_inst = get_temp_inst(iid);
     assert(temp_inst);
 
     switch (rid) {
@@ -232,10 +236,11 @@ static int res_execute(anj_t *anj,
                        const char *execute_arg,
                        size_t execute_arg_len) {
     (void) anj;
+    (void) obj;
     (void) execute_arg;
     (void) execute_arg_len;
 
-    temp_obj_inst_t *temp_inst = get_temp_inst(obj, iid);
+    temp_obj_inst_t *temp_inst = get_temp_inst(iid);
     assert(temp_inst);
 
     switch (rid) {
@@ -253,8 +258,9 @@ static int res_execute(anj_t *anj,
 
 static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     (void) anj;
+    (void) obj;
 
-    temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+    temp_obj_ctx_t *ctx = get_ctx();
     memcpy(ctx->insts_cached, ctx->insts, sizeof(ctx->insts));
     memcpy(ctx->temp_insts_cached, ctx->temp_insts, sizeof(ctx->temp_insts));
     return 0;
@@ -269,10 +275,11 @@ static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
 
 static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
     (void) anj;
+    (void) obj;
 
     if (result) {
         // restore cached data
-        temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+        temp_obj_ctx_t *ctx = get_ctx();
         memcpy(ctx->insts, ctx->insts_cached, sizeof(ctx->insts));
         memcpy(ctx->temp_insts, ctx->temp_insts_cached,
                sizeof(ctx->temp_insts));
@@ -301,7 +308,7 @@ static void sort_instances(temp_obj_ctx_t *ctx) {
 static int inst_create(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
     (void) anj;
     assert(iid != ANJ_ID_INVALID);
-    temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+    temp_obj_ctx_t *ctx = get_ctx();
 
     // find an unitialized instance and use it
     bool found = false;
@@ -323,7 +330,7 @@ static int inst_create(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
 
 static int inst_delete(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
     (void) anj;
-    temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+    temp_obj_ctx_t *ctx = get_ctx();
     for (uint16_t idx = 0; idx < TEMP_OBJ_NUMBER_OF_INSTANCES; idx++) {
         if (ctx->temp_insts[idx].iid == iid) {
             ctx->insts[idx].iid = ANJ_ID_INVALID;
@@ -357,6 +364,10 @@ static temp_obj_ctx_t temperature_obj = {
 
 const anj_dm_obj_t *get_temperature_obj(void) {
     return &temperature_obj.obj;
+}
+
+static inline temp_obj_ctx_t *get_ctx(void) {
+    return &temperature_obj;
 }
 
 void temperature_obj_init(void) {

@@ -6,21 +6,21 @@
  * Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
  * See the attached LICENSE file for details.
  */
+
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/defs.h>
 #include <anj/dm/fw_update.h>
 #include <anj/utils.h>
-
-#include "../utils.h"
-#include "dm_core.h"
 
 #ifdef ANJ_WITH_DEFAULT_FOTA_OBJ
 
@@ -165,6 +165,7 @@ static const anj_dm_res_t RES[ANJ_DM_FW_UPDATE_RESOURCES_COUNT] = {
     }
 };
 
+#    ifdef ANJ_FOTA_WITH_PUSH_METHOD
 static inline bool writing_last_data_chunk(const anj_res_value_t *value) {
     return value->bytes_or_string.chunk_length + value->bytes_or_string.offset
            == value->bytes_or_string.full_length_hint;
@@ -178,6 +179,7 @@ static inline bool is_reset_request_package(const anj_res_value_t *value) {
     }
     return false;
 }
+#    endif // ANJ_FOTA_WITH_PUSH_METHOD
 
 #    ifdef ANJ_FOTA_WITH_PULL_METHOD
 static inline bool is_reset_request_uri(const anj_res_value_t *value) {
@@ -338,7 +340,7 @@ static int res_write(anj_t *anj,
         anj_dm_fw_update_result_t result =
                 entity->repr.user_handlers->uri_write_handler(
                         entity->repr.user_ptr, entity->repr.uri);
-        if (result != ANJ_DM_FW_UPDATE_RESULT_SUCCESS) {
+        if (result != ANJ_DM_FW_UPDATE_RESULT_INITIAL) {
             entity->repr.result = (int8_t) result;
             fw_data_model_changed(
                     anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
@@ -511,7 +513,9 @@ void anj_dm_fw_update_object_set_update_result(
     assert(entity_ctx);
     entity_ctx->repr.result = (int8_t) result;
     entity_ctx->repr.state = ANJ_DM_FW_UPDATE_STATE_IDLE;
+#    ifdef ANJ_FOTA_WITH_PUSH_METHOD
     entity_ctx->repr.write_start_called = false;
+#    endif // ANJ_FOTA_WITH_PUSH_METHOD
     fw_data_model_changed(anj, entity_ctx, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
     fw_data_model_changed(anj, entity_ctx, ANJ_DM_FW_UPDATE_RID_STATE);
 }

@@ -7,16 +7,16 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_IO_BASE64_H
-#define SRC_ANJ_IO_BASE64_H
+#    define SRC_ANJ_IO_BASE64_H
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-
-#ifdef ANJ_WITH_PLAINTEXT
+#    ifdef ANJ_WITH_PLAINTEXT
 
 /**
  * Array of characters for standard base64 encoder, i.e.
@@ -265,6 +265,6 @@ static inline int anj_base64_decode(size_t *out_bytes_decoded,
                                     ANJ_BASE64_DEFAULT_LOOSE_CONFIG);
 }
 
-#endif // ANJ_WITH_PLAINTEXT
+#    endif // ANJ_WITH_PLAINTEXT
 
 #endif /* SRC_ANJ_IO_BASE64_H */

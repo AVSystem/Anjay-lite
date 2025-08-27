@@ -7,6 +7,8 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <ctype.h>
 #include <stdint.h>
 #include <string.h>
@@ -19,7 +21,6 @@
 #include <anj/utils.h>
 
 #include "../dm/dm_io.h"
-#include "../utils.h"
 #include "core_utils.h"
 
 #define COAP_DEFAULT_PORT_STR "5683"
@@ -28,38 +29,27 @@
 #define COAP_DEFAULT_BOOTSTRAP_PORT_STR "5693"
 #define COAPS_DEFAULT_BOOTSTRAP_PORT_STR "5694"
 
-int _anj_server_get_resolved_server_uri(anj_t *anj) {
-    anj_res_value_t res_val;
-    const anj_uri_path_t path =
-            ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
-                                   anj->security_instance.iid,
-                                   SECURITY_OBJ_SERVER_URI_RID);
-    if (anj_dm_res_read(anj, &path, &res_val)) {
-        return -1;
-    }
-
-    const char *uri_start = (const char *) res_val.bytes_or_string.data;
-    if (strncmp(uri_start, "coap://", sizeof("coap://") - 1) == 0) {
-        anj->security_instance.type = ANJ_NET_BINDING_UDP;
-        uri_start += sizeof("coap://") - 1;
-    } else if (strncmp(uri_start, "coaps://", sizeof("coaps://") - 1) == 0) {
-        // HACK: DTLS is not supported yet
-        anj->security_instance.type = ANJ_NET_BINDING_DTLS;
-        uri_start += sizeof("coaps://") - 1;
-    } // TODO: implement other schemes
-    else {
+int _anj_parse_uri_components(const char *uri,
+                              bool is_bootstrap,
+                              _anj_uri_components_t *out_uri_components) {
+    if (strncmp(uri, "coap://", sizeof("coap://") - 1) == 0) {
+        out_uri_components->binding_type = ANJ_NET_BINDING_UDP;
+        uri += sizeof("coap://") - 1;
+    } else if (strncmp(uri, "coaps://", sizeof("coaps://") - 1) == 0) {
+        out_uri_components->binding_type = ANJ_NET_BINDING_DTLS;
+        uri += sizeof("coaps://") - 1;
+    } else {
         log(L_ERROR, "Unsupported URI scheme");
         return -1;
     }
-
     // find uri start
     // if uri contains IPv6 address, it contains many ':'
     // so we need to find first ':' after ']' to get port
-    char *uri_end = strchr(uri_start, ']');
+    const char *uri_end = strchr(uri, ']');
     if (uri_end) {
         uri_end = strchr(uri_end, ':');
     } else {
-        uri_end = strchr(uri_start, ':');
+        uri_end = strchr(uri, ':');
     }
     if (uri_end) {
         // get port
@@ -77,34 +67,59 @@ int _anj_server_get_resolved_server_uri(anj_t *anj) {
             log(L_ERROR, "Invalid URI");
             return -1;
         }
-        memcpy(anj->security_instance.port, uri_end + 1, port_len);
+        out_uri_components->port = uri_end + 1;
+        out_uri_components->port_len = port_len;
     } else {
-        uri_end = strchr(uri_start, '/');
-        // no port specified, use default
-        switch (anj->server_state.conn_status) {
-        case ANJ_CONN_STATUS_BOOTSTRAPPING:
-            memcpy(anj->security_instance.port, COAP_DEFAULT_BOOTSTRAP_PORT_STR,
-                   sizeof(COAP_DEFAULT_BOOTSTRAP_PORT_STR));
-            break;
-        case ANJ_CONN_STATUS_REGISTERING:
-            memcpy(anj->security_instance.port, COAP_DEFAULT_PORT_STR,
-                   sizeof(COAP_DEFAULT_PORT_STR));
-            break;
-        default:
-            ANJ_UNREACHABLE("Invalid connection status");
-            break;
+        uri_end = strchr(uri, '/');
+        if (is_bootstrap) {
+            out_uri_components->port =
+                    (out_uri_components->binding_type == ANJ_NET_BINDING_UDP)
+                            ? COAP_DEFAULT_BOOTSTRAP_PORT_STR
+                            : COAPS_DEFAULT_BOOTSTRAP_PORT_STR;
+        } else {
+            out_uri_components->port =
+                    (out_uri_components->binding_type == ANJ_NET_BINDING_UDP)
+                            ? COAP_DEFAULT_PORT_STR
+                            : COAPS_DEFAULT_PORT_STR;
         }
+        out_uri_components->port_len = 4; // Default port length for CoAP/CoAPS
     }
 
-    if (!uri_end) {
+    if (!uri_end || uri_end == uri) {
         log(L_ERROR, "Invalid URI");
         return -1;
     }
+    out_uri_components->host = uri;
+    out_uri_components->host_len = (uint8_t) (uri_end - uri);
+    return 0;
+}
 
-    const size_t uri_len = (size_t) (uri_end - uri_start);
-    memset(anj->security_instance.server_uri, 0x00,
-           sizeof(anj->security_instance.server_uri));
-    memcpy(anj->security_instance.server_uri, uri_start, uri_len);
+int _anj_server_get_resolved_server_uri(anj_t *anj) {
+    anj_res_value_t res_val;
+    const anj_uri_path_t path =
+            ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
+                                   anj->security_instance.iid,
+                                   SECURITY_OBJ_SERVER_URI_RID);
+    if (anj_dm_res_read(anj, &path, &res_val)) {
+        return -1;
+    }
+
+    _anj_uri_components_t anj_uri_components;
+    if (_anj_parse_uri_components((const char *) res_val.bytes_or_string.data,
+                                  (anj->server_state.conn_status
+                                   == ANJ_CONN_STATUS_BOOTSTRAPPING),
+                                  &anj_uri_components)) {
+        return -1;
+    }
+    anj->security_instance.type = anj_uri_components.binding_type;
+    memcpy(anj->security_instance.port,
+           anj_uri_components.port,
+           anj_uri_components.port_len);
+    anj->security_instance.port[anj_uri_components.port_len] = '\0';
+    memcpy(anj->security_instance.server_uri,
+           anj_uri_components.host,
+           anj_uri_components.host_len);
+    anj->security_instance.server_uri[anj_uri_components.host_len] = '\0';
     return 0;
 }
 

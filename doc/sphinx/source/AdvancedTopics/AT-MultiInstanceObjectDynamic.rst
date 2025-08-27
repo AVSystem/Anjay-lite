@@ -9,31 +9,43 @@
 Multi-Instance Object Dynamic
 =============================
 
-This section describes implementation of a **multi-instance Object** defined in
+Overview
+--------
+
+This guide explains how to implement a **multi-instance Object** with a dynamic
+set of Instances, as defined in
 `OMA LwM2M Registry <https://www.openmobilealliance.org/specifications/registries/objects>`_
 **with dynamic set of Instances**.
 
 As an example, we are going to implement
-`Temperature Object with ID 3303 in version 1.1 <https://raw.githubusercontent.com/OpenMobileAlliance/lwm2m-registry/prod/version_history/3303-1_1.xml>`_ by expanding the code developed in `Multi-instance Object Implementation <../AT-MultiInstanceObject.html>`_.
-Only the differences that need to be applied are described in this article.
+`Temperature Object with ID 3303 in version 1.1 <https://raw.githubusercontent.com/OpenMobileAlliance/lwm2m-registry/prod/version_history/3303-1_1.xml>`_ by extending the code developed in `Multi-instance Object Implementation <../AT-MultiInstanceObject.html>`_.
+This document highlights only the additional steps and modifications needed.
 
-Implementing the Object
------------------------
+Implement the Object
+--------------------
 
 .. note::
    Code related to this tutorial can be found under `examples/tutorial/AT-MultiInstanceObjectDynamic`
    in the Anjay Lite source directory and is based on `examples/tutorial/AT-MultiInstanceObject`
    example.
 
-Besides the fact that the set of Object Instances is dynamic, the maximum number
-`TEMP_OBJ_NUMBER_OF_INSTANCES` must still be set.
+.. note::
+    To generate code stubs for multi-instance objects with dynamic instance management, use the ``anjay_codegen.py`` script with the ``-ni`` and ``-di`` flags:
+
+    .. code-block:: bash
+
+        ./tools/anjay_codegen.py -i temperature_obj.xml -o temperature_obj.c -ni 5 -di
+ 
+    For details, see the :ref:`Dynamic multiple instance object generation<multi-dynamic-instance-generator>` section.
+
+Although the set of Object Instances is dynamic, you must still define the
+maximum number of instances using ``TEMP_OBJ_NUMBER_OF_INSTANCES``.
 
 Object and Object Instances State
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Since the number of instances is now dynamic, and we want to handle transactional
-operations properly, let's change the caching method from Resource level to the 
-whole Instance level.
+Since the number of instances is now dynamic, to support transactional operations,
+cache entire Object Instances instead of individual Resources.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObjectDynamic/src/temperature_obj.c
@@ -59,8 +71,8 @@ whole Instance level.
 Create and Delete Handlers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To support creating and deleting Object Instances by the Server, we need to
-implement appropriate handlers: ``inst_create`` and ``inst_delete``.
+To support server-side Instance management, implement the ``inst_create`` and
+``inst_delete`` handlers.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObjectDynamic/src/temperature_obj.c
@@ -107,7 +119,7 @@ Anjay Lite requires the instances to be sorted in ascending ``iid`` order in the
     static int inst_create(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
         (void) anj;
         assert(iid != ANJ_ID_INVALID);
-        temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+        temp_obj_ctx_t *ctx = get_ctx();
 
         // find an unitialized instance and use it
         bool found = false;
@@ -129,7 +141,7 @@ Anjay Lite requires the instances to be sorted in ascending ``iid`` order in the
 
     static int inst_delete(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
         (void) anj;
-        temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+        temp_obj_ctx_t *ctx = get_ctx();
         for (uint16_t idx = 0; idx < TEMP_OBJ_NUMBER_OF_INSTANCES; idx++) {
             if (ctx->temp_insts[idx].iid == iid) {
                 ctx->insts[idx].iid = ANJ_ID_INVALID;
@@ -142,15 +154,14 @@ Anjay Lite requires the instances to be sorted in ascending ``iid`` order in the
     }
 
 
-For **Create** operation that does not indicate the new **iid**, Anjay Lite
-assigns a new ``iid`` and passes it down to the ``inst_create`` handler from
-Object definition.
+If the **Create** operation does not specify an `iid`, Anjay Lite assigns one and
+passes it to the `inst_create handler`.
 
 
 Object definition and Initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-First, let's create a static structure of `temperature_obj` with the basic information:
+Begin by defining a static `temperature_obj` structure that holds the Object metadata:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObjectDynamic/src/temperature_obj.c
@@ -164,8 +175,7 @@ First, let's create a static structure of `temperature_obj` with the basic infor
         }
     };
 
-And then we can add an initialization function that fills the `insts` and `temp_insts`
-arrays contents:
+Next, create an initialization function to populate the `insts` and `temp_insts` arrays:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObjectDynamic/src/temperature_obj.c
@@ -203,8 +213,8 @@ arrays contents:
         inst->max_sensor_value = 20.0;
     }
 
-This initialization must be then called in `main` function before installing
-the Object in Anjay Lite Data Model.
+Call the initialization function from `main()` before registering the Object with
+the Anjay Lite Data Model:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObjectDynamic/src/main.c
@@ -222,21 +232,22 @@ the Object in Anjay Lite Data Model.
     }
 
 
-Supporting transactional Operations
------------------------------------
+Support transactional Writes
+----------------------------
 
-In this case, to achieve proper transactions support, we need to cache not only
-the writeable resources, but rather the whole Object context. This can be done
-by creating copies of both `insts` and `temp_insts` arrays:
+To ensure consistent behavior during transactions, you must cache the complete
+Object context — not just the writable Resources. This includes both the `insts`
+and `temp_insts` arrays:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObjectDynamic/src/temperature_obj.c
-    :emphasize-lines: 5-6, 23-25
+    :emphasize-lines: 6-7, 25-27
 
     static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
         (void) anj;
+        (void) obj;
 
-        temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+        temp_obj_ctx_t *ctx = get_ctx();
         memcpy(ctx->insts_cached, ctx->insts, sizeof(ctx->insts));
         memcpy(ctx->temp_insts_cached, ctx->temp_insts, sizeof(ctx->temp_insts));
         return 0;
@@ -251,13 +262,13 @@ by creating copies of both `insts` and `temp_insts` arrays:
 
     static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
         (void) anj;
+        (void) obj;
 
         if (result) {
             // restore cached data
-            temp_obj_ctx_t *ctx = ANJ_CONTAINER_OF(obj, temp_obj_ctx_t, obj);
+            temp_obj_ctx_t *ctx = get_ctx();
             memcpy(ctx->insts, ctx->insts_cached, sizeof(ctx->insts));
             memcpy(ctx->temp_insts, ctx->temp_insts_cached,
                 sizeof(ctx->temp_insts));
         }
     }
-

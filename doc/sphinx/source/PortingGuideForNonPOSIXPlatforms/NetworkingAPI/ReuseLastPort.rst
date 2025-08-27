@@ -25,7 +25,7 @@ the server may treat it as a new device, disrupting the ongoing session.
 
     However, NAT entries may expire after periods of inactivity. Even with port reuse enabled, the NAT
     device may assign a different external port. This behavior depends on the NAT implementation and
-    is beyond the client’s control.
+    is beyond the client's control.
 
 .. note::
     This tutorial builds upon the Minimal Socket Implementation. The complete source
@@ -114,7 +114,7 @@ Add two helper functions: ``store_local_port_in_ctx`` and ``create_net_socket``.
     - ``create_net_socket()`` uses the ``socket()`` function to create a new socket descriptor.
       It also  ensures that the socket allows address reuse using
       the ``SO_REUSEADDR`` option. This allows the operating system to bind to a recently
-      used ephemeral port, even if it hasn’t fully released it yet ensuring smoother
+      used ephemeral port, even if it hasn't fully released it yet ensuring smoother
       reconnections and better compatibility across different platforms.
 
 Enhance the ``anj_udp_connect`` function to integrate the ``create_net_socket``

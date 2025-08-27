@@ -9,6 +9,9 @@
 Queue Mode
 ==========
 
+Overview
+--------
+
 Queue Mode is a special mode of operation in which the device is not required
 to actively listen for incoming packets all the time. After sending any message
 to the LwM2M Server, the LwM2M Client is only required to listen for incoming
@@ -21,14 +24,14 @@ parameters of the Register operation.
 
 .. note::
     In LwM2M v1.0 Queue Mode is set by Binding resource from LwM2M Server
-    object. Anjay Lite does not support it.
+    Object. Anjay Lite does not support it.
 
 The LwM2M Client becomes active when it needs to send one of the following
 operations:
 
-    - an Update
-    - a Send
-    - a Notify
+    - Update
+    - Send
+    - Notify
 
 .. note::
     While some LwM2M specification diagrams suggest that an Update operation
@@ -89,8 +92,8 @@ seconds.
     mode is to modify the transmission parameters via the ``udp_tx_params``
     field from the ``anj_configuration_t`` structure.
 
-Switching to power-saving mode
-------------------------------
+Switch to power-saving Mode
+---------------------------
 
 When Queue Mode is enabled, Anjay Lite automatically switches the client to an
 offline state after a period of inactivity. During this time, the device can
@@ -98,7 +101,7 @@ enter a low-power mode to conserve energy.
 
 .. note::
     This example uses the POSIX function ``clock_nanosleep`` to simulate
-    low-power mode. This call does not reduce the device’s actual power
+    low-power mode. This call does not reduce the device's actual power
     usage but illustrates how you can integrate real power management.
 
 First, let's define the callback that will be called when the status of the

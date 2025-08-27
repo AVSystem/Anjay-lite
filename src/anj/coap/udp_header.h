@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/anj_config.h>
+#include <anj/init.h>
 
 #ifndef SRC_ANJ_COAP_UDP_H
 #    define SRC_ANJ_COAP_UDP_H

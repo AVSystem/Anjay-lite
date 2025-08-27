@@ -7,23 +7,23 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/defs.h>
 #include <anj/log/log.h>
 #include <anj/utils.h>
 
-#include "../coap/coap.h"
 #include "../core/core.h"
 #include "../utils.h"
 #include "dm_core.h"
-#include "dm_integration.h"
 #include "dm_io.h"
 
 bool _anj_dm_is_readable_resource(anj_dm_res_operation_t op) {
@@ -94,7 +94,7 @@ static const anj_dm_res_t *_anj_dm_find_res(const anj_dm_obj_inst_t *inst,
     return NULL;
 }
 
-static bool res_inst_exists(const anj_dm_res_t *res, anj_riid_t riid) {
+bool _anj_dm_res_inst_exists(const anj_dm_res_t *res, anj_riid_t riid) {
     for (uint16_t idx = 0; idx < res->max_inst_count; idx++) {
         if (res->insts[idx] == riid) {
             return true;
@@ -134,9 +134,9 @@ int _anj_dm_call_transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-int _anj_dm_get_obj_ptr_call_transaction_begin(anj_t *anj,
-                                               anj_oid_t oid,
-                                               const anj_dm_obj_t **out_obj) {
+int _anj_dm_get_obj_ptr_ensure_transaction_begin(anj_t *anj,
+                                                 anj_oid_t oid,
+                                                 const anj_dm_obj_t **out_obj) {
     _anj_dm_data_model_t *dm = &anj->dm;
     for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
         if (dm->objs[idx]->oid == oid) {
@@ -189,7 +189,7 @@ int _anj_dm_get_obj_ptrs(const anj_dm_obj_t *obj,
         return ANJ_DM_ERR_NOT_FOUND;
     }
 
-    if (!res_inst_exists(res, path->ids[ANJ_ID_RIID])) {
+    if (!_anj_dm_res_inst_exists(res, path->ids[ANJ_ID_RIID])) {
         dm_log(L_WARNING, "Resource Instance not found");
         return ANJ_DM_ERR_NOT_FOUND;
     }
@@ -230,17 +230,24 @@ int _anj_dm_operation_begin(anj_t *anj,
     dm->op_in_progress = true;
     dm->result = 0;
 
+    if (!is_bootstrap_request) {
+        if (path != NULL && _anj_uri_path_to_security_or_oscore_obj(path)) {
+            dm->result = ANJ_DM_ERR_UNAUTHORIZED;
+            return dm->result;
+        }
+    }
+
     switch (operation) {
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
     case ANJ_OP_DM_READ_COMP:
         dm->op_count = 0;
-        dm->op_ctx.read_ctx.path = ANJ_MAKE_ROOT_PATH();
-        dm->composite_current_object = 0;
+        dm->comp_read_current_object = 0;
+        return 0;
+    case ANJ_OP_DM_WRITE_COMP:
+        dm->is_transactional = true;
+        dm->op_ctx.write_ctx.path.uri_len = 0;
         return 0;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_WRITE_COMP:
-        dm_log(L_ERROR, "Composite write not supported");
-        return ANJ_DM_ERR_NOT_IMPLEMENTED;
     case ANJ_OP_REGISTER:
     case ANJ_OP_UPDATE:
         return _anj_dm_begin_register_op(anj);

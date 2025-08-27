@@ -17,7 +17,7 @@
 #endif // ANJ_INTERNAL_INCLUDE_DM_DEFS
 
 #define ANJ_INTERNAL_INCLUDE_COAP
-#include <anj_internal/coap.h>
+#include <anj_internal/coap.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_COAP
 
 #ifdef __cplusplus
@@ -56,7 +56,6 @@ typedef struct {
     uint16_t res_inst_idx;
     size_t total_op_count;
     anj_id_type_t base_level;
-    anj_uri_path_t path;
 } _anj_dm_read_ctx_t;
 /**
  * @anj_internal_api_do_not_use
@@ -102,12 +101,12 @@ typedef struct {
     // used for Create operation to indicate if iid was provided by the Server
     bool iid_provided;
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    anj_uri_path_t composite_paths[ANJ_DM_MAX_COMPOSITE_ENTRIES];
-    size_t composite_path_count;
-    size_t composite_already_processed;
-    uint16_t composite_format;
+    anj_uri_path_t comp_read_paths[ANJ_DM_MAX_COMP_READ_ENTRIES];
+    size_t comp_read_path_count;
+    size_t comp_read_already_processed;
+    uint16_t comp_read_format;
     // used only when processing root path
-    size_t composite_current_object;
+    size_t comp_read_current_object;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
 } _anj_dm_data_model_t;
 

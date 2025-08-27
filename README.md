@@ -43,6 +43,7 @@ issues via our GitHub repository.
 * [About OMA LwM2M](#about-oma-lwm2m)
 * [Quickstart Guide](#quickstart-guide)
   * [Building and Running a Single Anjay Lite Example](#building-and-running-a-single-anjay-lite-example)
+  * [Configuring the MbedTLS](#configuring-the-mbedtls)
 * [Documentation](#documentation)
 * [License](#license)
 * [Commercial Support](#commercial-support)
@@ -119,6 +120,45 @@ make -j
 ```
 
 Replace <endpoint_name> with your desired endpoint name.
+
+### Configuring the MbedTLS
+
+Anjay Lite uses Mbed TLS to implement DTLS for secure transport.
+The library automatically fetches and builds MbedTLS version 3.6.0 during the
+build process. You can override this default version or use a custom, pre-installed MbedTLS library if needed.
+
+To override the default version fetched via FetchContent, set the MBEDTLS_VERSION variable:
+
+``` sh
+cd examples/tutorial/mbedtls-build
+mkdir build
+cd build
+cmake .. -DMBEDTLS_VERSION=3.5.0
+make -j
+```
+
+If you want to use your own prebuilt version of MbedTLS with custom configuration, follow these steps:
+
+1. Build and install MbedTLS manually (in specified directory, without affecting global installed MbedTLS):
+
+``` sh
+git clone https://github.com/ARMmbed/mbedtls.git
+cd mbedtls
+git checkout v3.4.0 # or another supported version
+# change configuration using scripts/config.py or modify mbedtls_config.h directly
+cmake . -DCMAKE_INSTALL_PREFIX=$PWD/install
+make install
+```
+
+2. Build Anjay Lite with that installed version:
+
+``` sh
+cd /path/to/anjay-lite/build
+cmake .. -DMBEDTLS_ROOT_DIR=mbedtls-path/mbedtls/install
+make -j
+```
+
+Anjay Lite requires MbedTLS 3.x. Versions from the 2.x series are not supported.
 
 <p align="right">(<a href="#readme-top">Back to top</a>)</p>
 

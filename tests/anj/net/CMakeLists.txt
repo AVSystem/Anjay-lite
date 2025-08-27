@@ -5,7 +5,7 @@
 # Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
 # See the attached LICENSE file for details.
 
-cmake_minimum_required(VERSION 3.6.0)
+cmake_minimum_required(VERSION 3.16.0)
 
 project(net_tests C)
 
@@ -32,11 +32,3 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../framework"
 
 target_link_libraries(net_tests PRIVATE anj)
 target_link_libraries(net_tests PRIVATE test_framework)
-
-if (ANJ_IWYU_PATH)
-    # Below OBJECT library is used only for iwyu checks
-    add_library(net_tests_iwyu OBJECT ${net_tests_sources})
-    target_include_directories(net_tests_iwyu PRIVATE
-        $<TARGET_PROPERTY:net_tests,INCLUDE_DIRECTORIES>)
-    use_iwyu_if_enabled(net_tests_iwyu)
-endif ()

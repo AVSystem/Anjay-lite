@@ -26,8 +26,8 @@ presented in the :doc:`../BasicClient/BC-MandatoryObjects` chapter:
         ├── firmware_update.h (new)
         └── main.c
 
-Installing the Firmware Update Object
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Install the Firmware Update Object
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To use the Firmware Update feature, you must install the Firmware Update Object
 in the Anjay Lite client. Use the following API function:
@@ -125,8 +125,8 @@ These are in turn called in the ``main.c``:
         usleep(50 * 1000);
     }
 
-Implementing handlers and installation routine
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Implement handlers and installation routine
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This tutorial demonstrates a push-based firmware update workflow. The following
 steps summarize the simplified process.

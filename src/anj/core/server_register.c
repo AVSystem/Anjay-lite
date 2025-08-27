@@ -7,13 +7,14 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <math.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/compat/time.h>
 #include <anj/core.h>
@@ -29,11 +30,9 @@
 #    include <anj/lwm2m_send.h>
 #endif // ANJ_WITH_LWM2M_SEND
 
-#include "../coap/coap.h"
 #include "../dm/dm_integration.h"
 #include "../dm/dm_io.h"
 #include "../exchange.h"
-#include "../utils.h"
 #include "core_utils.h"
 #include "register.h"
 #include "server.h"

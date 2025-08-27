@@ -52,7 +52,7 @@ in `CMakeLists.txt`:
 .. snippet-source:: examples/tutorial/BC-Send/CMakeLists.txt
    :emphasize-lines: 8-9
 
-    cmake_minimum_required(VERSION 3.6.0)
+    cmake_minimum_required(VERSION 3.16.0)
 
     project(anjay_lite_bc_send C)
 
@@ -79,7 +79,7 @@ Next, we make a few modifications to the loop in which we call
 
     while (true) {
         anj_core_step(&anj);
-        update_sensor_value(get_temperature_obj());
+        update_temperature_obj_value();
         usleep(50 * 1000);
         if (next_read_time < anj_time_now()) {
             next_read_time = anj_time_now() + 1000;
@@ -136,12 +136,12 @@ Next, we make a few modifications to the loop in which we call
 
 **How it works**
 
-Here’s what each key variable does:
+Here's what each key variable does:
 
     - ``anj_res_value_t value``: holds the latest value read from the resource.
     - ``uint64_t next_read_time``: defines when the next resource read should happen.
-      It’s updated every time we try to read the resource.
-    - ``uint16_t send_id``: stores the current **Send** operation’s ID. You will need
+      It's updated every time we try to read the resource.
+    - ``uint16_t send_id``: stores the current **Send** operation's ID. You will need
       this value only if you want to abort the operation by calling ``anj_send_abort``.
     - ``anj_io_out_entry_t records[MAX_RECORDS]``: stores the list of values to be sent.
     - ``fin_handler_data_t data`` tracks metadata that you want to process after the
@@ -158,8 +158,8 @@ Here’s what each key variable does:
         } fin_handler_data_t;
 
 
-Gathering the data for the Send message
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Gather the data for the Send message
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Once per second, we attempt to call ``anj_dm_res_read`` to read the ``/3303/0/5700``
 resource. If the read is successful, we create a new entry in the records array with:
@@ -190,11 +190,11 @@ it after each successful read.
    The values we store in the ``records`` array may be gathered directly from
    the sensor object omiting the ``anj_dm_res_read`` call.
 
-Preparing the Send message
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+Prepare the Send message
+^^^^^^^^^^^^^^^^^^^^^^^^
 
 When ``data.record_idx`` reaches or exceeds ``RECORDS_CNT_SEND_TRIGGER``, it
-means we’ve gathered enough data to send.
+means we've gathered enough data to send.
 
 Start by updating the ``data`` structure:
 
@@ -288,4 +288,4 @@ What this handler does:
     - Shifts any remaining unsent records to the front of the ``records`` array
       using ``memmove()`` to free up space for new data.
 
-That’s it! Your client is now ready to send data using the LwM2M **Send** method in Anjay Lite.
+That's it! Your client is now ready to send data using the LwM2M **Send** method in Anjay Lite.

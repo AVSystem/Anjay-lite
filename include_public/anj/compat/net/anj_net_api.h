@@ -7,26 +7,26 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_NET_API_H
-#define ANJ_NET_API_H
+#    define ANJ_NET_API_H
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
-#ifdef ANJ_WITH_SECURE_BINDINGS
+#    ifdef ANJ_WITH_SECURE_BINDINGS
 // TODO: Remove references to avs_commons and include necessary
 // structures in a header file inside Anjay Lite
-#    include <avsystem/commons/avs_crypto_pki.h>
-#    include <avsystem/commons/avs_crypto_psk.h>
-#    include <avsystem/commons/avs_prng.h>
-#endif // ANJ_WITH_SECURE_BINDINGS
+#        include <avsystem/commons/avs_crypto_pki.h>
+#        include <avsystem/commons/avs_crypto_psk.h>
+#        include <avsystem/commons/avs_prng.h>
+#    endif // ANJ_WITH_SECURE_BINDINGS
 
 /**
  * A list of specific error codes recognized by Anjay. Any other generic error
@@ -36,24 +36,32 @@ extern "C" {
 /**
  * Error code indicating success.
  */
-#define ANJ_NET_OK (0)
+#    define ANJ_NET_OK (0)
 
 /**
  * Error code indicating that the operation would block. The caller should
  * retry the function with the same parameters.
  */
-#define ANJ_NET_EAGAIN (1)
+#    define ANJ_NET_EAGAIN (1)
 
 /**
  * Message too long.
  */
-#define ANJ_NET_EMSGSIZE (-1)
+#    define ANJ_NET_EMSGSIZE (2)
 
 /**
  * Operation not supported. This indicates that the function is either not
  * implemented or that the provided arguments are not supported.
  */
-#define ANJ_NET_ENOTSUP (-2)
+#    define ANJ_NET_ENOTSUP (3)
+
+typedef enum {
+    ANJ_NET_BINDING_UDP = 0,
+    ANJ_NET_BINDING_TCP,
+    ANJ_NET_BINDING_DTLS,
+    ANJ_NET_BINDING_TLS,
+    ANJ_NET_BINDING_NON_IP
+} anj_net_binding_type_t;
 
 typedef enum {
     /**
@@ -82,7 +90,7 @@ typedef enum {
     ANJ_NET_SOCKET_STATE_CONNECTED
 } anj_net_socket_state_t;
 
-#ifdef ANJ_WITH_SECURE_BINDINGS
+#    ifdef ANJ_WITH_SECURE_BINDINGS
 typedef struct {
     uint64_t min;
     uint64_t max;
@@ -118,7 +126,7 @@ typedef struct {
     const anj_net_socket_dane_tlsa_record_t *array_ptr;
     size_t array_element_count;
 } anj_net_socket_dane_tlsa_array_t;
-#endif // ANJ_WITH_SECURE_BINDINGS
+#    endif // ANJ_WITH_SECURE_BINDINGS
 
 typedef enum {
     ANJ_NET_AF_SETTING_UNSPEC,
@@ -146,7 +154,7 @@ typedef struct {
     anj_net_address_family_setting_t af_setting;
 } anj_net_socket_configuration_t;
 
-#ifdef ANJ_WITH_SECURE_BINDINGS
+#    ifdef ANJ_WITH_SECURE_BINDINGS
 /**
  * Available SSL versions that can be used by SSL sockets.
  */
@@ -354,7 +362,7 @@ typedef struct {
      */
     avs_crypto_prng_ctx_t *prng_ctx;
 } anj_net_ssl_configuration_t;
-#endif // ANJ_WITH_SECURE_BINDINGS
+#    endif // ANJ_WITH_SECURE_BINDINGS
 
 /**
  * Structure that contains configuration for creating a network socket.
@@ -369,9 +377,9 @@ typedef struct {
  */
 typedef struct {
     anj_net_socket_configuration_t raw_socket_config;
-#ifdef ANJ_WITH_SECURE_BINDINGS
+#    ifdef ANJ_WITH_SECURE_BINDINGS
     anj_net_ssl_configuration_t secure_socket_config;
-#endif // ANJ_WITH_SECURE_BINDINGS
+#    endif // ANJ_WITH_SECURE_BINDINGS
 } anj_net_config_t;
 
 struct anj_net_ctx_struct;
@@ -408,24 +416,22 @@ static inline bool anj_net_is_again(int res) {
  * @param ctx Pointer to the socket context.
  *
  * @returns A pointer to the system socket on success, or NULL in case of an
- * error.
+ *          error.
  */
 typedef const void *anj_net_get_system_socket_t(anj_net_ctx_t *ctx);
 
 /**
  * Initializes a communication context for a connection.
  *
- * This function sets up a connection context, optionally using the provided
- * configuration. If a valid @p config pointer is supplied, it is used
- * to configure the context; otherwise, a NULL pointer is acceptable.
+ * If a valid @p config pointer is supplied, it is used to configure the
+ * context; otherwise, a NULL pointer is acceptable.
  *
- * NOTE: This function never returns @ref ANJ_NET_EAGAIN and any return code
- * other than @ref ANJ_NET_OK will be treated as an error.
+ * This function never returns @ref ANJ_NET_EAGAIN.
  *
  * @param ctx     Output parameter to store the created socket context.
  * @param config  Optional configuration for initializing the socket context.
  *
- * @returns ANJ_NET_OK on success, or a negative error code on failure.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int anj_net_create_ctx_t(anj_net_ctx_t **ctx,
                                  const anj_net_config_t *config);
@@ -434,9 +440,16 @@ typedef int anj_net_create_ctx_t(anj_net_ctx_t **ctx,
  * Calls shutdown on the connection associated with @p ctx, cleans up the
  * @p ctx context, and sets it to NULL.
  *
+ * If the function returns @ref ANJ_NET_EAGAIN, a subsequent call with the same
+ * arguments resumes the operation. Note that such a call may not occur
+ * immediately, as other operations may be performed first depending on internal
+ * scheduling.
+ *
  * @param[inout] ctx Connection context to clean up.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of an error.
+ * @returns @ref ANJ_NET_OK on success.
+ *          @ref ANJ_NET_EAGAIN if function would block.
+ *          A negative value in case of an error.
  */
 typedef int anj_net_cleanup_ctx_t(anj_net_ctx_t **ctx);
 
@@ -446,17 +459,22 @@ typedef int anj_net_cleanup_ctx_t(anj_net_ctx_t **ctx);
  * these parameters, the user should pass NULL instead.
  *
  * NOTE: The function is allowed to block during the connection attempt or
- * return immediately with @ref ANJ_NET_EAGAIN. If the function returns
- * @ref ANJ_NET_EAGAIN a subsequent call continues the connection attempt.
- * The behavior of the function in blocking or non-blocking mode will not be
- * enforced, allowing flexibility in implementation. Upon successfully
- * establishing a connection, the function returns @ref ANJ_NET_OK.
+ * return immediately with @ref ANJ_NET_EAGAIN. The behavior of the function in
+ * blocking or non-blocking mode will not be enforced, allowing flexibility in
+ * implementation.
+ *
+ * If the function returns @ref ANJ_NET_EAGAIN, a subsequent call with the same
+ * arguments resumes the operation. Note that such a call may not occur
+ * immediately, as other operations may be performed first depending on internal
+ * scheduling.
  *
  * @param ctx       Pointer to a socket context.
  * @param hostname  Target host name to connect to.
  * @param port      Target port of the server.
  *
- * @returns ANJ_NET_OK on success, a negative value in case of error.
+ * @returns @ref ANJ_NET_OK on success.
+ *          @ref ANJ_NET_EAGAIN if function would block.
+ *          A negative value in case of an error.
  */
 typedef int
 anj_net_connect_t(anj_net_ctx_t *ctx, const char *hostname, const char *port);
@@ -464,11 +482,16 @@ anj_net_connect_t(anj_net_ctx_t *ctx, const char *hostname, const char *port);
 /**
  * This function sends the provided data through the given connection context.
  *
- * If the underlying operation would block and no data has been sent, the
- * function returns @ref ANJ_NET_EAGAIN. However, if some data has been
- * successfully sent, the function returns @ref ANJ_NET_OK, and @p bytes_sent
- * will indicate the amount of data transmitted. The caller should then retry
- * the operation with the remaining data until all bytes are sent.
+ * If the operation would block and no data has been sent, the function returns
+ * @ref ANJ_NET_EAGAIN. However, if all or partial data has been successfully
+ * sent, the function returns @ref ANJ_NET_OK, and @p bytes_sent will indicate
+ * the amount of data transmitted. The caller should then retry the operation
+ * with the remaining data until all bytes are sent.
+ *
+ * If the function returns @ref ANJ_NET_EAGAIN, a subsequent call with the same
+ * arguments resumes the operation. Note that such a call may not occur
+ * immediately, as other operations may be performed first depending on internal
+ * scheduling.
  *
  * NOTE: This function does not block.
  *
@@ -477,9 +500,11 @@ anj_net_connect_t(anj_net_ctx_t *ctx, const char *hostname, const char *port);
  * @param buf         Pointer to the message buffer.
  * @param length      Length of the data in the message buffer.
  *
- * @returns ANJ_NET_OK if all data was sent or partial data was sent
- * successfully, @ref ANJ_NET_EAGAIN if no data was sent and the operation would
- * block. A negative value in case of an error.
+ * @returns @ref ANJ_NET_OK if all data was sent or partial data was sent
+ *          successfully.
+ *          @ref ANJ_NET_EAGAIN if no data was sent and the operation would
+ *          block.
+ *          A negative value in case of an error.
  */
 typedef int anj_net_send_t(anj_net_ctx_t *ctx,
                            size_t *bytes_sent,
@@ -488,27 +513,31 @@ typedef int anj_net_send_t(anj_net_ctx_t *ctx,
 
 /**
  * This function receives data from the specified connection context. If data is
- * available, it is stored in the provided buffer, and @p  bytes_received
+ * available, it is stored in the provided buffer, and @p bytes_received
  * indicates the number of bytes received.
  *
- * If the underlying operation would block and no data has been received, the
- * function returns @ref ANJ_NET_EAGAIN. In this case, the caller should retry
- * the function with the same parameters. If the provided buffer is too small to
- * hold the full message, the function returns @ref ANJ_NET_EMSGSIZE.
+ * If the operation would block and no data has been received, the function
+ * returns @ref ANJ_NET_EAGAIN. If the provided buffer is too small to hold the
+ * full message, the function returns @ref ANJ_NET_EMSGSIZE.
+ *
+ * If the function returns @ref ANJ_NET_EAGAIN, a subsequent call with the same
+ * arguments resumes the operation. Note that such a call may not occur
+ * immediately, as other operations may be performed first depending on internal
+ * scheduling.
  *
  * NOTE: This function does not block.
  *
  * @param ctx             Pointer to a socket context.
  * @param bytes_received  Output parameter indicating the number of bytes
- * received.
+ *                        received.
  * @param buf             Pointer to the message buffer.
  * @param length          Size of the provided buffer.
  *
- * @returns @ref ANJ_NET_OK on success
+ * @returns @ref ANJ_NET_OK on success.
  *          @ref ANJ_NET_EAGAIN if no data was received or the operation would
- * block.
+ *          block.
  *          @ref ANJ_NET_EMSGSIZE if the provided buffer is too small.
- *          other negative value in case of other errors.
+ *          Negative value in case of other errors.
  */
 typedef int anj_net_recv_t(anj_net_ctx_t *ctx,
                            size_t *bytes_received,
@@ -516,29 +545,43 @@ typedef int anj_net_recv_t(anj_net_ctx_t *ctx,
                            size_t length);
 
 /**
- * Binds a socket associated with @p ctx the to the previous port number used by
- * this context. If bind operation is not supported the function return
- * @ref ANJ_NET_ENOTSUP. This function return an error if the context was never
- * used for a connection.
+ * Binds a socket associated with @p ctx to the previous port number used by
+ * this context.
+ *
+ * If bind operation is not supported the function returns @ref ANJ_NET_ENOTSUP.
+ *
+ * If the function returns @ref ANJ_NET_EAGAIN, a subsequent call with the same
+ * arguments resumes the operation. Note that such a call may not occur
+ * immediately, as other operations may be performed first depending on internal
+ * scheduling.
  *
  * @param ctx Pointer to a socket context.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of an error.
+ * @returns @ref ANJ_NET_OK on success.
+ *          @ref ANJ_NET_EAGAIN if function would block.
+ *          A negative value in case of an error.
  */
 typedef int anj_net_reuse_last_port_t(anj_net_ctx_t *ctx);
 
 /**
- * Shuts down the connection associated with @p ctx. No further
- * communication is allowed using this context. Any buffered but not yet
- * processed data should still be delivered. Performs the termination handshake
- * if the protocol used requires one.
+ * Shuts down the connection associated with @p ctx. No further communication is
+ * allowed using this context. Any buffered but not yet processed data should
+ * still be delivered. Performs the termination handshake if the protocol used
+ * requires one.
  *
- * Already received data is still possible to read using @ref anj_net_recv. The
- * user must still call @ref anj_net_close before reusing the context.
+ * Data already received can still be read using @ref anj_net_recv. However, the
+ * user must call @ref anj_net_close before reusing the context.
+ *
+ * If the function returns @ref ANJ_NET_EAGAIN, a subsequent call with the same
+ * arguments resumes the operation. Note that such a call may not occur
+ * immediately, as other operations may be performed first depending on internal
+ * scheduling.
  *
  * @param ctx Communication context to shut down.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of an error.
+ * @returns @ref ANJ_NET_OK on success.
+ *          @ref ANJ_NET_EAGAIN if function would block.
+ *          A negative value in case of an error.
  */
 typedef int anj_net_shutdown_t(anj_net_ctx_t *ctx);
 
@@ -547,11 +590,18 @@ typedef int anj_net_shutdown_t(anj_net_ctx_t *ctx);
  * communication is allowed using this context. Discards any buffered but not
  * yet processed data.
  *
+ * If the function returns @ref ANJ_NET_EAGAIN, a subsequent call with the same
+ * arguments resumes the operation. Note that such a call may not occur
+ * immediately, as other operations may be performed first depending on internal
+ * scheduling.
+ *
  * @p ctx may later be reused by calling @ref anj_net_connect again.
  *
  * @param ctx Communication context to close.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of an error.
+ * @returns @ref ANJ_NET_OK on success.
+ *          @ref ANJ_NET_EAGAIN if function would block.
+ *          A negative value in case of an error.
  */
 typedef int anj_net_close_t(anj_net_ctx_t *ctx);
 
@@ -561,7 +611,7 @@ typedef int anj_net_close_t(anj_net_ctx_t *ctx);
  * @param ctx        Pointer to a socket context.
  * @param out_value  Variable to store the retrieved option value.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of an error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int anj_net_get_state_t(anj_net_ctx_t *ctx,
                                 anj_net_socket_state_t *out_value);
@@ -573,7 +623,7 @@ typedef int anj_net_get_state_t(anj_net_ctx_t *ctx,
  * @param ctx        Pointer to a socket context.
  * @param out_value  Variable to store retrieved option value in.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int anj_net_get_inner_mtu_t(anj_net_ctx_t *ctx, int32_t *out_value);
 
@@ -583,7 +633,7 @@ typedef int anj_net_get_inner_mtu_t(anj_net_ctx_t *ctx, int32_t *out_value);
  * @param ctx        Pointer to a socket context.
  * @param out_value  Variable to store the retrieved option value.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of an error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int anj_net_get_bytes_sent_t(anj_net_ctx_t *ctx, uint64_t *out_value);
 
@@ -594,12 +644,13 @@ typedef int anj_net_get_bytes_sent_t(anj_net_ctx_t *ctx, uint64_t *out_value);
  * @param ctx        Pointer to a socket context.
  * @param out_value  Variable to store the retrieved option value.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of an error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int anj_net_get_bytes_received_t(anj_net_ctx_t *ctx,
                                          uint64_t *out_value);
 
-#ifdef ANJ_WITH_SECURE_BINDINGS
+#    ifdef ANJ_WITH_SECURE_BINDINGS
+// TODO To decide later if the following functions should return ANJ_NET_EAGAIN.
 /**
  * Returns information whether the last (D)TLS handshake was a successful
  * session resumption - <c>true</c> if the session was resumed, or <c>false</c>
@@ -617,7 +668,7 @@ typedef int anj_net_get_bytes_received_t(anj_net_ctx_t *ctx,
  * @param ctx        Pointer to a socket context.
  * @param out_value  Variable to store retrieved option value in.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int anj_net_get_session_resumed_t(anj_net_ctx_t *ctx, bool *out_value);
 
@@ -633,7 +684,7 @@ typedef int anj_net_get_session_resumed_t(anj_net_ctx_t *ctx, bool *out_value);
  * @param ctx    Pointer to a socket context.
  * @param value  Pointer to a array of DANE TLSA records.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int
 anj_net_set_dane_tlsa_array_t(anj_net_ctx_t *ctx,
@@ -645,7 +696,7 @@ anj_net_set_dane_tlsa_array_t(anj_net_ctx_t *ctx,
  * @param ctx    Pointer to a socket context.
  * @param value  Pointer to a dtls timeout structure.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int
 anj_net_set_dtls_handshake_timeouts_t(anj_net_ctx_t *ctx,
@@ -662,17 +713,15 @@ anj_net_set_dtls_handshake_timeouts_t(anj_net_ctx_t *ctx,
  * @param ctx        Pointer to a socket context.
  * @param out_value  Variable to store retrieved option value in.
  *
- * @returns ANJ_NET_OK on success, or a negative value in case of error.
+ * @returns @ref ANJ_NET_OK on success, or a negative value in case of an error.
  */
 typedef int anj_net_get_connection_id_resumed_t(anj_net_ctx_t *ctx,
                                                 bool *out_value);
 
-#endif // ANJ_WITH_SECURE_BINDINGS
+#    endif // ANJ_WITH_SECURE_BINDINGS
 
-#include <anj/compat/net/anj_net_wrapper.h>
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_NET_API_H

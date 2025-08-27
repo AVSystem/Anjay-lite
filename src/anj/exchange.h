@@ -7,39 +7,41 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_EXCHANGE_H
-#define SRC_ANJ_EXCHANGE_H
+#    define SRC_ANJ_EXCHANGE_H
 
-#include <anj/anj_config.h>
-#include <anj/utils.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include "utils.h"
-#define ANJ_INTERNAL_INCLUDE_EXCHANGE
-#include <anj_internal/exchange.h>
-#undef ANJ_INTERNAL_INCLUDE_EXCHANGE
+#    include <anj/defs.h>
+#    include <anj/log/log.h>
 
-#include "coap/coap.h"
+#    define ANJ_INTERNAL_INCLUDE_EXCHANGE
+#    include <anj_internal/exchange.h> // IWYU pragma: export
+#    undef ANJ_INTERNAL_INCLUDE_EXCHANGE
+// IWYU pragma: no_include "anj_internal/exchange.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#    define exchange_log(...) anj_log(exchange, __VA_ARGS__)
 
 /**
  * Used for block transfers. The buffer is too small to fit the whole payload.
  */
-#define _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED 1
+#    define _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED 1
 
 /**
  * Error code provided in @ref _anj_exchange_completion_t when the exchange was
  * finished by @ref _anj_exchange_terminate call.
  */
-#define _ANJ_EXCHANGE_ERROR_TERMINATED -1
+#    define _ANJ_EXCHANGE_ERROR_TERMINATED -1
 
 /**
  * Error code provided in @ref _anj_exchange_completion_t when the exchange is
  * finished due to timeout.
  */
-#define _ANJ_EXCHANGE_ERROR_TIMEOUT -2
+#    define _ANJ_EXCHANGE_ERROR_TIMEOUT -2
 
 /**
  * From RFC7252: "PROCESSING_DELAY is the time a node takes to turn around a
@@ -54,24 +56,30 @@ extern "C" {
  * The purpose of this delay is to break the exchange if send function blocks
  * for too long (possible error in the implementation of network layer).
  */
-#define _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS 2000
+#    define _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS 2000
 
 /**
  * Default maximum time of the CoAP exchange. For LwM2M server requests, this is
  * the time to wait for the next block, the default value can be changed using
  * @ref _anj_exchange_set_server_request_timeout.
  */
-#define _ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT_MS 50000
+#    define _ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT_MS 50000
+
+/**
+ * See https://tools.ietf.org/html/rfc7252#section-4.8.2
+ * Unit: seconds
+ */
+#    define _ANJ_EXCHANGE_COAP_MAX_LATENCY 100
 
 /**
  * Default CoAP transmission parameters (RFC 7252).
  */
-#define _ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT \
-    (_anj_exchange_udp_tx_params_t) {       \
-        .ack_timeout_ms = 2000,             \
-        .ack_random_factor = 1.5,           \
-        .max_retransmit = 4                 \
-    }
+#    define _ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT \
+        (anj_exchange_udp_tx_params_t) {        \
+            .ack_timeout_ms = 2000,             \
+            .ack_random_factor = 1.5,           \
+            .max_retransmit = 4                 \
+        }
 
 /**
  * Type of event related to the exchange module.
@@ -252,8 +260,8 @@ _anj_exchange_state_t _anj_exchange_get_state(_anj_exchange_ctx_t *ctx);
  *
  * @returns 0 on success, negative value if transmission parameters are invalid.
  */
-int _anj_exchange_set_udp_tx_params(
-        _anj_exchange_ctx_t *ctx, const _anj_exchange_udp_tx_params_t *params);
+int _anj_exchange_set_udp_tx_params(_anj_exchange_ctx_t *ctx,
+                                    const anj_exchange_udp_tx_params_t *params);
 
 /**
  * Sets the maximum time of the CoAP exchange - this is the time to wait for the
@@ -273,12 +281,14 @@ void _anj_exchange_set_server_request_timeout(_anj_exchange_ctx_t *ctx,
  * context. Specific exchange context is related with one server connection.
  *
  * @param ctx          Exchange context,
- * @param random_seed  PRNG seed value, used in timeout calculation process.
+ * @param random_seed  PRNG seed value, used in CoAP token generation and in
+ *                     timeout calculation process.
  */
 void _anj_exchange_init(_anj_exchange_ctx_t *ctx, unsigned int random_seed);
 
-#ifdef __cplusplus
-}
-#endif
+#    ifdef ANJ_WITH_CACHE
+void _anj_exchange_setup_cache(_anj_exchange_ctx_t *ctx,
+                               _anj_exchange_cache_t *cache);
+#    endif // ANJ_WITH_CACHE
 
 #endif // SRC_ANJ_EXCHANGE_H

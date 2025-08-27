@@ -39,6 +39,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_register) {
     data.attr.register_attr.endpoint = "name";
     data.attr.register_attr.lifetime = 120;
     data.attr.register_attr.lwm2m_ver = "1.2";
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -77,6 +78,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_update) {
     data.attr.register_attr.has_sms_number = true;
     data.attr.register_attr.has_binding = true;
     data.attr.register_attr.binding = "T";
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -105,6 +107,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_deregister) {
     data.location_path.location[0] = "name";
     data.location_path.location_len[0] = 4;
     data.location_path.location_count = 1;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -131,6 +134,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_bootstrap_request) {
     data.attr.bootstrap_attr.has_preferred_content_format = true;
     data.attr.bootstrap_attr.endpoint = "name";
     data.attr.bootstrap_attr.preferred_content_format = 60;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -157,6 +161,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_bootstrap_pack_request) {
     data.operation = ANJ_OP_BOOTSTRAP_PACK_REQ;
 
     data.accept = _ANJ_COAP_FORMAT_SENML_ETCH_JSON;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -211,6 +216,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_send) {
     data.content_format = _ANJ_COAP_FORMAT_OPAQUE_STREAM;
     data.payload = (uint8_t *) "<1/1>";
     data.payload_size = 5;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -257,6 +263,38 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_con_notify) {
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 12);
+}
+
+ANJ_UNIT_TEST(anj_prepare_tcp, prepare_downloader_get) {
+    _anj_coap_msg_t data = { 0 };
+    uint8_t buff[100];
+    size_t out_msg_size;
+
+    data.operation = ANJ_OP_COAP_DOWNLOADER_GET;
+    char *path = "/ab/cde/efgh";
+
+    data.attr.downloader_attr.path[0] = &path[1];
+    data.attr.downloader_attr.path_len[0] = 2;
+    data.attr.downloader_attr.path[1] = &path[4];
+    data.attr.downloader_attr.path_len[1] = 3;
+    data.attr.downloader_attr.paths_count = 2;
+    data.token.size = 2;
+    data.token.bytes[0] = 0x44;
+    data.token.bytes[1] = 0x44;
+
+    ANJ_UNIT_ASSERT_SUCCESS(
+            _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
+
+    uint8_t EXPECTED[] = "\x72"             // msg_len 7, tkl 8
+                         "\x01"             // GET
+                         "\x44\x44"         // token
+                         "\xb2\x61\x62"     // uri path /ab
+                         "\x03\x63\x64\x65" // uri path /cde
+            ;
+    memcpy(&EXPECTED[2], data.token.bytes, 2); // copy token
+
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
+    ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(EXPECTED) - 1);
 }
 
 ANJ_UNIT_TEST(anj_prepare_tcp, prepare_ack_notify) {
@@ -417,6 +455,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_ping_with_custody) {
 
     data.operation = ANJ_OP_COAP_PING;
     data.signalling_opts.ping_pong.custody = true;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -437,6 +476,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_ping_without_custody) {
     size_t out_msg_size;
 
     data.operation = ANJ_OP_COAP_PING;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -508,6 +548,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_csm_with_block_wise_transfer) {
     data.operation = ANJ_OP_COAP_CSM;
     data.signalling_opts.csm.max_msg_size = 152;
     data.signalling_opts.csm.block_wise_transfer_capable = true;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -530,6 +571,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_csm_without_block_wise_transfer) {
 
     data.operation = ANJ_OP_COAP_CSM;
     data.signalling_opts.csm.max_msg_size = 152;
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -539,7 +581,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_csm_without_block_wise_transfer) {
                          "\x00\x00\x00\x00\x00\x00\x00\x00" // place for a token
                          "\x21\x98" // option delta 2, option len 1
             ;
-    memcpy(&EXPECTED[2], data.token.bytes, 8);
+
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 12);
 }
@@ -578,6 +620,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_error_buff_size) {
     data.attr.register_attr.endpoint = "name";
     data.attr.register_attr.lifetime = 120;
     data.attr.register_attr.lwm2m_ver = "1.2";
+    data.token.size = 8;
 
     for (size_t i = 0; i < 54; i++) {
         ANJ_UNIT_ASSERT_FAILED(
@@ -645,6 +688,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_payload_extended_length_2bytes) {
     data.attr.register_attr.endpoint = "name";
     data.attr.register_attr.lifetime = 120;
     data.attr.register_attr.lwm2m_ver = "1.2";
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));
@@ -689,6 +733,7 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_payload_extended_length_4bytes) {
     data.attr.register_attr.endpoint = "name";
     data.attr.register_attr.lifetime = 120;
     data.attr.register_attr.lwm2m_ver = "1.2";
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_tcp(&data, buff, sizeof(buff), &out_msg_size));

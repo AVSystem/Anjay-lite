@@ -7,12 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/defs.h>
 #include <anj/utils.h>
 
@@ -807,8 +808,7 @@ int _anj_io_register_ctx_new_entry(_anj_io_register_ctx_t *ctx,
             || !anj_uri_path_increasing(&ctx->last_path, path)) {
         return _ANJ_IO_ERR_INPUT_ARG;
     }
-    if (path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_SECURITY
-            || path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_OSCORE) {
+    if (_anj_uri_path_to_security_or_oscore_obj(path)) {
         return _ANJ_IO_ERR_INPUT_ARG;
     }
     if (anj_uri_path_is(path, ANJ_ID_IID) && version) {

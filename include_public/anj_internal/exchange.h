@@ -15,11 +15,11 @@
 #endif // ANJ_INTERNAL_INCLUDE_EXCHANGE
 
 #define ANJ_INTERNAL_INCLUDE_UTILS
-#include <anj_internal/utils.h>
+#include <anj_internal/utils.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_UTILS
 
 #define ANJ_INTERNAL_INCLUDE_COAP
-#include <anj_internal/coap.h>
+#include <anj_internal/coap.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_COAP
 
 #ifdef __cplusplus
@@ -40,23 +40,6 @@ typedef enum {
     // Exchange is finished, also idle state
     ANJ_EXCHANGE_STATE_FINISHED
 } _anj_exchange_state_t;
-
-/**
- * @anj_internal_api_do_not_use
- * CoAP transmission params object.
- *
- * For LwM2M client requests, the timeout is random duration between
- * ack_timeout_ms and ack_timeout_ms * ack_random_factor. For default values it
- * is range from 2 to 3 seconds. Each retransmission doubles the timeout value.
- */
-typedef struct {
-    /** RFC 7252: ACK_TIMEOUT */
-    uint64_t ack_timeout_ms;
-    /** RFC 7252: ACK_RANDOM_FACTOR */
-    double ack_random_factor;
-    /** RFC 7252: MAX_RETRANSMIT */
-    uint16_t max_retransmit;
-} _anj_exchange_udp_tx_params_t;
 
 /**
  * Output parameters returned from @ref anj_exchange_read_payload_t handler.
@@ -142,9 +125,13 @@ _anj_exchange_read_payload_t(void *arg_ptr,
  * responded with error code, the error code is passed in @p result, and @p
  * response is NULL.
  *
+ * @note: This callback for Separate Response mode is called before last Empty
+ *        ACK is sent.
+ *
  * @param arg_ptr   Additional user data passed when the function is called.
- * @param response  Final server response message, provided only if the exchange
- *                  is finished successfully, NULL otherwise.
+ * @param response  Final server response message, provided only for client
+ *                  initiated exchanges (confirmable) and if the exchange is not
+ *                  finished with an error.
  * @param result    Result of the exchange, 0 on success, a ANJ_COAP_CODE_*
  *                  code or ANJ_EXCHANGE_ERROR_* in case of error.
  */
@@ -154,7 +141,8 @@ typedef void _anj_exchange_completion_t(void *arg_ptr,
 
 /**
  * @anj_internal_api_do_not_use
- * Exchange handlers. All handlers must be set.
+ * Exchange handlers. If handler is not set, the exchange module will use
+ * default implementation.
  */
 typedef struct {
     _anj_exchange_write_payload_t *write_payload;
@@ -163,12 +151,43 @@ typedef struct {
     void *arg;
 } _anj_exchange_handlers_t;
 
+#ifdef ANJ_WITH_CACHE
+/**
+ * @anj_internal_api_do_not_use
+ * Single cache entry for messages older than the latest one
+ */
+typedef struct {
+    uint64_t expiration_time;
+    uint16_t mid;
+} _anj_exchange_cache_msg_non_recent_t;
+
+/**
+ * @anj_internal_api_do_not_use
+ * Single cache entry for the latest message
+ */
+typedef struct {
+    uint64_t expiration_time;
+    _anj_coap_msg_t response;
+    uint8_t payload[ANJ_OUT_PAYLOAD_BUFFER_SIZE];
+} _anj_exchange_cache_msg_recent_t;
+
+/** @anj_internal_api_do_not_use */
+typedef struct {
+    // total cached responses - ANJ_CACHE_ENTRIES_NUMBER - one most recent with
+    // payload and ANJ_CACHE_ENTRIES_NUMBER - 1 responses with only MID saved
+    _anj_exchange_cache_msg_recent_t cache_recent;
+#    if ANJ_CACHE_ENTRIES_NUMBER > 1
+    _anj_exchange_cache_msg_non_recent_t
+            cache_non_recent[ANJ_CACHE_ENTRIES_NUMBER - 1];
+#    endif // ANJ_CACHE_ENTRIES_NUMBER > 1
+    bool handling_retransmission;
+} _anj_exchange_cache_t;
+#endif // ANJ_WITH_CACHE
+
 /** @anj_internal_api_do_not_use */
 typedef struct {
     _anj_exchange_state_t state;
     _anj_exchange_handlers_t handlers;
-    // server response will be provided as a separate message
-    bool separate_response;
     // indicate if the request is from the LwM2M Server
     bool server_request;
     // indicate if we expect a response from the LwM2M Server
@@ -181,17 +200,26 @@ typedef struct {
     uint32_t block_number;
 
     uint64_t server_exchange_timeout;
-    _anj_exchange_udp_tx_params_t tx_params;
+    anj_exchange_udp_tx_params_t tx_params;
     uint16_t retry_count;
-    uint64_t send_ack_timeout_timestamp_ms;
+    uint64_t send_confirmation_timeout_timestamp_ms;
     uint64_t timeout_timestamp_ms;
     uint64_t timeout_ms;
-    // based on pseudo-random number generator, used for timeout calculation
-    // subsequent requests should have different timeout values
-    _anj_rand_seed_t timeout_rand_seed;
+    // based on pseudo-random number generator, used for token generation and
+    // for timeout calculation - subsequent requests should have different
+    // timeout values
+    _anj_rand_seed_t rand_seed;
+
+    uint16_t msg_id;
 
     uint8_t msg_code;
     _anj_coap_msg_t base_msg;
+
+#ifdef ANJ_WITH_CACHE
+    // must be set by _anj_exchange_setup_cache after context initialization
+    _anj_exchange_cache_t *cache;
+#endif // ANJ_WITH_CACHE
+
     _anj_op_t op;
 } _anj_exchange_ctx_t;
 

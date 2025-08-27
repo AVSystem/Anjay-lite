@@ -7,12 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/compat/time.h>
 #include <anj/core.h>
@@ -32,10 +33,8 @@
 #    include "../observe/observe.h"
 #endif // ANJ_WITH_OBSERVE
 
-#include "../coap/coap.h"
 #include "../dm/dm_io.h"
 #include "../exchange.h"
-#include "../utils.h"
 #include "core.h"
 #include "core_utils.h"
 #include "reg_session.h"
@@ -77,9 +76,11 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config) {
     anj->queue_mode_enabled = config->queue_mode_enabled;
 
     _anj_dm_initialize(anj);
-    _anj_coap_init((uint32_t) anj_time_real_now());
 
     _anj_exchange_init(&anj->exchange_ctx, (unsigned int) anj_time_real_now());
+#ifdef ANJ_WITH_CACHE
+    _anj_exchange_setup_cache(&anj->exchange_ctx, &anj->exchange_cache);
+#endif // ANJ_WITH_CACHE
     if (config->udp_tx_params) {
         _anj_exchange_set_udp_tx_params(&anj->exchange_ctx,
                                         config->udp_tx_params);

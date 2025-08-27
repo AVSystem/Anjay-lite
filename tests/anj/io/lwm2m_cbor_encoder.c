@@ -15,6 +15,7 @@
 #include <anj/defs.h>
 #include <anj/utils.h>
 
+#include "../../../src/anj/coap/coap.h"
 #include "../../../src/anj/io/io.h"
 
 #include <anj_unit_test.h>
@@ -562,8 +563,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_same_path) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &out_len));
-    ANJ_UNIT_ASSERT_EQUAL(_anj_io_out_ctx_new_entry(&env.ctx, &entry_2),
-                          _ANJ_IO_ERR_INPUT_ARG);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_2));
 }
 
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, biggest_possible_record) {
@@ -997,17 +997,6 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, errors) {
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(8, 8), 1,
                           ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_EQUAL(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1),
-                          _ANJ_IO_ERR_INPUT_ARG);
-
-    // two identical path
-    lwm2m_cbor_test_setup(&env, NULL, 2, ANJ_OP_INF_CON_SEND);
-    out_len = 0;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
-            &env.ctx, env.buf, env.buffer_length, &out_len));
-    env.out_length += out_len;
-    entry_2.path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_io_out_ctx_new_entry(&env.ctx, &entry_2),
                           _ANJ_IO_ERR_INPUT_ARG);
 }
 

@@ -1,0 +1,3 @@
+{% set obj_res_oid_def = obj.name_upper + "_OBJ_OID" %}
+{% set obj_inst_count_def = obj.name_upper + "_OBJ_INST_COUNT" %}
+{% set needs_transactional = transactional or (obj.has_any_multiple_resources and dynamic_resources_instances) or (dynamic_object_instances and multiple_insts) %}

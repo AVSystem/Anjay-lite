@@ -7,18 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
+#include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/utils.h>
 
-#include "../coap/coap.h"
-#include "../utils.h"
 #include "internal.h"
 #include "io.h"
 

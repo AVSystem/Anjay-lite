@@ -1,0 +1,55 @@
+{% import 'macros.jinja2' as m with context -%}
+
+static int obj_inst_create(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
+
+    if (iid == ANJ_ID_INVALID) {
+        return ANJ_DM_ERR_BAD_REQUEST;
+    }
+
+    {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(obj);
+
+    // Check if there is space for a new instance
+    if (ctx->obj_insts_ids[{{ m.obj_inst_count_def }} - 1].iid
+            != ANJ_ID_INVALID) {
+        return ANJ_DM_ERR_NOT_FOUND;
+    }
+
+    for (uint16_t i = 0; i < {{ m.obj_inst_count_def }}; i++) {
+        if (ctx->obj_insts_ids[i].iid == ANJ_ID_INVALID
+                || ctx->obj_insts_ids[i].iid >= iid) {
+            for (uint16_t j = {{ m.obj_inst_count_def }} - 1; j > i; --j) {
+                ctx->obj_insts_ids[j] = ctx->obj_insts_ids[j - 1];
+                ctx->obj_insts[j] = ctx->obj_insts[j - 1];
+            }
+
+            init_obj_inst(ctx, i, iid);
+
+            return 0;
+        }
+    }
+
+    return ANJ_DM_ERR_NOT_FOUND;
+}
+
+static int obj_inst_delete(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
+
+    if (iid == ANJ_ID_INVALID) {
+        return ANJ_DM_ERR_BAD_REQUEST;
+    }
+
+    {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(obj);
+
+    for (uint16_t i = 0; i < {{ m.obj_inst_count_def }}; i++) {
+        if (ctx->obj_insts_ids[i].iid == iid) {
+            for (uint16_t j = i; j < {{ m.obj_inst_count_def }} - 1; ++j) {
+                ctx->obj_insts_ids[j] = ctx->obj_insts_ids[j + 1];
+                ctx->obj_insts[j] = ctx->obj_insts[j + 1];
+            }
+            ctx->obj_insts_ids[{{ m.obj_inst_count_def }} - 1].iid =
+                    ANJ_ID_INVALID;
+        }
+        return 0;
+    }
+
+    return ANJ_DM_ERR_NOT_FOUND;
+}

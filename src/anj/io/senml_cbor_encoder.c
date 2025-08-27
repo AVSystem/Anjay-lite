@@ -7,17 +7,19 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
+#include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/utils.h>
 
-#include "../utils.h"
+#include "../coap/coap.h"
 #include "cbor_encoder.h"
 #include "cbor_encoder_ll.h"
 #include "internal.h"

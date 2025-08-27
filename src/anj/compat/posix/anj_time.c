@@ -7,13 +7,14 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #define _GNU_SOURCE
 
 #include <stdint.h>
 
 #include <sys/types.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/time.h>
 
 #ifdef ANJ_WITH_TIME_POSIX_COMPAT

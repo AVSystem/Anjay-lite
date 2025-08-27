@@ -7,25 +7,26 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_DEVICE_OBJECT_H
-#define ANJ_DM_DEVICE_OBJECT_H
+#    define ANJ_DM_DEVICE_OBJECT_H
 
-#include <anj/anj_config.h>
-#include <anj/core.h>
-#include <anj/dm/core.h>
+#    include <anj/core.h>
+#    include <anj/dm/core.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
-#ifdef ANJ_WITH_DEFAULT_DEVICE_OBJ
+#    ifdef ANJ_WITH_DEFAULT_DEVICE_OBJ
 
 /*
  * HACK: error handling is not supported so in order to comply with the
  * definition of the object only one instance of Error Code resource is
  * defined with the value set to 0 which means "no errors".
  */
-#    define ANJ_DM_DEVICE_ERR_CODE_RES_INST_MAX_COUNT 1
+#        define ANJ_DM_DEVICE_ERR_CODE_RES_INST_MAX_COUNT 1
 
 /**
  * Callback function type for handling the LwM2M Reboot resource (/3/0/4).
@@ -122,10 +123,10 @@ int anj_dm_device_obj_install(anj_t *anj,
                               anj_dm_device_obj_t *device_obj,
                               anj_dm_device_object_init_t *obj_init);
 
-#endif // ANJ_WITH_DEFAULT_DEVICE_OBJ
+#    endif // ANJ_WITH_DEFAULT_DEVICE_OBJ
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DM_DEVICE_OBJECT_H

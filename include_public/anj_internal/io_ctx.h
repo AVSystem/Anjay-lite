@@ -13,7 +13,7 @@
 #include <anj/utils.h>
 
 #define ANJ_INTERNAL_INCLUDE_COAP
-#include <anj_internal/coap.h>
+#include <anj_internal/coap.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_COAP
 
 #ifndef ANJ_INTERNAL_INCLUDE_IO_CTX

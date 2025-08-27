@@ -7,12 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/compat/time.h>
 #include <anj/core.h>
@@ -28,7 +29,7 @@
 #include "../coap/coap.h"
 #include "../dm/dm_integration.h"
 #include "../exchange.h"
-#include "../utils.h"
+#include "../exchange_cache.h"
 #include "core.h"
 #include "core_utils.h"
 #include "reg_session.h"
@@ -187,20 +188,42 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     _anj_exchange_handlers_t exchange_handlers = { 0 };
     uint8_t response_code = 0;
 
+#ifdef ANJ_WITH_CACHE
+    // check if it's a retransmission
+    int cache_try =
+            _anj_exchange_cache_check(&anj->exchange_cache,
+                                      msg.coap_binding_data.udp.message_id);
+    if (cache_try == _ANJ_EXCHANGE_CACHE_HIT_RECENT) {
+        return _ANJ_REG_SESSION_NEW_EXCHANGE;
+    } else if (cache_try == _ANJ_EXCHANGE_CACHE_HIT_NON_RECENT) {
+        // don't respond
+        return 0;
+    }
+#endif // ANJ_WITH_CACHE
+
     // find the right module to handle the message
     switch (msg.operation) {
     case ANJ_OP_DM_READ:
-    case ANJ_OP_DM_READ_COMP:
     case ANJ_OP_DM_DISCOVER:
     case ANJ_OP_DM_WRITE_REPLACE:
     case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
-    case ANJ_OP_DM_WRITE_COMP:
     case ANJ_OP_DM_EXECUTE:
     case ANJ_OP_DM_CREATE:
     case ANJ_OP_DM_DELETE:
+#ifdef ANJ_WITH_COMPOSITE_OPERATIONS
+    case ANJ_OP_DM_READ_COMP:
+    case ANJ_OP_DM_WRITE_COMP:
+#endif // ANJ_WITH_COMPOSITE_OPERATIONS
         _anj_dm_process_request(anj, &msg, anj->server_instance.ssid,
                                 &response_code, &exchange_handlers);
         break;
+#ifndef ANJ_WITH_COMPOSITE_OPERATIONS
+    case ANJ_OP_DM_READ_COMP:
+    case ANJ_OP_DM_WRITE_COMP:
+        log(L_WARNING, "Composite operations not supported");
+        response_code = ANJ_COAP_CODE_NOT_IMPLEMENTED;
+        break;
+#endif // NOT ANJ_WITH_COMPOSITE_OPERATIONS
     case ANJ_OP_DM_WRITE_ATTR:
     case ANJ_OP_INF_OBSERVE:
     case ANJ_OP_INF_OBSERVE_COMP:

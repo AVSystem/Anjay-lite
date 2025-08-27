@@ -6,8 +6,8 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Compiling client applications
-=============================
+Compile client applications
+===========================
 
 This guide explains how to set up your environment, integrate Anjay Lite into
 your application, and build and run tests on Linux systems.
@@ -17,8 +17,8 @@ your application, and build and run tests on Linux systems.
    This guide is intended for Linux only and has been verified on Ubuntu 22.04
    and Ubuntu 24.04.
 
-Preparing the Environment
--------------------------
+Prepare the Environment
+-----------------------
 
 To prevent issues related to external dependencies, install all required
 dependencies by running the following command:
@@ -38,8 +38,8 @@ or memory analysis.
 
 .. _integrating-anjay-lite:
 
-Integrating Anjay Lite into a Custom Application
-------------------------------------------------
+Integrate Anjay Lite into a Custom Application
+----------------------------------------------
 
 Before building and integrating Anjay Lite, it may be necessary to adjust its
 compile-time configuration depending on the target platform and desired feature
@@ -82,10 +82,10 @@ purpose and possible values. Adjusting these options allows the library to be
 tailored for different environments, from full-featured POSIX systems to
 minimal bare-metal platforms.
 
-Building on Linux
-^^^^^^^^^^^^^^^^^
+Build on Linux
+^^^^^^^^^^^^^^
 
-To integrate Anjay Lite into your own project on Linux using CMake, you don’t
+To integrate Anjay Lite into your own project on Linux using CMake, you don't
 need to install the library system-wide. Instead, Anjay Lite is set up in a way
 that lets CMake use it directly from its source directory. You can include it in
 your project by using the :code:`find_package` command. Just make sure to tell
@@ -106,7 +106,7 @@ build an application with Anjay Lite using a custom configuration:
 
 .. code-block:: cmake
 
-   cmake_minimum_required(VERSION 3.4.0)
+   cmake_minimum_required(VERSION 3.16.0)
    project(MyAnjayLiteApp C)
 
    # Set custom configuration of Anjay Lite, if required
@@ -143,8 +143,8 @@ Now you can simply build your application:
    cmake ..
    make -j
 
-Building without including Anjay Lite as a package
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Build without including Anjay Lite as a package
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you are building Anjay Lite as part of a larger project or targeting a
 non-host platform, you may integrate its sources directly using a custom build
@@ -225,7 +225,7 @@ target build system.
 
       .. code-block:: cmake
 
-         cmake_minimum_required(VERSION 3.4.0)
+         cmake_minimum_required(VERSION 3.16.0)
          project(MyAnjayLiteApp C)
 
          # Set the path to the Anjay Lite source directory
@@ -277,15 +277,15 @@ target build system.
          cmake ..
          make -j
 
-Building and running Tests
---------------------------
+Build and running Tests
+-----------------------
 
 Anjay Lite provides a collection of example applications that serve as practical
 starting points for developing your own solutions. It also includes a
 comprehensive test suite to support integration and debugging efforts.
 
-Building Tests
-^^^^^^^^^^^^^^
+Build Tests
+^^^^^^^^^^^
 
 To build all tests, run the following commands from the project root directory:
 
@@ -312,8 +312,8 @@ from their respective directories. For example, to build tests for the
 All compiled tests binaries are placed in the ``build/`` directory, each within
 its corresponding subdirectory.
 
-Running Tests
-^^^^^^^^^^^^^
+Run Tests
+^^^^^^^^^
 
 After completing the build process, you can run the tests from within the
 ``build/`` directory by executing the compiled binaries. For example:

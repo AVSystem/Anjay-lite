@@ -25,8 +25,8 @@
 #include "../../../src/anj/core/lwm2m_send.h"
 #include "../../../src/anj/exchange.h"
 #include "../../../src/anj/io/io.h"
-#include "net_api_mock.h"
-#include "time_api_mock.h"
+#include "../mock/net_api_mock.h"
+#include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
@@ -973,6 +973,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
 
         // get response and prepare another block
         msg.operation = ANJ_OP_RESPONSE;
+        msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -1006,6 +1007,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
 
         // get response
         msg.operation = ANJ_OP_RESPONSE;
+        msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -1059,6 +1061,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
 
         // get response and prepare another block
         msg.operation = ANJ_OP_RESPONSE;
+        msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -1089,6 +1092,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
 
         // get response
         msg.operation = ANJ_OP_RESPONSE;
+        msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -1257,6 +1261,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
 
         // get response, next external handler call will cause error
         msg.operation = ANJ_OP_RESPONSE;
+        msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;

@@ -7,19 +7,21 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_TIME_H
-#define ANJ_TIME_H
+#    define ANJ_TIME_H
 
-#include <stdint.h>
+#    include <stdint.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /**
  * Special value that can be used to represent an undefined time.
  */
-#define ANJ_TIME_UNDEFINED UINT64_MAX
+#    define ANJ_TIME_UNDEFINED UINT64_MAX
 
 /**
  * @return The number of milliseconds that have elapsed since the system was
@@ -33,8 +35,8 @@ uint64_t anj_time_now(void);
  */
 uint64_t anj_time_real_now(void);
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_TIME_H

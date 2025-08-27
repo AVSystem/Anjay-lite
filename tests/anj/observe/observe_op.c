@@ -27,6 +27,8 @@
 
 #ifdef ANJ_WITH_OBSERVE
 
+#    define ONE_DAY_MS 86400000
+
 uint64_t anj_time_now(void);
 uint64_t anj_time_real_now(void);
 void set_mock_time(uint64_t time);
@@ -122,6 +124,29 @@ static anj_dm_obj_t obj_3 = {
     .handlers = &handlers
 };
 
+static anj_dm_obj_t obj_0 = {
+    .oid = 0,
+    .handlers = &handlers,
+    .insts =
+            (anj_dm_obj_inst_t[])
+                    {
+                        {
+                            .iid = 0,
+                            .res_count = 1,
+                            .resources =
+                                    (anj_dm_res_t[])
+                                            {
+                                                {
+                                                    .rid = 0,
+                                                    .operation = ANJ_DM_RES_R,
+                                                    .type = ANJ_DATA_TYPE_STRING,
+                                                }
+                                            }
+                        }
+                    },
+    .max_inst_count = 1
+};
+
 void compare_attr(_anj_attr_notification_t *attr1,
                   _anj_attr_notification_t *attr2) {
     ASSERT_EQ(attr1->has_less_than, attr2->has_less_than);
@@ -189,6 +214,8 @@ void compare_observations(_anj_observe_ctx_t *ctx1, _anj_observe_ctx_t *ctx2) {
                   ctx2->observations[i].observe_active);
         ASSERT_EQ(ctx1->observations[i].last_notify_timestamp,
                   ctx2->observations[i].last_notify_timestamp);
+        ASSERT_EQ(ctx1->observations[i].next_conf_notify_timestamp,
+                  ctx2->observations[i].next_conf_notify_timestamp);
         ASSERT_EQ(ctx1->observations[i].last_sent_value.double_value,
                   ctx2->observations[i].last_sent_value.double_value);
         ASSERT_EQ(ctx1->observations[i].notification_to_send,
@@ -291,10 +318,11 @@ void compare_observations(_anj_observe_ctx_t *ctx1, _anj_observe_ctx_t *ctx2) {
         };                                                           \
         OBSERVE_OP(Path, Attr, Result, Msg_Code)
 
-#    define TEST_INIT()           \
-        anj_t anj = { 0 };        \
-        _anj_observe_init(&anj);  \
-        _anj_dm_initialize(&anj); \
+#    define TEST_INIT()                          \
+        anj_t anj = { 0 };                       \
+        _anj_observe_init(&anj);                 \
+        _anj_dm_initialize(&anj);                \
+        ASSERT_OK(anj_dm_add_obj(&anj, &obj_0)); \
         ASSERT_OK(anj_dm_add_obj(&anj, &obj_3));
 
 ANJ_UNIT_TEST(observe_op, observe_basic) {
@@ -674,6 +702,8 @@ ANJ_UNIT_TEST(observe_op, observe_check_timestamps) {
     ctx_ref.observations[0].token.size = 1;
     ctx_ref.observations[0].token.bytes[0] = 0x22;
     ctx_ref.observations[0].last_notify_timestamp = anj_time_real_now();
+    ctx_ref.observations[0].next_conf_notify_timestamp =
+            anj_time_real_now() + ONE_DAY_MS;
     ctx_ref.observations[0].effective_attr = (_anj_attr_notification_t) {
         .has_max_period = true,
         .max_period = 22,
@@ -697,6 +727,8 @@ ANJ_UNIT_TEST(observe_op, observe_check_timestamps) {
     inout_msg.uri = ANJ_MAKE_RESOURCE_PATH(3, 1, 1);
     inout_msg.payload_size = 0;
     ctx_ref.observations[0].last_notify_timestamp = anj_time_real_now();
+    ctx_ref.observations[0].next_conf_notify_timestamp =
+            anj_time_real_now() + ONE_DAY_MS;
     ASSERT_OK(_anj_observe_new_request(&anj, &out_handlers, &srv, &inout_msg,
                                        &response_code));
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
@@ -879,6 +911,18 @@ ANJ_UNIT_TEST(observe_op, observe_err_not_allowed) {
                                    .min_period = 20,
                                }),
                                -1, ANJ_COAP_CODE_METHOD_NOT_ALLOWED);
+    ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 0);
+}
+
+ANJ_UNIT_TEST(observe_op, observe_err_unauthorized) {
+    TEST_INIT();
+    // Check if we get UNAUTHORIZED even if the object is not registered
+    OBSERVE_OP_TEST_WITH_ERROR(ANJ_MAKE_RESOURCE_PATH(0, 0, 0),
+                               &((_anj_attr_notification_t) {
+                                   .has_min_period = true,
+                                   .min_period = 20,
+                               }),
+                               -1, ANJ_COAP_CODE_UNAUTHORIZED);
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 0);
 }
 

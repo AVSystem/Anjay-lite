@@ -7,26 +7,17 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_SRC_CORE_BOOTSTRAP_H
-#define ANJ_SRC_CORE_BOOTSTRAP_H
+#    define ANJ_SRC_CORE_BOOTSTRAP_H
 
-#include <stdbool.h>
-#include <stdint.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
-#define ANJ_INTERNAL_INCLUDE_EXCHANGE
-#include <anj_internal/exchange.h>
-#undef ANJ_INTERNAL_INCLUDE_EXCHANGE
-
-#define ANJ_INTERNAL_INCLUDE_BOOTSTRAP
-#include <anj_internal/bootstrap.h>
-#undef ANJ_INTERNAL_INCLUDE_BOOTSTRAP
-
-#include "../coap/coap.h"
-
-#ifdef ANJ_WITH_BOOTSTRAP
+#    ifdef ANJ_WITH_BOOTSTRAP
 
 /**
  * Initializes the bootstrap module context. Should be called once before any
@@ -124,6 +115,6 @@ void _anj_bootstrap_timeout_reset(anj_t *anj);
  */
 void _anj_bootstrap_reset(anj_t *anj);
 
-#endif // ANJ_WITH_BOOTSTRAP
+#    endif // ANJ_WITH_BOOTSTRAP
 
 #endif // ANJ_SRC_CORE_BOOTSTRAP_H

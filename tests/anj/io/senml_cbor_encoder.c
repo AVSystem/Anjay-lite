@@ -17,6 +17,7 @@
 #include <anj/defs.h>
 #include <anj/utils.h>
 
+#include "../../../src/anj/coap/coap.h"
 #include "../../../src/anj/io/cbor_encoder.h"
 #include "../../../src/anj/io/io.h"
 

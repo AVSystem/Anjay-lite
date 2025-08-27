@@ -18,8 +18,8 @@ In some scenarios, implementing `String` or `Opaque` resources with the
 structure requires the entire resource value to be provided in a single buffer,
 which forces you to:
 
-    - store the resource’s value in program memory
-    - know the resource’s size in advance
+    - store the resource's value in program memory
+    - know the resource's size in advance
 
 .. note::
     You can find example of using ``anj_bytes_or_string_value_t`` in
@@ -29,7 +29,7 @@ which forces you to:
 In such cases you can use the ``ANJ_DATA_TYPE_EXTERNAL_BYTES`` /
 ``ANJ_DATA_TYPE_EXTERNAL_STRING`` data types instead. They allow you to define
 a callback that Anjay Lite calls when it needs to read the next bytes of the
-resource’s value, so the value can be write in separate chunks directly to
+resource's value, so the value can be write in separate chunks directly to
 internal Anjay Lite buffer.
 
 .. note::
@@ -49,7 +49,7 @@ Read resource value from file
 -----------------------------
 
 One practical use case for these data types is reading a resource value from a
-file or from the microcontroller’s external memory. In this example, you will
+file or from the microcontroller's external memory. In this example, you will
 implement the `BinaryAppDataContainer
 <https://devtoolkit.openmobilealliance.org/OEditor/LWMOView?url=https%3a%2f%2fraw.githubusercontent.com%2fOpenMobileAlliance%2flwm2m-registry%2fprod%2f19.xml>`_
 object with a `Opaque` Data resource. The value will be streamed from the
@@ -66,7 +66,7 @@ To use ``ANJ_DATA_TYPE_EXTERNAL_BYTES``, enable external data types in your
 .. snippet-source:: examples/tutorial/AT-ExternalDataTypes/CMakeLists.txt
     :emphasize-lines: 9
 
-    cmake_minimum_required(VERSION 3.6.0)
+    cmake_minimum_required(VERSION 3.16.0)
 
     project(anjay_lite_at_external_data_types C)
 
@@ -208,7 +208,7 @@ The second callback initializes the external data source before reading:
      */
     typedef int anj_open_external_data_t(void *user_args);
 
-In our case it will open the file (the file’s path is specified by the
+In our case it will open the file (the file's path is specified by the
 ``FILE_PATH`` macro):
 
 .. highlight:: c
@@ -347,7 +347,7 @@ The following function defines and installs the ``BinaryAppDataContainer`` objec
     :doc:`this <../BasicClient/BC-BasicObjectImplementation>` article.
 
 Call install function
-^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
 
 Finally, call the install function from ``main``:
 

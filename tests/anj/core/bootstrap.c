@@ -20,7 +20,8 @@
 #include "../../../src/anj/core/bootstrap.h"
 #include "../../../src/anj/dm/dm_io.h"
 #include "../../../src/anj/exchange.h"
-#include "time_api_mock.h"
+
+#include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
@@ -179,7 +180,6 @@ ANJ_UNIT_TEST(bootstrap, bootstrap_request) {
     request.token.bytes[0] = 0x01;
     request.token.bytes[1] = 0x01;
     request.coap_binding_data.udp.message_id = 0x0404;
-    request.coap_binding_data.udp.message_id_set = true;
     ASSERT_OK(_anj_coap_encode_udp(&request, msg_buffer, sizeof(msg_buffer),
                                    &msg_size));
     uint8_t EXPECTED[] =

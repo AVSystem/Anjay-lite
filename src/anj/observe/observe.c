@@ -7,12 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
@@ -28,6 +29,8 @@
 #include "observe_internal.h"
 
 #ifdef ANJ_WITH_OBSERVE
+
+#    define ONE_DAY_MS 86400000
 
 static uint8_t map_err_to_coap_code(int error_code) {
     switch (error_code) {
@@ -87,17 +90,28 @@ static void get_observation_paths_for_composite(anj_t *anj) {
     } while (iterator != ctx->processing_observation);
     ctx->uri_count = written;
 }
+#    endif // ANJ_WITH_OBSERVE_COMPOSITE
 
-void _anj_observe_composite_refresh_timestamp(_anj_observe_ctx_t *ctx) {
+void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
+                                    uint64_t timestamp,
+                                    bool confirmable) {
+#    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     const _anj_observe_observation_t *first_observation =
             ctx->processing_observation;
     do {
-        ctx->processing_observation = ctx->processing_observation->prev;
-        ctx->processing_observation->last_notify_timestamp =
-                anj_time_real_now();
-    } while ((ctx->processing_observation != first_observation));
-}
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
+        ctx->processing_observation->last_notify_timestamp = timestamp;
+        if (confirmable) {
+            ctx->processing_observation->next_conf_notify_timestamp =
+                    timestamp + ONE_DAY_MS;
+        }
+#    ifdef ANJ_WITH_OBSERVE_COMPOSITE
+        if (ctx->processing_observation->prev) {
+            ctx->processing_observation = ctx->processing_observation->prev;
+        }
+    } while ((ctx->processing_observation != first_observation));
+#    endif // ANJ_WITH_OBSERVE_COMPOSITE
+}
 
 void _anj_observe_write_anj_res_to_observe_val(
         _anj_observation_res_val_t *observe_val,
@@ -275,7 +289,7 @@ void _anj_observe_set_uri_paths_and_format(anj_t *anj) {
         ctx->uri_count = 1;
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         ctx->uri_paths[0] = &ctx->processing_observation->path;
-#    endif
+#    endif // ANJ_WITH_OBSERVE_COMPOSITE
     }
 }
 
@@ -359,7 +373,6 @@ static int add_observation(anj_t *anj,
                  anj, ctx->processing_observation, ssid))) {
         return res;
     }
-    ctx->processing_observation->last_notify_timestamp = anj_time_real_now();
     return 0;
 }
 
@@ -410,16 +423,15 @@ static uint8_t add_composite_observation(void *arg_ptr,
         if (ctx->first_observation) {
             ctx->first_observation->prev = ctx->processing_observation;
         }
-    } else if (last_block) {
+    } else {
         assert(ctx->processing_observation->prev);
-        _anj_observe_composite_refresh_timestamp(ctx);
-
         ctx->processing_observation = ctx->processing_observation->prev;
     }
 
     if ((result == _ANJ_IO_EOF && !foo_obs_result)
             || result == _ANJ_IO_WANT_NEXT_PAYLOAD) {
         if (last_block) {
+            _anj_observe_refresh_timestamp(ctx, anj_time_real_now(), true);
             _anj_observe_set_uri_paths_and_format(anj);
         }
         return 0;
@@ -555,6 +567,11 @@ static int parse_request(anj_t *anj,
     uint8_t positive_ret_val = ANJ_COAP_CODE_CONTENT;
     memset(out_handlers, 0, sizeof(*out_handlers));
 
+    if (_anj_uri_path_to_security_or_oscore_obj(&request->uri)) {
+        *response_code = ANJ_COAP_CODE_UNAUTHORIZED;
+        return -1;
+    }
+
     switch (request->operation) {
     case ANJ_OP_DM_WRITE_ATTR:
         positive_ret_val = ANJ_COAP_CODE_CHANGED;
@@ -619,15 +636,16 @@ static int parse_request(anj_t *anj,
 #        endif // ANJ_WITH_LWM2M12
         } else {
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
-            if (ctx->observation_exists) {
-                ctx->processing_observation->last_notify_timestamp =
-                        anj_time_real_now();
-            } else {
+            if (!ctx->observation_exists) {
                 result = add_observation(anj, &request->attr.notification_attr,
                                          &request->uri,
                                          _ANJ_COAP_FORMAT_NOT_DEFINED,
                                          _ANJ_COAP_FORMAT_NOT_DEFINED, ssid);
+                if (result) {
+                    break;
+                }
             }
+            _anj_observe_refresh_timestamp(ctx, anj_time_real_now(), true);
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         }
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE

@@ -74,18 +74,16 @@ values change.
 Update resource values
 ----------------------
 
-The ``update_sensor_value()`` function updates three resources periodically:
-*Sensor Value*, *Min Measured Value*, and *Max Measured Value*.
+The ``update_temperature_obj_value()`` function updates three resources
+periodically: *Sensor Value*, *Min Measured Value*, and *Max Measured Value*.
 
 Call ``anj_core_data_model_changed()`` for each resource whose value changes:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/BC-Notifications/src/temperature_obj.c
-    :emphasize-lines: 1, 6-7, 9-14, 17-21, 25-29
+    :emphasize-lines: 1, 4-5, 7-12, 15-19, 23-27
 
-    void update_sensor_value(anj_t *anj, const anj_dm_obj_t *obj) {
-        (void) obj;
-
+    void update_temperature_obj_value(anj_t *anj) {
         temp_obj_ctx_t *ctx = get_ctx();
 
         double prev_temp_value = ctx->sensor_value;
@@ -189,11 +187,11 @@ The *Reset Min* and *Max Measured Values* resource is implemented using ``res_ex
  
 Update function declaration
 ---------------------------
-Update the ``update_sensor_value()`` function to include the ``anj_t *anj`` parameter, since it is required by ``anj_core_data_model_changed()``:
+Update the ``update_temperature_obj_value()`` function to include the ``anj_t *anj`` parameter, since it is required by ``anj_core_data_model_changed()``:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/BC-Notifications/src/temperature_obj.h
-    :emphasize-lines: 8, 11
+    :emphasize-lines: 8, 10
 
     /**
      * @brief Updates the sensor value and adjusts min/max tracked values.
@@ -203,9 +201,8 @@ Update the ``update_sensor_value()`` function to include the ``anj_t *anj`` para
      * recorded values based on the new reading.
      *
      * @param anj Pointer to the Anjay Lite instance.
-     * @param obj Pointer to the Temperature Object.
      */
-    void update_sensor_value(anj_t *anj, const anj_dm_obj_t *obj);
+    void update_temperature_obj_value(anj_t *anj);
 
 Call the function in the main loop
 ----------------------------------
@@ -218,10 +215,10 @@ Call the function in the main loop
 
         while (true) {
             anj_core_step(&anj);
-            update_sensor_value(&anj, get_temperature_obj());
+            update_temperature_obj_value(&anj);
             usleep(50 * 1000);
         }
         return 0;
     }
 
-That’s it. Your application now supports Observe/Notify for dynamic resources like temperature readings.
+That's it. Your application now supports Observe/Notify for dynamic resources like temperature readings.

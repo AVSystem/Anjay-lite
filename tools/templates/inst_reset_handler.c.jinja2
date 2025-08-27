@@ -1,0 +1,20 @@
+{% import 'macros.jinja2' as m with context -%}
+
+static int inst_reset(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
+
+    {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(obj);
+
+{% if multiple_insts %}
+    for (size_t i = 0; i < {{ m.obj_inst_count_def }}; i++) {
+        if (ctx->obj_insts_ids[i].iid == iid) {
+            init_obj_inst(ctx, i, iid);
+            return 0;
+        }
+    }
+
+    return ANJ_DM_ERR_NOT_FOUND;
+{% else %}
+    // TODO: Reset object context
+    return ANJ_DM_ERR_NOT_IMPLEMENTED;
+{% endif %}
+}

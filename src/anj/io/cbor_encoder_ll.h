@@ -7,14 +7,14 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_IO_CBOR_ENCODER_LL_H
-#define SRC_ANJ_IO_CBOR_ENCODER_LL_H
+#    define SRC_ANJ_IO_CBOR_ENCODER_LL_H
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-
-#include <anj/anj_config.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
 /**
  * This is a stateless low-level CBOR encoder.
@@ -33,7 +33,7 @@
  * data stream must be written outside of this encoder after that.
  */
 
-#define ANJ_CBOR_LL_SINGLE_CALL_MAX_LEN 9
+#    define ANJ_CBOR_LL_SINGLE_CALL_MAX_LEN 9
 
 size_t anj_cbor_ll_encode_uint(void *buff, uint64_t value);
 
@@ -57,11 +57,11 @@ size_t anj_cbor_ll_definite_array_begin(void *buff, size_t items_count);
 
 size_t anj_cbor_ll_indefinite_map_begin(void *buff);
 
-#ifdef ANJ_WITH_EXTERNAL_DATA
+#    ifdef ANJ_WITH_EXTERNAL_DATA
 size_t anj_cbor_ll_indefinite_string_begin(void *buff);
 
 size_t anj_cbor_ll_indefinite_bytes_begin(void *buff);
-#endif // ANJ_WITH_EXTERNAL_DATA
+#    endif // ANJ_WITH_EXTERNAL_DATA
 
 size_t anj_cbor_ll_indefinite_record_end(void *buff);
 

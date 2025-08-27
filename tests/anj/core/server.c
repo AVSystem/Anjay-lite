@@ -14,7 +14,7 @@
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/core.h>
 
-#include "net_api_mock.h"
+#include "../mock/net_api_mock.h"
 
 #include "../../../src/anj/core/server.h"
 

@@ -22,9 +22,7 @@ void temperature_obj_init(void);
  * Simulates a new temperature reading for the given object by applying a small
  * random fluctuation to the current value. Also updates the minimum and maximum
  * recorded values based on the new reading.
- *
- * @param obj Pointer to the Temperature Object.
  */
-void update_sensor_value(const anj_dm_obj_t *obj);
+void update_temperature_obj_value(void);
 
 #endif // _TEMPERATURE_OBJ_H_

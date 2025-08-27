@@ -7,21 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/log/log.h>
 #include <anj/utils.h>
 
-#include "../coap/coap.h"
 #include "../dm/dm_integration.h"
-#include "../utils.h"
 #include "observe.h"
 #include "observe_internal.h"
 

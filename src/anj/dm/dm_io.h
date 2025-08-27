@@ -7,15 +7,16 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_IO_H
-#define ANJ_DM_IO_H
+#    define ANJ_DM_IO_H
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
+#    include <anj/defs.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /**
  * There is no more data to read from data model.
@@ -25,14 +26,14 @@ extern "C" {
  *      - @ref _anj_dm_get_discover_record
  *      - @ref _anj_dm_get_bootstrap_discover_record
  */
-#define _ANJ_DM_LAST_RECORD 1
+#    define _ANJ_DM_LAST_RECORD 1
 
 /**
  * There is no data to read from data model.
  * This value can be returned by:
  *      - @ref _anj_dm_composite_next_path
  */
-#define _ANJ_DM_NO_RECORD 2
+#    define _ANJ_DM_NO_RECORD 2
 
 /**
  * A group of error codes resulting from incorrect API usage or memory
@@ -41,11 +42,11 @@ extern "C" {
  */
 
 /** Invalid input arguments. */
-#define _ANJ_DM_ERR_INPUT_ARG (-1)
+#    define _ANJ_DM_ERR_INPUT_ARG (-1)
 /** Not enough space in buffer or array. */
-#define _ANJ_DM_ERR_MEMORY (-2)
+#    define _ANJ_DM_ERR_MEMORY (-2)
 /** Invalid call. */
-#define _ANJ_DM_ERR_LOGIC (-3)
+#    define _ANJ_DM_ERR_LOGIC (-3)
 
 /**
  * Initializes the data model context.
@@ -131,7 +132,7 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record);
  */
 void _anj_dm_get_readable_res_count(anj_t *anj, size_t *out_res_count);
 
-#ifdef ANJ_WITH_COMPOSITE_OPERATIONS
+#    ifdef ANJ_WITH_COMPOSITE_OPERATIONS
 /**
  * Provide new path for READ-COMPOSITE operation. Should be call before @ref
  * _anj_dm_get_read_entry. Do not call @ref _anj_dm_get_read_entry if function
@@ -147,7 +148,8 @@ int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path);
 /**
  * Returns information about the number of Resources and Resource Instances that
  * can be read from @p path. Use it in order to process READ-COMPOSITE
- * operation.
+ * operation. While processing request on root path, disallowed Objects
+ * are skipped.
  *
  * IMPORTANT: Call this function only after a successful @ref
  * _anj_dm_operation_begin call for @ref ANJ_OP_DM_READ_COMP operation.
@@ -160,12 +162,14 @@ int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path);
  *
  * @returns
  * - 0 on success,
- * - a negative value in case of error.
+ * - @ref ANJ_DM_ERR_UNAUTHORIZED when trying to access Security or OSCORE
+ * objects
+ * - @ref ANJ_DM_ERR_NOT_FOUND if path doesn't exist.
  */
-int _anj_dm_get_composite_readable_res_count(anj_t *anj,
-                                             const anj_uri_path_t *path,
-                                             size_t *out_res_count);
-#endif // ANJ_WITH_COMPOSITE_OPERATIONS
+int _anj_dm_count_readable_res_if_allowed(anj_t *anj,
+                                          const anj_uri_path_t *path,
+                                          size_t *out_res_count);
+#    endif // ANJ_WITH_COMPOSITE_OPERATIONS
 
 /**
  * Creates a new instance of the object. Call this function only after a
@@ -238,7 +242,7 @@ int _anj_dm_get_register_record(anj_t *anj,
                                 anj_uri_path_t *out_path,
                                 const char **out_version);
 
-#ifdef ANJ_WITH_DISCOVER
+#    ifdef ANJ_WITH_DISCOVER
 /**
  * Processes DISCOVER operation. Should be repeatedly called until it returns
  * the @ref _ANJ_DM_LAST_RECORD. Provides all elements of the data model
@@ -262,9 +266,9 @@ int _anj_dm_get_discover_record(anj_t *anj,
                                 anj_uri_path_t *out_path,
                                 const char **out_version,
                                 const uint16_t **out_dim);
-#endif // ANJ_WITH_DISCOVER
+#    endif // ANJ_WITH_DISCOVER
 
-#ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
+#    ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
 /**
  * Processes BOOTSTRAP-DISCOVER operation. Should be repeatedly called until it
  * returns the @ref _ANJ_DM_LAST_RECORD. Provides all elements of the data model
@@ -291,7 +295,7 @@ int _anj_dm_get_bootstrap_discover_record(anj_t *anj,
                                           const char **out_version,
                                           const uint16_t **out_ssid,
                                           const char **out_uri);
-#endif // ANJ_WITH_BOOTSTRAP_DISCOVER
+#    endif // ANJ_WITH_BOOTSTRAP_DISCOVER
 
 /**
  * Processes EXECUTE operation, on the Resource pointed to by path specified in
@@ -311,8 +315,8 @@ int _anj_dm_execute(anj_t *anj,
                     const char *execute_arg,
                     size_t execute_arg_len);
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DM_IO_H

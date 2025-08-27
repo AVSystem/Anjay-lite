@@ -7,47 +7,49 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef SRC_ANJ_COAP_COMMON_H
-#define SRC_ANJ_COAP_COMMON_H
+#    define SRC_ANJ_COAP_COMMON_H
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/defs.h>
+#    include <anj/defs.h>
 
-#include "coap.h"
-#include "options.h"
+#    include "coap.h"
+#    include "options.h"
 
 /** CoAP payload marker */
-#define _ANJ_COAP_PAYLOAD_MARKER ((uint8_t) { 0xFF })
+#    define _ANJ_COAP_PAYLOAD_MARKER ((uint8_t) { 0xFF })
 
-#ifdef ANJ_COAP_WITH_TCP
-#    define _ANJ_COAP_EXTENDED_LENGTH_MIN_8BIT 13U
-#    define _ANJ_COAP_EXTENDED_LENGTH_MIN_16BIT 269U
-#    define _ANJ_COAP_EXTENDED_LENGTH_MIN_32BIT 65805U
+#    ifdef ANJ_COAP_WITH_TCP
+#        define _ANJ_COAP_EXTENDED_LENGTH_MIN_8BIT 13U
+#        define _ANJ_COAP_EXTENDED_LENGTH_MIN_16BIT 269U
+#        define _ANJ_COAP_EXTENDED_LENGTH_MIN_32BIT 65805U
 
-#    define _ANJ_COAP_EXTENDED_LENGTH_UINT8 13U
-#    define _ANJ_COAP_EXTENDED_LENGTH_UINT16 14U
-#    define _ANJ_COAP_EXTENDED_LENGTH_UINT32 15U
-#endif // ANJ_COAP_WITH_TCP
+#        define _ANJ_COAP_EXTENDED_LENGTH_UINT8 13U
+#        define _ANJ_COAP_EXTENDED_LENGTH_UINT16 14U
+#        define _ANJ_COAP_EXTENDED_LENGTH_UINT32 15U
+#    endif // ANJ_COAP_WITH_TCP
 
-#define _ANJ_FIELD_GET(field, mask, shift) (((field) & (mask)) >> (shift))
-#define _ANJ_FIELD_SET(field, mask, shift, value) \
-    ((field) = (uint8_t) (((field) & ~(mask))     \
-                          | (uint8_t) (((value) << (shift)) & (mask))))
+#    define _ANJ_FIELD_GET(field, mask, shift) (((field) & (mask)) >> (shift))
+#    define _ANJ_FIELD_SET(field, mask, shift, value) \
+        ((field) = (uint8_t) (((field) & ~(mask))     \
+                              | (uint8_t) (((value) << (shift)) & (mask))))
 
-#define _RET_IF_ERROR(Val) \
-    if (Val) {             \
-        return Val;        \
-    }
+#    define _RET_IF_ERROR(Val) \
+        if (Val) {             \
+            return Val;        \
+        }
 
 typedef struct {
     uint8_t msg_length;
     uint32_t extended_length_hbo;
 } anj_coap_tcp_header_t;
 
-#define _ANJ_COAP_MESSAGE_ID_LEN 2
+#    define _ANJ_COAP_MESSAGE_ID_LEN 2
 typedef struct {
     uint8_t version;
     uint8_t type;

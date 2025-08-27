@@ -7,13 +7,14 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/defs.h>
 #include <anj/utils.h>
 
@@ -48,6 +49,10 @@ static int get_uri_path(anj_coap_options_t *options,
                                                  _ANJ_COAP_OPTION_URI_PATH, &it,
                                                  &out_option_size, buff,
                                                  sizeof(buff));
+
+        if (res == _ANJ_COAP_OPTION_MISSING && uri->uri_len != 0) {
+            return 0;
+        }
         _RET_IF_ERROR(res);
 
         if (uri->uri_len == ANJ_URI_PATH_MAX_LENGTH) {
@@ -80,6 +85,7 @@ static int get_uri_path(anj_coap_options_t *options,
     return 0;
 }
 
+#ifdef ANJ_WITH_COAP_DOWNLOADER
 static int etag_decode(anj_coap_options_t *opts, _anj_etag_t *etag) {
     size_t etag_size = 0;
     int res = _anj_coap_options_get_data_iterate(opts, _ANJ_COAP_OPTION_ETAG,
@@ -91,6 +97,20 @@ static int etag_decode(anj_coap_options_t *opts, _anj_etag_t *etag) {
     etag->size = (uint8_t) etag_size;
     return res;
 }
+
+static int
+get_downloader_response_options(anj_coap_options_t *options,
+                                _anj_attr_downloader_t *downloader_attr) {
+    int res = etag_decode(options, &downloader_attr->etag);
+    _RET_IF_ERROR(res);
+    res = _anj_coap_options_get_u32_iterate(options, _ANJ_COAP_OPTION_SIZE2,
+                                            NULL, &downloader_attr->total_size);
+    if (res == _ANJ_COAP_OPTION_MISSING) {
+        return 0;
+    }
+    return res;
+}
+#endif // ANJ_WITH_COAP_DOWNLOADER
 
 #define _OBSERVE_OPTION_MAX_LEN 3
 
@@ -127,11 +147,15 @@ static int get_observe_option(anj_coap_options_t *options,
 static int validate_uri_path(_anj_op_t operation, anj_uri_path_t *uri) {
     switch (operation) {
     case ANJ_OP_DM_READ:
-    case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
-    case ANJ_OP_DM_WRITE_REPLACE:
     case ANJ_OP_INF_OBSERVE:
     case ANJ_OP_INF_CANCEL_OBSERVE:
         if (!anj_uri_path_has(uri, ANJ_ID_OID)) {
+            return _ANJ_ERR_INPUT_ARG;
+        }
+        break;
+    case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
+    case ANJ_OP_DM_WRITE_REPLACE:
+        if (!anj_uri_path_has(uri, ANJ_ID_IID)) {
             return _ANJ_ERR_INPUT_ARG;
         }
         break;
@@ -327,8 +351,10 @@ static int handle_lwm2m_request(_anj_coap_msg_t *inout_data,
         return _ANJ_ERR_MALFORMED_MESSAGE;
     }
 
-    if (res == 0) {
-        return validate_uri_path(inout_data->operation, &inout_data->uri);
+    if (res == 0
+            && (res = validate_uri_path(inout_data->operation,
+                                        &inout_data->uri))) {
+        return res;
     }
 
     return decode_attributes(inout_data, out_coap_msg);
@@ -390,6 +416,12 @@ static int recognize_operation_and_options_udp(anj_coap_message_t *out_coap_msg,
         inout_data->operation = ANJ_OP_RESPONSE;
         res = get_location_path(out_coap_msg->options,
                                 &inout_data->location_path);
+        _RET_IF_ERROR(res);
+#    ifdef ANJ_WITH_COAP_DOWNLOADER
+        res = get_downloader_response_options(
+                out_coap_msg->options, &inout_data->attr.downloader_attr);
+        _RET_IF_ERROR(res);
+#    endif // ANJ_WITH_COAP_DOWNLOADER
     } else if (inout_data->msg_code == ANJ_COAP_CODE_EMPTY
                && inout_data->coap_binding_data.udp.type
                           == ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT) {
@@ -400,11 +432,8 @@ static int recognize_operation_and_options_udp(anj_coap_message_t *out_coap_msg,
     }
     _RET_IF_ERROR(res);
 
-    // Block and Etag options can be present in lwm2m request and the response
-    res = _anj_block_decode(out_coap_msg->options, &inout_data->block);
-    _RET_IF_ERROR(res);
-
-    return etag_decode(out_coap_msg->options, &inout_data->etag);
+    // Block option can be present in lwm2m request and the response
+    return _anj_block_decode(out_coap_msg->options, &inout_data->block);
 }
 
 static void copy_struct_fields_udp(anj_coap_message_t *out_coap_msg,
@@ -416,7 +445,6 @@ static void copy_struct_fields_udp(anj_coap_message_t *out_coap_msg,
            out_coap_msg->header.token_length);
     out_data->coap_binding_data.udp.message_id =
             out_coap_msg->header.header_type.udp.message_id_hbo;
-    out_data->coap_binding_data.udp.message_id_set = true;
     out_data->coap_binding_data.udp.type =
             (_anj_coap_udp_type_t) out_coap_msg->header.header_type.udp.type;
     out_data->msg_code = out_coap_msg->header.code;
@@ -688,6 +716,12 @@ static int coap_standard_msg_recognize_operation_and_options_tcp(
         inout_data->operation = ANJ_OP_RESPONSE;
         res = get_location_path(out_coap_msg->options,
                                 &inout_data->location_path);
+        _RET_IF_ERROR(res);
+#    ifdef ANJ_WITH_COAP_DOWNLOADER
+        res = get_downloader_response_options(
+                out_coap_msg->options, &inout_data->attr.downloader_attr);
+        _RET_IF_ERROR(res);
+#    endif // ANJ_WITH_COAP_DOWNLOADER
     } else if (inout_data->msg_code == ANJ_COAP_CODE_EMPTY) {
         inout_data->operation = ANJ_OP_COAP_EMPTY_MSG;
         return 0;
@@ -696,11 +730,8 @@ static int coap_standard_msg_recognize_operation_and_options_tcp(
     }
     _RET_IF_ERROR(res);
 
-    // Block and Etag options can be present in lwm2m request and the response
-    res = _anj_block_decode(out_coap_msg->options, &inout_data->block);
-    _RET_IF_ERROR(res);
-
-    return etag_decode(out_coap_msg->options, &inout_data->etag);
+    // Block option can be present in lwm2m request and the response
+    return _anj_block_decode(out_coap_msg->options, &inout_data->block);
 }
 
 static int recognize_operation_and_options_tcp(anj_coap_message_t *out_coap_msg,

@@ -7,6 +7,8 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>

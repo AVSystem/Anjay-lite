@@ -24,7 +24,7 @@ Anjay Lite Beta does not yet support the DTLS security layer, which is required 
 There are two possible workarounds for this limitation:
 
  - Combine the UDP transport layer with an external DTLS library such as MbedTLS.
-   To enable this, you must modify the _anj_server_get_resolved_server_uri() function to accept coaps:// URIs when using UDP.
+   To enable this, you must modify the _anj_parse_uri_components() function to accept coaps:// URIs when using UDP.
  - Use the DTLS transport layer already present in Anjay Lite Beta. However, it is not yet integrated or officially tested.
 
 .. note::
@@ -64,7 +64,7 @@ Recommended approach:
 
  - Implement logic to persist the contents of the Security and Server Objects.
 
-   - You may use Anjay Lite’s default implementations of these objects, or create your own.
+   - You may use Anjay Lite's default implementations of these objects, or create your own.
    - You can serialize entire object instances or individual resources.
 
       - Serializing entire instances is simpler, but less robust to structural changes.
@@ -72,7 +72,7 @@ Recommended approach:
 
  - After a successful Bootstrap:
 
-   - Detect completion using the `connection_status_cb`` callback with `ANJ_CONN_STATUS_BOOTSTRAPPED`.
+   - Detect completion using the `connection_status_cb` callback with `ANJ_CONN_STATUS_BOOTSTRAPPED`.
    - Save the Security Object and Server Object instances to a non-volatile storage (e.g., flash memory).
 
  - On client startup:
@@ -110,6 +110,13 @@ Example implementation:
          anj_core_step(&anj);
       }
    }
+
+Silent Observations drop when observed path disappears
+------------------------------------------------------
+
+When `anj_observe_data_model_changed()` is called with `ANJ_OBSERVE_CHANGE_TYPE_DELETED`
+argument, the observation is dropped silently and no 4.04 Not Found is sent to the server.
+
 
 .. note::
    We are actively working to address these limitations in the upcoming release.

@@ -18,6 +18,7 @@
 #include <anj/dm/core.h>
 #include <anj/utils.h>
 
+#include "../../../src/anj/coap/coap.h"
 #include "../../../src/anj/dm/dm_integration.h"
 #include "../../../src/anj/dm/dm_io.h"
 #include "../../src/anj/exchange.h"
@@ -604,7 +605,7 @@ ANJ_UNIT_TEST(dm_observe_handlers, build_msg_composite_lack_of_one_path) {
     uint16_t format = _ANJ_COAP_FORMAT_SENML_CBOR;
     size_t already_process = 0;
     const anj_uri_path_t *path[2] = { &ANJ_MAKE_RESOURCE_PATH(11, 2, 0),
-                                      &ANJ_MAKE_INSTANCE_PATH(21, 37) };
+                                      &ANJ_MAKE_INSTANCE_PATH(22, 37) };
     // Paths that point to object that doesn't exist in DM should not be passed
     // by observe module to message callback
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_observe_build_msg(&anj,

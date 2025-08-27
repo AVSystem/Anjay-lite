@@ -8,7 +8,7 @@
  */
 
 #ifndef ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
-#    error "This header shall not be included directly."
+#    error "Internal header must not be included directly"
 #endif // ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
 
 #ifdef __cplusplus

@@ -7,21 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/defs.h>
 #include <anj/log/log.h>
 #include <anj/utils.h>
 
 #include "../core/core.h"
-#include "../utils.h"
 #include "dm_core.h"
 
 static int delete_instance(anj_t *anj) {
@@ -181,7 +180,7 @@ int _anj_dm_process_delete_op(anj_t *anj, const anj_uri_path_t *base_path) {
         return dm->result;
     }
     const anj_dm_obj_t *obj;
-    dm->result = _anj_dm_get_obj_ptr_call_transaction_begin(
+    dm->result = _anj_dm_get_obj_ptr_ensure_transaction_begin(
             anj, base_path->ids[ANJ_ID_OID], &obj);
     if (dm->result) {
         return dm->result;

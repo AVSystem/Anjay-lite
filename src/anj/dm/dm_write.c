@@ -7,23 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/defs.h>
 #include <anj/log/log.h>
 #include <anj/utils.h>
 
-#include "../coap/coap.h"
 #include "../core/core.h"
-#include "../io/io.h"
-#include "../utils.h"
 #include "dm_core.h"
 #include "dm_io.h"
 
@@ -42,7 +39,11 @@ static int update_res_val(anj_t *anj, const anj_res_value_t *value) {
 static int resource_type_check(_anj_dm_data_model_t *dm,
                                const anj_io_out_entry_t *record) {
     _anj_dm_entity_ptrs_t *entity_ptrs = &dm->entity_ptrs;
-    if (entity_ptrs->res->type != record->type) {
+    if (entity_ptrs->res->type != record->type
+#ifdef ANJ_WITH_COMPOSITE_OPERATIONS
+            && record->type != ANJ_DATA_TYPE_NULL
+#endif // ANJ_WITH_COMPOSITE_OPERATIONS)
+    ) {
 #ifdef ANJ_WITH_EXTERNAL_DATA
         if ((record->type == ANJ_DATA_TYPE_STRING
              && entity_ptrs->res->type == ANJ_DATA_TYPE_EXTERNAL_STRING)
@@ -80,7 +81,7 @@ static int begin_write_replace_operation(anj_t *anj) {
     _anj_dm_data_model_t *dm = &anj->dm;
     anj_uri_path_t *path = &dm->op_ctx.write_ctx.path;
     const anj_dm_obj_t *obj;
-    dm->result = _anj_dm_get_obj_ptr_call_transaction_begin(
+    dm->result = _anj_dm_get_obj_ptr_ensure_transaction_begin(
             anj, path->ids[ANJ_ID_OID], &obj);
     if (dm->result) {
         return dm->result;
@@ -133,6 +134,16 @@ static int handle_res_instances(anj_t *anj, const anj_io_out_entry_t *record) {
     const anj_dm_res_t *res = entity_ptrs->res;
     entity_ptrs->riid = record->path.ids[ANJ_ID_RIID];
 
+#ifdef ANJ_WITH_COMPOSITE_OPERATIONS
+    if (record->type == ANJ_DATA_TYPE_NULL) {
+        assert(dm->operation == ANJ_OP_DM_WRITE_COMP);
+        if (!_anj_dm_res_inst_exists(res, record->path.ids[ANJ_ID_RIID])) {
+            return 0;
+        }
+        return _anj_dm_delete_res_instance(anj);
+    }
+#endif // ANJ_WITH_COMPOSITE_OPERATIONS
+
     uint16_t inst_count = _anj_dm_count_res_insts(res);
     // found res_inst or create new
     for (uint16_t idx = 0; idx < inst_count; idx++) {
@@ -175,7 +186,7 @@ static int verify_resource_before_writing(_anj_dm_data_model_t *dm,
     if (!_anj_dm_is_writable_resource(dm->entity_ptrs.res->operation,
                                       dm->bootstrap_operation)) {
         dm_log(L_ERROR, "Resource is not writable");
-        return ANJ_DM_ERR_BAD_REQUEST;
+        return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     } else if (resource_type_check(dm, record)) {
         dm_log(L_ERROR, "Invalid record type");
         return ANJ_DM_ERR_BAD_REQUEST;
@@ -194,7 +205,8 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
     assert(dm->op_in_progress && !dm->result);
     assert(dm->operation == ANJ_OP_DM_CREATE
            || dm->operation == ANJ_OP_DM_WRITE_REPLACE
-           || dm->operation == ANJ_OP_DM_WRITE_PARTIAL_UPDATE);
+           || dm->operation == ANJ_OP_DM_WRITE_PARTIAL_UPDATE
+           || dm->operation == ANJ_OP_DM_WRITE_COMP);
     assert(dm->operation != ANJ_OP_DM_CREATE
            || dm->op_ctx.write_ctx.instance_creation_attempted);
 
@@ -208,6 +220,25 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
         dm->result = ANJ_DM_ERR_BAD_REQUEST;
         return dm->result;
     }
+
+#ifdef ANJ_WITH_COMPOSITE_OPERATIONS
+    if (dm->operation == ANJ_OP_DM_WRITE_COMP) {
+        assert(!dm->bootstrap_operation);
+
+        if (record->type == ANJ_DATA_TYPE_NULL
+                && !anj_uri_path_has(&record->path, ANJ_ID_RIID)) {
+            dm_log(L_ERROR, "Invalid path");
+            dm->result = ANJ_DM_ERR_BAD_REQUEST;
+            return dm->result;
+        }
+
+        dm->result = _anj_dm_get_obj_ptr_ensure_transaction_begin(
+                anj, record->path.ids[ANJ_ID_OID], &dm->entity_ptrs.obj);
+        if (dm->result) {
+            return dm->result;
+        }
+    }
+#endif // ANJ_WITH_COMPOSITE_OPERATIONS
 
     // lack of resource instance is not an error
     dm->result = _anj_dm_get_obj_ptrs(
@@ -256,7 +287,7 @@ int _anj_dm_begin_write_op(anj_t *anj, const anj_uri_path_t *base_path) {
         return begin_write_replace_operation(anj);
     } else {
         const anj_dm_obj_t *obj;
-        dm->result = _anj_dm_get_obj_ptr_call_transaction_begin(
+        dm->result = _anj_dm_get_obj_ptr_ensure_transaction_begin(
                 anj, base_path->ids[ANJ_ID_OID], &obj);
         if (dm->result) {
             return dm->result;

@@ -7,20 +7,22 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_SRC_CORE_SERVER_MANAGEMENT_H
-#define ANJ_SRC_CORE_SERVER_MANAGEMENT_H
+#    define ANJ_SRC_CORE_SERVER_MANAGEMENT_H
 
-#include <anj/core.h>
-#include <anj/defs.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
-#include "core.h"
+#    include "core.h"
 
-#define _ANJ_SRV_MAN_STATE_IDLE_IN_PROGRESS 1
-#define _ANJ_SRV_MAN_STATE_QUEUE_MODE_IN_PROGRESS 2
-#define _ANJ_SRV_MAN_STATE_EXCHANGE_IN_PROGRESS 3
-#define _ANJ_SRV_MAN_STATE_DISCONNECT_IN_PROGRESS 4
-#define _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS 5
-#define _ANJ_SRV_MAN_STATE_EXITING_QUEUE_MODE_IN_PROGRESS 6
+#    define _ANJ_SRV_MAN_STATE_IDLE_IN_PROGRESS 1
+#    define _ANJ_SRV_MAN_STATE_QUEUE_MODE_IN_PROGRESS 2
+#    define _ANJ_SRV_MAN_STATE_EXCHANGE_IN_PROGRESS 3
+#    define _ANJ_SRV_MAN_STATE_DISCONNECT_IN_PROGRESS 4
+#    define _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS 5
+#    define _ANJ_SRV_MAN_STATE_EXITING_QUEUE_MODE_IN_PROGRESS 6
 
 /**
  * Should be called after successful registration. Initializes the server

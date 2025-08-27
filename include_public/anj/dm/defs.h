@@ -7,15 +7,16 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_DEFS_H
-#define ANJ_DM_DEFS_H
+#    define ANJ_DM_DEFS_H
 
-#include <anj/core.h>
-#include <anj/defs.h>
+#    include <anj/defs.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /**
  * Resource operation types.
@@ -543,8 +544,8 @@ struct anj_dm_handlers_struct {
     anj_dm_res_inst_delete_t *res_inst_delete;
 };
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DM_DEFS_H

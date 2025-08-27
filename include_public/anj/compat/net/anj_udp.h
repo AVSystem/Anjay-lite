@@ -7,18 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_UDP_H
-#define ANJ_UDP_H
+#    define ANJ_UDP_H
 
-#include <anj/anj_config.h>
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
-#ifdef ANJ_NET_WITH_UDP
+#    ifdef ANJ_NET_WITH_UDP
 
-#    include <anj/compat/net/anj_net_api.h>
+#        include <anj/compat/net/anj_net_api.h>
 
 anj_net_get_system_socket_t anj_udp_get_system_socket;
 anj_net_close_t anj_udp_close;
@@ -35,10 +35,10 @@ anj_net_get_bytes_sent_t anj_udp_get_bytes_sent;
 anj_net_get_inner_mtu_t anj_udp_get_inner_mtu;
 anj_net_get_state_t anj_udp_get_state;
 
-#endif // ANJ_NET_WITH_UDP
+#    endif // ANJ_NET_WITH_UDP
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_UDP_H

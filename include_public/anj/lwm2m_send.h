@@ -7,36 +7,32 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_LWM2M_SEND_H
-#define ANJ_LWM2M_SEND_H
+#    define ANJ_LWM2M_SEND_H
 
-#include <anj/anj_config.h>
+#    include <anj/defs.h>
 
-#include <anj/defs.h>
-
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifdef ANJ_WITH_LWM2M_SEND
-
-#    if !defined(ANJ_LWM2M_SEND_QUEUE_SIZE)
-#        error "if LwM2M Send module is enabled, its parameters has to be defined"
 #    endif
 
-#    define ANJ_SEND_ID_ALL UINT16_MAX
+#    ifdef ANJ_WITH_LWM2M_SEND
+
+#        define ANJ_SEND_ID_ALL UINT16_MAX
 
 /**
  * Result passed to #anj_send_finished_handler_t: Server confirmed successful
  * message delivery.
  */
-#    define ANJ_SEND_SUCCESS 0
+#        define ANJ_SEND_SUCCESS 0
 
 /**
  * Result passed to #anj_send_finished_handler_t: No response from Server was
  * received in expected time.
  */
-#    define ANJ_SEND_ERR_TIMEOUT -1
+#        define ANJ_SEND_ERR_TIMEOUT -1
 
 /**
  * Result passed to #anj_send_finished_handler_t: Sending the message was
@@ -46,24 +42,24 @@ extern "C" {
  *   resource changed),
  * - registration session ended.
  */
-#    define ANJ_SEND_ERR_ABORT -2
+#        define ANJ_SEND_ERR_ABORT -2
 
 /**
  * Result passed to #anj_send_finished_handler_t: Server rejected the message
  * and response with 4.xx code.
  */
-#    define ANJ_SEND_ERR_REJECTED -3
+#        define ANJ_SEND_ERR_REJECTED -3
 
 /**
  * Can be returned by @ref anj_send_abort if no request with given ID was found.
  */
-#    define ANJ_SEND_ERR_NO_REQUEST_FOUND -4
+#        define ANJ_SEND_ERR_NO_REQUEST_FOUND -4
 
 /**
  * Can be returned by @ref anj_send_new_request if there is no space for new
  * request - @ref ANJ_LWM2M_SEND_QUEUE_SIZE has been reached.
  */
-#    define ANJ_SEND_ERR_NO_SPACE -5
+#        define ANJ_SEND_ERR_NO_SPACE -5
 
 /**
  * Can be returned by @ref anj_send_new_request if request can't be sent in
@@ -72,24 +68,24 @@ extern "C" {
  *        @ref ANJ_CONN_STATUS_QUEUE_MODE state,
  *      - Mute Send resource is set to true.
  */
-#    define ANJ_SEND_ERR_NOT_ALLOWED -6
+#        define ANJ_SEND_ERR_NOT_ALLOWED -6
 
 /**
  * Can be returned by @ref anj_send_new_request because provided data is not
  * valid.
  */
-#    define ANJ_SEND_ERR_DATA_NOT_VALID -7
+#        define ANJ_SEND_ERR_DATA_NOT_VALID -7
 
 /**
  * Content format of the message payload to be sent.
  */
 typedef enum {
-#    ifdef ANJ_WITH_SENML_CBOR
+#        ifdef ANJ_WITH_SENML_CBOR
     ANJ_SEND_CONTENT_FORMAT_SENML_CBOR,
-#    endif // ANJ_WITH_SENML_CBOR
-#    ifdef ANJ_WITH_LWM2M_CBOR
+#        endif // ANJ_WITH_SENML_CBOR
+#        ifdef ANJ_WITH_LWM2M_CBOR
     ANJ_SEND_CONTENT_FORMAT_LWM2M_CBOR,
-#    endif // ANJ_WITH_LWM2M_CBOR
+#        endif // ANJ_WITH_LWM2M_CBOR
 } anj_send_content_format_t;
 
 /**
@@ -198,14 +194,14 @@ int anj_send_new_request(anj_t *anj,
  */
 int anj_send_abort(anj_t *anj, uint16_t send_id);
 
-#    define ANJ_INTERNAL_INCLUDE_SEND
-#    include <anj_internal/lwm2m_send.h>
-#    undef ANJ_INTERNAL_INCLUDE_SEND
+#        define ANJ_INTERNAL_INCLUDE_SEND
+#        include <anj_internal/lwm2m_send.h>
+#        undef ANJ_INTERNAL_INCLUDE_SEND
 
-#endif // ANJ_WITH_LWM2M_SEND
+#    endif // ANJ_WITH_LWM2M_SEND
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_LWM2M_SEND_H

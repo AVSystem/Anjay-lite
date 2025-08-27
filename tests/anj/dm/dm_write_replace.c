@@ -514,14 +514,15 @@ ANJ_UNIT_TEST(dm_write_replace, error_no_writable) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
-                          ANJ_DM_ERR_BAD_REQUEST);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_BAD_REQUEST);
+                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj),
+                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_BAD_REQUEST);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_METHOD_NOT_ALLOWED);
 }
 
 ANJ_UNIT_TEST(dm_write_replace, error_path) {
@@ -563,6 +564,28 @@ ANJ_UNIT_TEST(dm_write_replace, error_path_multi_instance) {
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+}
+
+ANJ_UNIT_TEST(dm_write_replace, error_unauthorized) {
+    TEST_INIT(anj, obj);
+
+    anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(0, 0, 0);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
+                                                  false, &path),
+                          ANJ_DM_ERR_UNAUTHORIZED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_UNAUTHORIZED);
+
+    path = ANJ_MAKE_RESOURCE_PATH(21, 0, 0);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
+                                                  false, &path),
+                          ANJ_DM_ERR_UNAUTHORIZED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_UNAUTHORIZED);
+
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, 4);
 }
 
 ANJ_UNIT_TEST(dm_write_replace, handler_error) {
@@ -640,8 +663,8 @@ ANJ_UNIT_TEST(dm_write_replace, lack_of_inst_reset_error) {
 
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     handlers.inst_reset = NULL;
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(
-                                  &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
+                                                  false, &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     handlers.inst_reset = inst_reset;
 }
@@ -742,9 +765,9 @@ ANJ_UNIT_TEST(dm_write_replace, write_with_create_error) {
         .path = ANJ_MAKE_RESOURCE_PATH(1, 1, 0)
     };
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
-    ANJ_UNIT_ASSERT_EQUAL(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE, true, &path),
-            ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
+                                                  true, &path),
+                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     Obj_Bootstrap.max_inst_count = 2;

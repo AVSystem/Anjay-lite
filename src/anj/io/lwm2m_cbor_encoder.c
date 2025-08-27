@@ -7,16 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
+#include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/utils.h>
 
-#include "../utils.h"
+#include "../coap/coap.h"
 #include "cbor_encoder.h"
 #include "cbor_encoder_ll.h"
 #include "internal.h"
@@ -26,12 +28,13 @@
 
 static size_t uri_path_span(const anj_uri_path_t *a, const anj_uri_path_t *b) {
     size_t equal_ids = 0;
-    for (; equal_ids < ANJ_MAX(anj_uri_path_length(a), anj_uri_path_length(b));
+    for (; equal_ids < ANJ_MIN(anj_uri_path_length(a), anj_uri_path_length(b));
          equal_ids++) {
         if (a->ids[equal_ids] != b->ids[equal_ids]) {
             break;
         }
     }
+
     return equal_ids;
 }
 
@@ -73,7 +76,22 @@ static void encode_path(_anj_io_out_ctx_t *ctx, const anj_uri_path_t *path) {
     assert(anj_uri_path_has(path, ANJ_ID_RID));
     _anj_lwm2m_cbor_encoder_t *lwm2m_cbor = &ctx->encoder.lwm2m;
 
-    size_t path_span = uri_path_span(&lwm2m_cbor->last_path, path);
+    size_t path_span;
+
+    // we don't want to compare both paths if they are the same
+    // since encoding following sequence:
+    // /3/0/1
+    // /3/0/1
+    // is the same case as this case:
+    // /3/0/1
+    // /3/0/2
+    // so we just return span as length -1
+    if (anj_uri_path_equal(&lwm2m_cbor->last_path, path)) {
+        path_span = anj_uri_path_length(&lwm2m_cbor->last_path) - 1;
+    } else {
+        path_span = uri_path_span(&lwm2m_cbor->last_path, path);
+    }
+
     if (anj_uri_path_length(&lwm2m_cbor->last_path)) {
         assert(path_span < anj_uri_path_length(&lwm2m_cbor->last_path));
         // close open maps to the level where the paths do not differ
@@ -116,10 +134,7 @@ int _anj_lwm2m_cbor_out_ctx_new_entry(_anj_io_out_ctx_t *ctx,
         return _ANJ_IO_ERR_LOGIC;
     }
     if (anj_uri_path_outside_base(&entry->path, &lwm2m_cbor->base_path)
-            || !anj_uri_path_has(&entry->path, ANJ_ID_RID)
-            // There is no specification-compliant way to represent the same two
-            // paths one after the other
-            || anj_uri_path_equal(&entry->path, &lwm2m_cbor->last_path)) {
+            || !anj_uri_path_has(&entry->path, ANJ_ID_RID)) {
         return _ANJ_IO_ERR_INPUT_ARG;
     }
 

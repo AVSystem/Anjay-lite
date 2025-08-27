@@ -68,6 +68,8 @@ typedef enum {
     ANJ_OP_INF_NON_CON_NOTIFY,
     ANJ_OP_INF_CON_SEND,
     ANJ_OP_INF_NON_CON_SEND,
+    // CoAP Downloader Interface
+    ANJ_OP_COAP_DOWNLOADER_GET,
     // client/server response - piggybacked/non-con/con
     ANJ_OP_RESPONSE,
     // CoAP related messages
@@ -232,7 +234,6 @@ typedef enum {
 /** @anj_internal_api_do_not_use */
 typedef struct {
     uint16_t message_id;
-    bool message_id_set;
     _anj_coap_udp_type_t type;
 } _anj_coap_binding_data_udp_t;
 
@@ -247,6 +248,23 @@ typedef union {
     _anj_coap_binding_data_udp_t udp;
     _anj_coap_binding_data_tcp_t tcp;
 } _anj_coap_binding_data_t;
+
+#ifdef ANJ_WITH_COAP_DOWNLOADER
+/** @anj_internal_api_do_not_use
+ * Represents attributes for the downloader operation.
+ */
+typedef struct {
+    /** Stores the value of ETag option. */
+    _anj_etag_t etag;
+    /** Stores the value of Size2 option - total size of the resource. */
+    uint32_t total_size;
+    /** Stores the value of Uri-Path options for GET request */
+    const char *path[ANJ_COAP_DOWNLOADER_MAX_PATHS_NUMBER];
+    uint16_t path_len[ANJ_COAP_DOWNLOADER_MAX_PATHS_NUMBER];
+    /** Number of paths in the path array. */
+    uint16_t paths_count;
+} _anj_attr_downloader_t;
+#endif // ANJ_WITH_COAP_DOWNLOADER
 
 /**
  * @anj_internal_api_do_not_use
@@ -321,9 +339,6 @@ typedef struct {
      */
     _anj_block_t block;
 
-    /** Stores the value of ETag option. */
-    _anj_etag_t etag;
-
     /**
      * Location path is send in respone to the REGISTER message and then have to
      * be used in UPDATE and DEREGISTER requests.
@@ -349,7 +364,7 @@ typedef struct {
 #endif // ANJ_COAP_WITH_TCP
 
     /**
-     * Attributes are optional and stored in Uri Query/Location path options.
+     * Each attribute is related to a specific operation.
      */
     union {
         _anj_attr_notification_t notification_attr;
@@ -357,6 +372,9 @@ typedef struct {
         _anj_attr_register_t register_attr;
         _anj_attr_bootstrap_t bootstrap_attr;
         _anj_attr_create_ack_t create_attr;
+#ifdef ANJ_WITH_COAP_DOWNLOADER
+        _anj_attr_downloader_t downloader_attr;
+#endif // ANJ_WITH_COAP_DOWNLOADER
     } attr;
 
     /**

@@ -11,10 +11,29 @@ Basic Object Implementation
 
 Overview
 ^^^^^^^^
-This section describes how to implement a standard Object defined in the
+This guide explains how to implement a standard Object as defined in the
 `OMA LwM2M Registry <https://www.openmobilealliance.org/specifications/registries/objects>`_.
 As an example, we will implement the
 `Temperature Object with ID 3303 in version 1.1 <https://raw.githubusercontent.com/OpenMobileAlliance/lwm2m-registry/prod/version_history/3303-1_1.xml>`_.
+
+.. note::
+    For a complete example of a Temperature Object implementation integrated with a real platform,
+    see the integration examples provided in the :ref:`integrations` directory of the Anjay Lite repository.
+    These demonstrate how to connect the Temperature Object to actual hardware or platform-specific APIs.
+
+.. note::
+    To quickly generate object stubs and boilerplate code, you can use the
+    :ref:`anjay_codegen.py <anjay-object-stub-generator>` script.
+    This tool automates the creation of resource definitions, handler functions, and the basic object structure,
+    so you can focus on implementing your object's specific logic.
+
+    For example, to generate a simple single-instance Temperature Object, use the following command:
+
+    .. code-block:: bash
+
+        ./tools/anjay_codegen.py -i temperature_obj.xml -o temperature_obj.c -ni 1
+ 
+    For details, see :ref:`Single Instance Object<single-instance-generator>`.
 
 Supported Resources
 ^^^^^^^^^^^^^^^^^^^
@@ -42,8 +61,8 @@ The following resources from the Temperature Object are implemented:
 | 5750 | Application Type           | RW         | Optional  | String | The application type of the sensor or actuator as a string depending on the use case. |
 +------+----------------------------+------------+-----------+--------+---------------------------------------------------------------------------------------+
 
-Implementing the Object
-^^^^^^^^^^^^^^^^^^^^^^^
+Implement the Object
+^^^^^^^^^^^^^^^^^^^^
 
 .. note::
    Code related to this tutorial can be found under `examples/tutorial/BC-BasicObjectImplementation`
@@ -180,6 +199,16 @@ allocated structure representing the sensor state that we will need later.
 
     static inline temp_obj_ctx_t *get_ctx(void);
 
+.. note::
+    The object state does not need to be stored in a statically allocated
+    structure. For advanced scenarios - such as running multiple LwM2M clients
+    within a single application, or reusing the same object logic across
+    multiple objects - you may move the statically defined ``anj_dm_obj_t`` into
+    a dynamically allocated context structure. In callbacks, Anjay Lite will
+    provide a pointer to the object, allowing you to retrieve your context using
+    the ``ANJ_CONTAINER_OF()`` macro. For reference, see usages in `src/anj/dm`
+    directory.
+
 Step 3: Simulate Sensor Values
 ------------------------------
 
@@ -212,9 +241,9 @@ reading:
         return new_temp;
     }
 
-The ``next_temperature_with_limit()`` function generates a realistic temperature  
-value that varies slightly from the previous one while staying within the defined  
-range of `[-10, 40]` degrees. The ``volatility`` parameter controls the magnitude  
+The ``next_temperature_with_limit()`` function generates a realistic temperature
+value that varies slightly from the previous one while staying within the defined
+range of `[-10, 40]` degrees. The ``volatility`` parameter controls the magnitude
 of the random variation.
 
 We then define a function that updates the internal state of the Temperature
@@ -223,9 +252,7 @@ Object instance.
 .. highlight:: c
 .. snippet-source:: examples/tutorial/BC-BasicObjectImplementation/src/temperature_obj.c
 
-    void update_sensor_value(const anj_dm_obj_t *obj) {
-        (void) obj;
-
+    void update_temperature_obj_value(void) {
         temp_obj_ctx_t *ctx = get_ctx();
 
         ctx->sensor_value = next_temperature_with_limit(ctx->sensor_value, 0.2);
@@ -239,8 +266,8 @@ Object instance.
 
 This function simulates a new sensor measurement and updates the current,
 minimum, and maximum observed values accordingly. We will periodically call
-``update_sensor_value()`` to simulate ongoing temperature updates in our LwM2M
-object.
+``update_temperature_obj_value()`` to simulate ongoing temperature updates in
+our LwM2M object.
 
 Step 4: Implement Resource Handlers
 -----------------------------------
@@ -307,9 +334,9 @@ What this handler does:
     are ignored for simplicity.
 
 .. note::
-   In the case of ``ANJ_DATA_TYPE_STRING`` or ``ANJ_DATA_TYPE_BYTES``, the read function  
-   operates on pointers, and the value is not copied. For ``ANJ_DATA_TYPE_BYTES``,  
-   the function also needs to set the length of the data being returned. 
+   In the case of ``ANJ_DATA_TYPE_STRING`` or ``ANJ_DATA_TYPE_BYTES``, the read function
+   operates on pointers, and the value is not copied. For ``ANJ_DATA_TYPE_BYTES``,
+   the function also needs to set the length of the data being returned.
    The memory pointed to **must remain unchanged** for the duration of the data model operation.
 
 **Write handler**
@@ -353,18 +380,18 @@ What this handler does:
     - Returns ``ANJ_DM_ERR_NOT_FOUND`` if the resource is not supported or not writable.
 
 .. note::
-    Anjay Lite uses chunked writing to support CoAP block-wise transfers.  
-    The helper function ``anj_dm_write_string_chunked()`` safely assembles the received chunks  
+    Anjay Lite uses chunked writing to support CoAP block-wise transfers.
+    The helper function ``anj_dm_write_string_chunked()`` safely assembles the received chunks
     into a single buffer with size checks. For data type other then ``ANJ_DATA_TYPE_BYTES`` and
     ``ANJ_DATA_TYPE_STRING`` the payload always comes as a single write.
 
 .. note::
    For data type ``ANJ_DATA_TYPE_BYTES`` there is an alternative function called
-   ``anj_dm_write_bytes_chunked()`` to handle the block-wise transfers. 
+   ``anj_dm_write_bytes_chunked()`` to handle the block-wise transfers.
 
 **Execute handler**
 
-This function implements the LwM2M Execute operation handler for the Temperature Object.  
+This function implements the LwM2M Execute operation handler for the Temperature Object.
 It allows triggering actions on specific executable resources — in this case,
 resetting recorded minimum and maximum measured values.
 
@@ -399,7 +426,7 @@ resetting recorded minimum and maximum measured values.
     }
 
 What this handler does:
-    
+
     - If called on resource ``5605`` (Reset Min and Max Measured Values),
       it updates both ``min_sensor_value`` and ``max_sensor_value`` to match the current ``sensor_value``.
     - If called on any other resource, it returns ``ANJ_DM_ERR_NOT_FOUND`` to indicate the operation is not supported.
@@ -466,13 +493,13 @@ that returns a pointer to it:
 The fields in this structure contains metadata describing the object, such as its Object ID, version,
 associated instances, and handlers.
 
-Here’s a quick summary of the fields:
+Here's a quick summary of the fields:
 
-    - ``oid`` – Object ID.
-    - ``version`` – Object version.
-    - ``insts`` – Pointer to the object instance definition.
-    - ``handlers`` – Reference to the function table defined above.
-    - ``max_inst_count`` – Maximum number of object instances.
+    - ``oid`` - Object ID.
+    - ``version`` - Object version.
+    - ``insts`` - Pointer to the object instance definition.
+    - ``handlers`` - Reference to the function table defined above.
+    - ``max_inst_count`` - Maximum number of object instances.
 
 Finally, we set the initial state of the sensor within the ``temp_obj_ctx_t`` context structure
 and define the ``get_ctx()`` function:
@@ -498,12 +525,14 @@ This defines the initial sensor reading and sets the minimum and maximum to the 
     directly in the initializer. If the object were dynamically created
     its initial state would need to be set manually during the creation process.
 
+.. _registering-objects:
+
 Step 6: Add the Object to Anjay Lite
 ------------------------------------
 
 The final step is to register the Temperature Object with Anjay Lite and simulate
-periodic sensor readings. To do this, we call ``update_sensor_value()`` inside
-the main loop of the application.
+periodic sensor readings. To do this, we call ``update_temperature_obj_value()``
+inside the main loop of the application.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/BC-BasicObjectImplementation/src/main.c
@@ -515,9 +544,9 @@ the main loop of the application.
             return -1;
         }
 
-        srand((unsigned int) time(
-                NULL)); // Use the current time as a seed for the random
-                        // generator used by update_sensor_value()
+        // Use current time as seed for random generator used by
+        // update_temperature_obj_value()
+        srand((unsigned int) time(NULL));
 
         anj_t anj;
         anj_dm_device_obj_t device_obj;
@@ -545,14 +574,16 @@ the main loop of the application.
 
         while (true) {
             anj_core_step(&anj);
-            update_sensor_value(get_temperature_obj());
+            update_temperature_obj_value();
             usleep(50 * 1000);
         }
         return 0;
     }
 
-Supporting transactional writes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _transactional_writes:
+
+Support transactional Writes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Transactional writes protect object integrity when multiple writable resources are modified.
 Without transaction handling, a partial update could leave the object in an inconsistent
@@ -626,5 +657,5 @@ What these handlers do:
     will still call ``transaction_end`` even if ``transaction_validate`` is not implemented,
     allowing the user to restore the object state in case of an error.
 
-That’s it! Your client is now ready to use the new LwM2M Object. Other objects
+That's it! Your client is now ready to use the new LwM2M Object. Other objects
 can be implemented in a similar way.

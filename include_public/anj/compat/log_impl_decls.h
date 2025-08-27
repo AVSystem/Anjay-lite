@@ -7,15 +7,17 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_LOG_LOG_IMPL_DECLS_H
-#define ANJ_LOG_LOG_IMPL_DECLS_H
+#    define ANJ_LOG_LOG_IMPL_DECLS_H
 
-#include <stdarg.h>
-#include <stddef.h>
+#    include <stdarg.h>
+#    include <stddef.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
 /**
  * Specifies level of a log statement.
@@ -57,8 +59,8 @@ void anj_log_handler_impl_full(anj_log_level_t level,
  */
 void anj_log_handler_output(const char *output, size_t len);
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_LOG_LOG_IMPL_DECLS_H

@@ -20,8 +20,8 @@
 
 #include "../../../src/anj/core/server_bootstrap.h"
 
-#include "net_api_mock.h"
-#include "time_api_mock.h"
+#include "../mock/net_api_mock.h"
+#include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
@@ -159,6 +159,23 @@ static char expected_security_instance_write[] =
         "\x00"
         "\x61\x30\x03\x76"
         "coap://server.com:5683"
+        "\xa2\x00\x61\x32\x02\x03"
+        "\xa2\x00\x61\x31\x04\xf4"
+        "\xa2\x00\x62\x31\x30\x02\x01";
+
+static char expected_security_instance_write_retransmission[] =
+        "\x48"                             // Confirmable, tkl 8
+        "\x03\x4b\xa8"                     // PUT, msg_id = 0x4ba8
+        "\x4f\x54\x8a\x03\xf0\xfd\x88\xc0" // token
+        "\xb1\x30"                         // uri path /0
+        "\x01\x32"                         // uri path /2
+        "\x11\x70"                         // content type senml+cbor
+        "\xFF"                             // payload marker
+        "\x84\xa3\x21\x65"
+        "/0/1/"
+        "\x00"
+        "\x61\x30\x03\x76"
+        "coap://server.org:5683"
         "\xa2\x00\x61\x32\x02\x03"
         "\xa2\x00\x61\x31\x04\xf4"
         "\xa2\x00\x62\x31\x30\x02\x01";
@@ -535,9 +552,9 @@ ANJ_UNIT_TEST(server_bootstrap, send_failure_and_retry_success) {
     ANJ_UNIT_ASSERT_EQUAL(mock.state, ANJ_NET_SOCKET_STATE_CONNECTED);
 }
 
-static char CoAP_PING[] = "\x40\x00\x00\x00"; // Confirmable, tkl 0, empty msg
+static char CoAP_PING[] = "\x40\x00\x12\x34"; // Confirmable, tkl 0, empty msg
 static char RST_response[] = "\x70"           // ACK, tkl 0
-                             "\x00\x00\x00";  // empty msg
+                             "\x00\x12\x34";  // empty msg
 
 ANJ_UNIT_TEST(server_bootstrap, CoAP_ping) {
     TEST_INIT();
@@ -556,3 +573,37 @@ ANJ_UNIT_TEST(server_bootstrap, CoAP_ping) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_BOOTSTRAPPING);
 }
+
+#ifdef ANJ_WITH_CACHE
+ANJ_UNIT_TEST(server_bootstrap, retransmission) {
+    TEST_INIT();
+    ADD_SECURITY_INSTANCE_AND_INSTALL_OBJECTS();
+    anj_core_step(&anj);
+
+    // allow sending data
+    mock.bytes_to_send = 100;
+
+    // Send Bootstrap request
+    SEND_BOOTSTRAP_REQUEST();
+
+    // Receive Security Object Write
+    RECEIVE_REQUEST_FROM_LWM2M_SERVER(expected_security_instance_write);
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(response, expected_security_instance_write);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
+            mock.send_data_buffer, response, sizeof(response) - 1);
+
+    mock.bytes_sent = 0;
+
+    memset(mock.send_data_buffer, 0, 100);
+    // retransmission - serving another security instance create request
+    // would result in error
+    RECEIVE_REQUEST_FROM_LWM2M_SERVER(
+            expected_security_instance_write_retransmission);
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(response,
+                          expected_security_instance_write_retransmission);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
+            mock.send_data_buffer, response, sizeof(response) - 1);
+}
+#endif // ANJ_WITH_CACHE

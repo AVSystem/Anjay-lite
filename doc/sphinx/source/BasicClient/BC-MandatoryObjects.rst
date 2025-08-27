@@ -6,8 +6,8 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Installing mandatory Objects
-============================
+Install mandatory Objects
+=========================
 
 To connect to a LwM2M server and handle incoming packets, the client must support the following mandatory LwM2M Objects:
   
@@ -27,8 +27,8 @@ When Anjay Lite is first instantiated (as in our previous :ref:`hello world
 i.e., no LwM2M Objects are registered within it. You must explicitly install
 the required Objects, as shown below.
 
-Installing Objects
-^^^^^^^^^^^^^^^^^^
+Instal Objects
+^^^^^^^^^^^^^^
 
 Use the following functions to install the Objects:
 
@@ -44,8 +44,8 @@ Use the following functions to install the Objects:
       - ``anj/dm/server_object.h``
       - ``anj/dm/device_object.h``
 
-Setting up Security, Server and Device Objects
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Set up Security, Server and Device Objects
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This section shows how to implement and register the mandatory Objects:
 Security, Server, and Device. It builds upon the setup from the

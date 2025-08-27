@@ -88,6 +88,8 @@ static void exchange_completion_handler(void *arg_ptr,
     handlers_arg->complete_counter++;
 }
 
+// no need to initialize MID - it can be randomized, and in verify_payload()
+// we overwrite MID and token in serialized message
 #define TEST_INIT()                      \
     uint8_t payload[20];                 \
     _anj_coap_msg_t msg;                 \
@@ -187,6 +189,7 @@ ANJ_UNIT_TEST(client_requests, confirmable_send) {
 
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CHANGED;
     response.payload_size = 0;
     handlers_arg.out_payload_len = 0;
@@ -217,6 +220,7 @@ static _anj_coap_msg_t process_send_response(_anj_exchange_ctx_t *ctx,
               ANJ_EXCHANGE_STATE_WAITING_MSG);
     _anj_coap_msg_t response = *msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CONTINUE;
     response.payload_size = 0;
     response.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -253,7 +257,7 @@ ANJ_UNIT_TEST(client_requests, send_with_block_transfer) {
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     uint8_t expected[] =
             "\x48"                             // Confirmable, tkl 8
-            "\x02\x00\x00"                     // POST 0x02, msg id
+            "\x02\x00\x01"                     // POST 0x02, msg id
             "\x00\x00\x00\x00\x00\x00\x00\x00" // token
             "\xb2\x64\x70"                     // uri path /dp
             "\x11\x3C"                         // content_format: cbor
@@ -304,7 +308,7 @@ ANJ_UNIT_TEST(client_requests, send_with_block_transfer) {
 }
 
 // Test: Send operation with block transfer and separate response.
-// Seperate response can be sent after each block transfer.
+// Separate response can be sent after each block transfer.
 // Client LwM2M                      |  Server LwM2M
 // -------------------------------------------------
 // Confirmable SEND block1 0 more ---->
@@ -340,6 +344,7 @@ ANJ_UNIT_TEST(client_requests, send_with_block_transfer_separate_response) {
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
 
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
     msg.operation = ANJ_OP_RESPONSE;
     // Con response with empty response
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
@@ -369,6 +374,7 @@ ANJ_UNIT_TEST(client_requests, send_with_block_transfer_separate_response) {
     handlers_arg.out_payload_len = 8;
     handlers_arg.ret_val = 0;
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.payload_size = 0;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
@@ -379,23 +385,16 @@ ANJ_UNIT_TEST(client_requests, send_with_block_transfer_separate_response) {
               ANJ_EXCHANGE_STATE_WAITING_MSG);
 
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &msg),
               ANJ_EXCHANGE_STATE_FINISHED);
-    uint8_t out_buff[50];
-    size_t out_msg_size = 0;
     uint8_t empty[] = "\x60"          // ACK, tkl 0
                       "\x00\x00\x00"; // empty msg
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_coap_encode_udp(
-            &msg, out_buff, sizeof(out_buff), &out_msg_size));
-    // copy message id
-    empty[2] = out_buff[2];
-    empty[3] = out_buff[3];
-    ASSERT_EQ_BYTES_SIZED(out_buff, empty, sizeof(empty) - 1);
-    ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(empty) - 1);
+    verify_payload(empty, sizeof(empty) - 1, &msg);
 }
 
 // Test: Confirmable SEND with block transfer during
@@ -526,8 +525,7 @@ ANJ_UNIT_TEST(client_requests, confirmable_send_with_interruptions) {
             "\xA3\x33\x33" // ANJ_COAP_CODE_SERVICE_UNAVAILABLE, msg id
             "\x01";        // token
     verify_payload(expected_interrupt_response,
-                   sizeof(expected_interrupt_response) - 1,
-                   &server_request);
+                   sizeof(expected_interrupt_response) - 1, &server_request);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
@@ -544,7 +542,7 @@ ANJ_UNIT_TEST(client_requests, confirmable_send_with_interruptions) {
         .coap_binding_data = {
             .udp = {
                 .type = ANJ_COAP_UDP_TYPE_CONFIRMABLE,
-                .message_id = 0x3333,
+                .message_id = 0x3334,
 
             }
         }
@@ -555,6 +553,7 @@ ANJ_UNIT_TEST(client_requests, confirmable_send_with_interruptions) {
 
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CHANGED;
     response.payload_size = 0;
     handlers_arg.out_payload_len = 0;
@@ -609,6 +608,7 @@ ANJ_UNIT_TEST(client_requests, update_operation_no_payload) {
 
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CHANGED;
     response.payload_size = 0;
     handlers_arg.out_payload_len = 0;
@@ -662,15 +662,7 @@ ANJ_UNIT_TEST(client_requests, update_operation_separate_response) {
 
     uint8_t empty[] = "\x60"          // ACK, tkl 0
                       "\x00\x00\x00"; // empty msg
-    uint8_t out_buff[10];
-    size_t out_msg_size = 0;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_coap_encode_udp(
-            &response, out_buff, sizeof(out_buff), &out_msg_size));
-    // copy message id
-    empty[2] = out_buff[2];
-    empty[3] = out_buff[3];
-    ASSERT_EQ_BYTES_SIZED(out_buff, empty, sizeof(empty) - 1);
-    ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(empty) - 1);
+    verify_payload(empty, sizeof(empty) - 1, &response);
 }
 
 // Test: BootstrapPack-Request, only client request that uses
@@ -701,6 +693,7 @@ ANJ_UNIT_TEST(client_requests, bootstrap_pack_request) {
 
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CONTENT;
     response.payload_size = 4;
     response.payload = (uint8_t *) "pack";
@@ -734,6 +727,7 @@ static _anj_coap_msg_t process_bootstrap_pack_response(_anj_exchange_ctx_t *ctx,
               ANJ_EXCHANGE_STATE_WAITING_MSG);
     _anj_coap_msg_t response = *msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CONTENT;
     response.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
     response.accept = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -853,6 +847,7 @@ ANJ_UNIT_TEST(client_requests, register_operation) {
 
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CREATED;
     response.payload_size = 0;
     handlers_arg.out_payload_len = 0;
@@ -910,6 +905,7 @@ ANJ_UNIT_TEST(client_requests, register_with_cancel) {
 
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_BAD_REQUEST;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
                                     &response),
@@ -934,6 +930,7 @@ static _anj_coap_msg_t process_register_response(_anj_exchange_ctx_t *ctx,
               ANJ_EXCHANGE_STATE_WAITING_MSG);
     _anj_coap_msg_t response = *msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CONTINUE;
     response.payload_size = 0;
     response.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -1044,7 +1041,7 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_send_timeout) {
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION);
-    mock_time_value = ctx.send_ack_timeout_timestamp_ms + 1;
+    mock_time_value = ctx.send_confirmation_timeout_timestamp_ms + 1;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_FINISHED);
     mock_time_value = 0;
@@ -1100,6 +1097,7 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_2_retransmision) {
     }
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CHANGED;
     response.payload_size = 0;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
@@ -1189,6 +1187,7 @@ ANJ_UNIT_TEST(
 
     _anj_coap_msg_t response = msg;
     response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     response.msg_code = ANJ_COAP_CODE_CHANGED;
     response.payload_size = 0;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
@@ -1397,6 +1396,7 @@ ANJ_UNIT_TEST(client_requests,
 
     // Con response with empty response
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(msg.operation, ANJ_OP_COAP_EMPTY_MSG);
@@ -1424,6 +1424,7 @@ ANJ_UNIT_TEST(client_requests,
     handlers_arg.out_payload_len = 8;
     handlers_arg.ret_val = 0;
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.payload_size = 0;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
@@ -1434,42 +1435,35 @@ ANJ_UNIT_TEST(client_requests,
               ANJ_EXCHANGE_STATE_WAITING_MSG);
 
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &msg),
               ANJ_EXCHANGE_STATE_FINISHED);
-    uint8_t out_buff[50];
-    size_t out_msg_size = 0;
     uint8_t empty[] = "\x60"          // ACK, tkl 0
                       "\x00\x00\x00"; // empty msg
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_coap_encode_udp(
-            &msg, out_buff, sizeof(out_buff), &out_msg_size));
-    // copy message id
-    empty[2] = out_buff[2];
-    empty[3] = out_buff[3];
-    ASSERT_EQ_BYTES_SIZED(out_buff, empty, sizeof(empty) - 1);
-    ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(empty) - 1);
+    verify_payload(empty, sizeof(empty) - 1, &msg);
 }
 
 ANJ_UNIT_TEST(client_requests, set_udp_tx_params) {
     _anj_exchange_ctx_t ctx;
     _anj_exchange_init(&ctx, 0);
-    _anj_exchange_udp_tx_params_t default_params =
+    anj_exchange_udp_tx_params_t default_params =
             _ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT;
     ASSERT_EQ(ctx.tx_params.ack_timeout_ms, default_params.ack_timeout_ms);
     ASSERT_EQ(ctx.tx_params.ack_random_factor,
               default_params.ack_random_factor);
     ASSERT_EQ(ctx.tx_params.max_retransmit, default_params.max_retransmit);
 
-    _anj_exchange_udp_tx_params_t test_params = {
+    anj_exchange_udp_tx_params_t test_params = {
         .ack_random_factor = 10,
         .ack_timeout_ms = 1100,
         .max_retransmit = 12
     };
     // random factor must be >= 1
-    _anj_exchange_udp_tx_params_t err_params = {
+    anj_exchange_udp_tx_params_t err_params = {
         .ack_random_factor = 0.1,
         .ack_timeout_ms = 11111,
         .max_retransmit = 111
@@ -1528,6 +1522,7 @@ ANJ_UNIT_TEST(client_requests, register_with_block_number_mismatch) {
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
               ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
@@ -1588,4 +1583,188 @@ ANJ_UNIT_TEST(client_requests, send_read_payload_error) {
     ASSERT_EQ(handlers_arg.counter, 1);
     ASSERT_EQ(handlers_arg.result, ANJ_COAP_CODE_BAD_REQUEST);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
+}
+
+// Test: Register operation with separate response.
+// Client LwM2M          |         Server LwM2M
+// --------------------------------------------
+// REGISTER ---->
+//                               <---- Empty msg
+//                               <---- Con 2.01
+// Empty msg --->
+static char location_path[10];
+static char register_response[] = "\x48"         // header v 0x01, Con, tkl 8
+                                  "\x41\x00\x00" // CREATED code 2.1
+                                  "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
+                                  "\x82\x72\x64"; // location-path /rd
+
+static void register_completion_handler(void *arg_ptr,
+                                        const _anj_coap_msg_t *response,
+                                        int result) {
+    handlers_arg_t *handlers_arg = (handlers_arg_t *) arg_ptr;
+    handlers_arg->response = response;
+    handlers_arg->result = result;
+    handlers_arg->complete_counter++;
+    memcpy(location_path,
+           response->location_path.location[0],
+           response->location_path.location_len[0]);
+}
+
+ANJ_UNIT_TEST(client_requests, register_operation_separate_response) {
+    TEST_INIT();
+    _anj_exchange_handlers_t handlers = {
+        .arg = &handlers_arg,
+        .completion = register_completion_handler
+    };
+    msg.operation = ANJ_OP_REGISTER;
+    ASSERT_EQ(_anj_exchange_new_client_request(&ctx, &msg, &handlers, payload,
+                                               sizeof(payload)),
+              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+                                    &msg),
+              ANJ_EXCHANGE_STATE_WAITING_MSG);
+
+    _anj_coap_msg_t ack = msg;
+    ack.operation = ANJ_OP_COAP_EMPTY_MSG;
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &ack),
+              ANJ_EXCHANGE_STATE_WAITING_MSG);
+
+    _anj_coap_msg_t response;
+    // copy msg id and token
+    register_response[2] = msg.coap_binding_data.udp.message_id >> 8;
+    register_response[3] = msg.coap_binding_data.udp.message_id & 0xFF;
+    memcpy(&register_response[4], msg.token.bytes, msg.token.size);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_coap_decode_udp((uint8_t *) register_response,
+                                                 sizeof(register_response) - 1,
+                                                 &response));
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                    &response),
+              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+                                    &response),
+              ANJ_EXCHANGE_STATE_FINISHED);
+
+    uint8_t empty[] = "\x60"          // ACK, tkl 0
+                      "\x00\x00\x00"; // empty msg
+    verify_payload(empty, sizeof(empty) - 1, &response);
+
+    ANJ_UNIT_ASSERT_EQUAL(handlers_arg.complete_counter, 1);
+    ANJ_UNIT_ASSERT_EQUAL(handlers_arg.result, 0);
+    ANJ_UNIT_ASSERT_EQUAL(location_path[0], 'r');
+    ANJ_UNIT_ASSERT_EQUAL(location_path[1], 'd');
+    ANJ_UNIT_ASSERT_EQUAL(location_path[2], '\0');
+    ASSERT_EQ(_anj_exchange_ongoing_exchange(&ctx), false);
+}
+
+// Test: Update operation with separate response, but empty message is not
+// received.
+// Client LwM2M          |         Server LwM2M
+// --------------------------------------------
+// UPDATE ---->
+//                               <---- Con 2.04
+// Empty msg --->
+ANJ_UNIT_TEST(client_requests,
+              update_operation_separate_response_lack_of_empty_msg) {
+    TEST_INIT();
+    _anj_exchange_handlers_t handlers = {
+        .arg = &handlers_arg
+    };
+    msg.operation = ANJ_OP_UPDATE;
+    ASSERT_EQ(_anj_exchange_new_client_request(&ctx, &msg, &handlers, payload,
+                                               sizeof(payload)),
+              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+                                    &msg),
+              ANJ_EXCHANGE_STATE_WAITING_MSG);
+
+    _anj_coap_msg_t response = msg;
+    response.operation = ANJ_OP_RESPONSE;
+    response.msg_code = ANJ_COAP_CODE_CHANGED;
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                    &response),
+              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+                                    &response),
+              ANJ_EXCHANGE_STATE_FINISHED);
+
+    uint8_t empty[] = "\x60"          // ACK, tkl 0
+                      "\x00\x00\x00"; // empty msg
+    verify_payload(empty, sizeof(empty) - 1, &response);
+    ASSERT_EQ(_anj_exchange_ongoing_exchange(&ctx), false);
+}
+
+// Test: Send operation with block transfer and separate response.
+// Empty message is received after Con response.
+// Client LwM2M                      |  Server LwM2M
+// -------------------------------------------------
+// Confirmable SEND block1 0 more ---->
+//                                    <---- Con 2.31 block1 0 more
+// Empty msg                      ---->
+//                                    <---- Empty msg
+// Confirmable SEND block1 1      ---->
+//                                    <---- ACK 2.04 block1 1
+ANJ_UNIT_TEST(client_requests,
+              send_with_block_transfer_separate_response_wrong_order) {
+    TEST_INIT();
+    _anj_exchange_handlers_t handlers = {
+        .read_payload = read_payload_handler,
+        .arg = &handlers_arg
+    };
+    handlers_arg.out_payload = "1234567812345678";
+    handlers_arg.out_payload_len = 16;
+    handlers_arg.out_format = _ANJ_COAP_FORMAT_CBOR;
+    handlers_arg.ret_val = _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED;
+
+    msg.operation = ANJ_OP_INF_CON_SEND;
+
+    ASSERT_EQ(_anj_exchange_new_client_request(&ctx, &msg, &handlers, payload,
+                                               20),
+              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    handlers_arg.ret_val = 0;
+    _anj_coap_msg_t first_send = msg;
+    msg = process_send_response(&ctx, &msg);
+
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+    // CON response - send empty message
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG, &msg),
+              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    // check that empty message is sent
+    uint8_t empty[] = "\x60"          // ACK, tkl 0
+                      "\x00\x00\x00"; // empty msg
+    verify_payload(empty, sizeof(empty) - 1, &msg);
+
+    // right after empty message, send next block
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+                                    &msg),
+              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    uint8_t expected[] =
+            "\x48"                             // Confirmable, tkl 8
+            "\x02\x00\x00"                     // POST 0x02, msg id
+            "\x00\x00\x00\x00\x00\x00\x00\x00" // token
+            "\xb2\x64\x70"                     // uri path /dp
+            "\x11\x3C"                         // content_format: cbor
+            "\xd1\x02\x10"                     // block1 1, size 16
+            "\xFF"
+            "\x31\x32\x33\x34\x35\x36\x37\x38\x31\x32\x33\x34\x35\x36\x37\x38";
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+                                    &msg),
+              ANJ_EXCHANGE_STATE_WAITING_MSG);
+
+    // We don't check for incoming messages until here, so now we get empty
+    // message from previous block, we should ignore it.
+    first_send.operation = ANJ_OP_COAP_EMPTY_MSG;
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                    &first_send),
+              ANJ_EXCHANGE_STATE_WAITING_MSG);
+    // Now ACK response will end the exchange.
+    _anj_coap_msg_t response = msg;
+    response.operation = ANJ_OP_RESPONSE;
+    response.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    response.msg_code = ANJ_COAP_CODE_CHANGED;
+    response.payload_size = 0;
+    response.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
+    ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                    &response),
+              ANJ_EXCHANGE_STATE_FINISHED);
 }

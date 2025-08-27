@@ -7,25 +7,23 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_LOG_LOG_H
-#define ANJ_LOG_LOG_H
+#    define ANJ_LOG_LOG_H
 
-#include <stdio.h>
+#    include <stdio.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
+#    endif
 
-#include <anj/anj_config.h>
-#include <anj/compat/log_impl_decls.h> // IWYU pragma: export
-#include <anj/utils.h>
+#    include <anj/compat/log_impl_decls.h> // IWYU pragma: export
+#    include <anj/utils.h>
 
-#define ANJ_INTERNAL_INCLUDE_LOG_CONFIG_CHECK
-#include <anj_internal/log/log_config_check.h>
-#undef ANJ_INTERNAL_INCLUDE_LOG_CONFIG_CHECK
-#define ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
-#include <anj_internal/log/log_filtering_utils.h>
-#undef ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
+#    define ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
+#    include <anj_internal/log/log_filtering_utils.h>
+#    undef ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
 
 /**
  * Makes compiler emit warnings for provided format string and arguments
@@ -34,13 +32,13 @@ extern "C" {
  *
  * Value of <c>sizeof(...)</c> is later discarded by using comma operator.
  */
-#define ANJ_LOG_PRINTF_ARG_CHECK(...) ((void) sizeof(printf(__VA_ARGS__)))
+#    define ANJ_LOG_PRINTF_ARG_CHECK(...) ((void) sizeof(printf(__VA_ARGS__)))
 
 /**
  * Enforces the format to be an inline string literal, by concatenating it
  * (the first vararg) with an empty string literal.
  */
-#define ANJ_LOG_ENFORCE_FORMAT_INLINE_LITERAL(...) "" __VA_ARGS__
+#    define ANJ_LOG_ENFORCE_FORMAT_INLINE_LITERAL(...) "" __VA_ARGS__
 
 /**
  * This macro is a best-effort check that:
@@ -50,43 +48,44 @@ extern "C" {
  * - enables emitting warnings when the provided format arguments do not match
  *   the format string, if the compiler supports it
  */
-#define ANJ_LOG_COMPILE_TIME_CHECK(...) \
-    ANJ_LOG_PRINTF_ARG_CHECK(ANJ_LOG_ENFORCE_FORMAT_INLINE_LITERAL(__VA_ARGS__))
+#    define ANJ_LOG_COMPILE_TIME_CHECK(...) \
+        ANJ_LOG_PRINTF_ARG_CHECK(           \
+                ANJ_LOG_ENFORCE_FORMAT_INLINE_LITERAL(__VA_ARGS__))
 
-#ifdef ANJ_LOG_ENABLED
+#    ifdef _ANJ_LOG_ENABLED
 
-#    ifdef ANJ_LOG_FULL
-#        define ANJ_LOG_HANDLER_IMPL_MACRO(Module, LogLevel, ...)        \
-            anj_log_handler_impl_full(ANJ_LOG_LEVEL_##LogLevel,          \
-                                      ANJ_QUOTE_MACRO(Module), __FILE__, \
-                                      __LINE__, __VA_ARGS__)
-#    endif // ANJ_LOG_FULL
+#        ifdef ANJ_LOG_FULL
+#            define ANJ_LOG_HANDLER_IMPL_MACRO(Module, LogLevel, ...)        \
+                anj_log_handler_impl_full(ANJ_LOG_LEVEL_##LogLevel,          \
+                                          ANJ_QUOTE_MACRO(Module), __FILE__, \
+                                          __LINE__, __VA_ARGS__)
+#        endif // ANJ_LOG_FULL
 
-#    ifdef ANJ_LOG_ALT_IMPL_HEADER
-#        include ANJ_LOG_ALT_IMPL_HEADER
-#    endif // ANJ_LOG_ALT_IMPL_HEADER
+#        ifdef ANJ_LOG_ALT_IMPL_HEADER
+#            include ANJ_LOG_ALT_IMPL_HEADER
+#        endif // ANJ_LOG_ALT_IMPL_HEADER
 
-#    ifdef ANJ_LOG_FILTERING_CONFIG_HEADER
-#        include ANJ_LOG_FILTERING_CONFIG_HEADER
-#    endif // ANJ_LOG_FILTERING_CONFIG_HEADER
+#        ifdef ANJ_LOG_FILTERING_CONFIG_HEADER
+#            include ANJ_LOG_FILTERING_CONFIG_HEADER
+#        endif // ANJ_LOG_FILTERING_CONFIG_HEADER
 
-#    ifndef ANJ_LOG_LEVEL_DEFAULT
-#        define ANJ_LOG_LEVEL_DEFAULT L_INFO
-#    endif // ANJ_LOG_LEVEL_DEFAULT
+#        ifndef ANJ_LOG_LEVEL_DEFAULT
+#            define ANJ_LOG_LEVEL_DEFAULT L_INFO
+#        endif // ANJ_LOG_LEVEL_DEFAULT
 
-#    define ANJ_LOG_IF_ALLOWED_LOOKUP_ANJ_LOG_YES(Module, LogLevel, ...) \
-        ANJ_LOG_HANDLER_IMPL_MACRO(Module, LogLevel, __VA_ARGS__)
-#    define ANJ_LOG_IF_ALLOWED_LOOKUP_ANJ_LOG_NO(Module, LogLevel, ...) \
-        ((void) 0)
+#        define ANJ_LOG_IF_ALLOWED_LOOKUP_ANJ_LOG_YES(Module, LogLevel, ...) \
+            ANJ_LOG_HANDLER_IMPL_MACRO(Module, LogLevel, __VA_ARGS__)
+#        define ANJ_LOG_IF_ALLOWED_LOOKUP_ANJ_LOG_NO(Module, LogLevel, ...) \
+            ((void) 0)
 
-#    define ANJ_LOG_IF_ALLOWED(Module, LogLevel, ...)                 \
-        ANJ_CONCAT(ANJ_LOG_IF_ALLOWED_LOOKUP_,                        \
-                   _ANJ_LOG_EMIT_CALL(LogLevel,                       \
-                                      _ANJ_LOG_MODULE_LEVEL(Module))) \
-        (Module, LogLevel, __VA_ARGS__)
-#else // ANJ_LOG_ENABLED
-#    define ANJ_LOG_IF_ALLOWED(Module, LogLevel, ...) ((void) 0)
-#endif // ANJ_LOG_ENABLED
+#        define ANJ_LOG_IF_ALLOWED(Module, LogLevel, ...)                 \
+            ANJ_CONCAT(ANJ_LOG_IF_ALLOWED_LOOKUP_,                        \
+                       _ANJ_LOG_EMIT_CALL(LogLevel,                       \
+                                          _ANJ_LOG_MODULE_LEVEL(Module))) \
+            (Module, LogLevel, __VA_ARGS__)
+#    else // _ANJ_LOG_ENABLED
+#        define ANJ_LOG_IF_ALLOWED(Module, LogLevel, ...) ((void) 0)
+#    endif // _ANJ_LOG_ENABLED
 
 /**
  * Logs a message.
@@ -112,15 +111,15 @@ extern "C" {
  *                 (other than <c>L_MUTED</c>) with the leading
  *                 <c>ANJ_LOG_LEVEL_</c> omitted.
  */
-#define anj_log(Module, LogLevel, ...)                          \
-    ((void) (ANJ_LOG_IF_ALLOWED(Module, LogLevel, __VA_ARGS__), \
-             ANJ_LOG_COMPILE_TIME_CHECK(__VA_ARGS__)))
+#    define anj_log(Module, LogLevel, ...)                          \
+        ((void) (ANJ_LOG_IF_ALLOWED(Module, LogLevel, __VA_ARGS__), \
+                 ANJ_LOG_COMPILE_TIME_CHECK(__VA_ARGS__)))
 
-#ifdef ANJ_LOG_STRIP_CONSTANTS
-#    define ANJ_LOG_DISPOSABLE_IMPL(Arg) " "
-#else // ANJ_LOG_STRIP_CONSTANTS
-#    define ANJ_LOG_DISPOSABLE_IMPL(Arg) Arg
-#endif // ANJ_LOG_STRIP_CONSTANTS
+#    ifdef ANJ_LOG_STRIP_CONSTANTS
+#        define ANJ_LOG_DISPOSABLE_IMPL(Arg) " "
+#    else // ANJ_LOG_STRIP_CONSTANTS
+#        define ANJ_LOG_DISPOSABLE_IMPL(Arg) Arg
+#    endif // ANJ_LOG_STRIP_CONSTANTS
 
 /**
  * Replaces a string constant with <c>" "</c> if @ref ANJ_LOG_STRIP_CONSTANTS
@@ -135,10 +134,10 @@ extern "C" {
  *
  * @param Arg A string constant to be potentially replaced with <c>" "</c>.
  */
-#define ANJ_LOG_DISPOSABLE(Arg) ANJ_LOG_DISPOSABLE_IMPL(Arg)
+#    define ANJ_LOG_DISPOSABLE(Arg) ANJ_LOG_DISPOSABLE_IMPL(Arg)
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_LOG_LOG_H

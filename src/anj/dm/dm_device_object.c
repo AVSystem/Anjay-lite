@@ -7,17 +7,19 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
+#include <anj/dm/defs.h>
 #include <anj/dm/device_object.h>
+#include <anj/log/log.h>
 #include <anj/utils.h>
 
-#include "../utils.h"
 #include "dm_core.h"
 
 #ifdef ANJ_WITH_DEFAULT_DEVICE_OBJ

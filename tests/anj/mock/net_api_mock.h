@@ -45,8 +45,8 @@ typedef struct {
     uint8_t *data_to_recv;
 
     size_t inner_mtu_value;
-    const char *hostname;
-    const char *port;
+    char hostname[256];
+    char port[6];
     // state is handled by mock
     anj_net_socket_state_t state;
 

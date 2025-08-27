@@ -7,14 +7,14 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <ctype.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/utils.h>
 
-#include "../utils.h"
 #include "base64.h"
 
 #ifdef ANJ_WITH_PLAINTEXT

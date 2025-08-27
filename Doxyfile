@@ -2394,7 +2394,7 @@ PREDEFINED             = ANJ_IN_MSG_BUFFER_SIZE \
                          ANJ_OUT_PAYLOAD_BUFFER_SIZE \
                          ANJ_DM_MAX_OBJECTS_NUMBER \
                          ANJ_WITH_COMPOSITE_OPERATIONS \
-                         ANJ_DM_MAX_COMPOSITE_ENTRIES \
+                         ANJ_DM_MAX_COMP_READ_ENTRIES \
                          ANJ_WITH_DEFAULT_DEVICE_OBJ \
                          ANJ_WITH_DEFAULT_SECURITY_OBJ \
                          ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE \

@@ -7,7 +7,8 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/anj_config.h>
+#include <anj/init.h>
+
 // IWYU pragma: no_include <bits/socket-constants.h>
 
 #ifdef ANJ_WITH_SOCKET_POSIX_COMPAT
@@ -46,34 +47,34 @@
 /**
  * The operation failed.
  */
-#    define ANJ_NET_FAILED (-3)
+#    define ANJ_NET_FAILED (-1)
 
 /**
  * Error code meaning the input arguments were not valid and the function
  * could not perform it.
  */
-#    define ANJ_NET_EINVAL (-4)
+#    define ANJ_NET_EINVAL (-2)
 
 /**
  * Input/output error.
  */
-#    define ANJ_NET_EIO (-5)
+#    define ANJ_NET_EIO (-3)
 
 /**
  * The socket is not connected.
  */
-#    define ANJ_NET_ENOTCONN (-6)
+#    define ANJ_NET_ENOTCONN (-4)
 
 /**
  * The socket file descriptor is in a bad state to perform this operation.
  */
-#    define ANJ_NET_EBADFD (-7)
+#    define ANJ_NET_EBADFD (-5)
 
 /**
  * Insufficent memory is available. The socket cannot be created until
  * sufficient resources are freed.
  */
-#    define ANJ_NET_ENOMEM (-8)
+#    define ANJ_NET_ENOMEM (-6)
 
 #    define net_log(...) anj_log(net, __VA_ARGS__)
 

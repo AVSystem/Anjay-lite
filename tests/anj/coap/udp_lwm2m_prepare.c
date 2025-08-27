@@ -36,16 +36,18 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_register) {
     data.attr.register_attr.lifetime = 120;
     data.attr.register_attr.lwm2m_ver = "1.2";
 
+    data.coap_binding_data.udp.message_id = 0x01;
+    data.token.size = 8;
+
     size_t calculated_msg_size = _anj_coap_calculate_msg_header_max_size(&data);
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
 
     uint8_t EXPECTED[] =
-            "\x48"         // Confirmable, tkl 8
-            "\x02\x00\x01" // POST 0x02, msg id 0001 because _anj_coap_init is
-                           // not called
-            "\x00\x00\x00\x00\x00\x00\x00\x00" // token
+            "\x48"                             // Confirmable, tkl 8
+            "\x02\x00\x01"                     // POST 0x02, msg id 0001
+            "\x00\x00\x00\x00\x00\x00\x00\x00" // token not filled
             "\xb2\x72\x64"                     // uri path /rd
             "\x11\x28" // content_format: application/link-format
             "\x37\x65\x70\x3d\x6e\x61\x6d\x65"         // uri-query ep=name
@@ -54,8 +56,6 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_register) {
             "\x01\x51"                                 // uri-query Q
             "\xFF"
             "\x3c\x31\x2f\x31\x3e";
-    memcpy(&EXPECTED[4], data.token.bytes,
-           8); // copy token
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 50);
@@ -80,6 +80,9 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_update) {
     data.attr.register_attr.has_binding = true;
     data.attr.register_attr.binding = "U";
 
+    data.coap_binding_data.udp.message_id = 0x02;
+    data.token.size = 8;
+
     size_t calculated_msg_size = _anj_coap_calculate_msg_header_max_size(&data);
 
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -87,13 +90,10 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_update) {
 
     uint8_t EXPECTED[] = "\x48"         // Confirmable, tkl 8
                          "\x02\x00\x02" // POST 0x02, msg id 0002
-                         "\x00\x00\x00\x00\x00\x00\x00\x00" // token
+                         "\x00\x00\x00\x00\x00\x00\x00\x00" // token not filled
                          "\xb4\x6e\x61\x6d\x65"             // uri path /name
                          "\x43\x62\x3d\x55"                 // uri-query b=U
-                         "\x03\x73\x6d\x73"                 // uri-query sms
-            ;
-    memcpy(&EXPECTED[4], data.token.bytes,
-           8); // copy token
+                         "\x03\x73\x6d\x73";                // uri-query sms
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 25);
@@ -111,6 +111,8 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_deregister) {
     data.location_path.location[0] = "name";
     data.location_path.location_len[0] = 4;
     data.location_path.location_count = 1;
+    data.coap_binding_data.udp.message_id = 0x03;
+    data.token.size = 8;
 
     size_t calculated_msg_size = _anj_coap_calculate_msg_header_max_size(&data);
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -119,10 +121,7 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_deregister) {
     uint8_t EXPECTED[] = "\x48"         // Confirmable, tkl 8
                          "\x04\x00\x03" // DELETE 0x04, msg id 0003
                          "\x00\x00\x00\x00\x00\x00\x00\x00" // token
-                         "\xb4\x6e\x61\x6d\x65"             // uri path /name
-            ;
-    memcpy(&EXPECTED[4], data.token.bytes,
-           8); // copy token
+                         "\xb4\x6e\x61\x6d\x65";            // uri path /name
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 17);
@@ -141,6 +140,8 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_bootstrap_request) {
     data.attr.bootstrap_attr.has_preferred_content_format = true;
     data.attr.bootstrap_attr.endpoint = "name";
     data.attr.bootstrap_attr.preferred_content_format = 60;
+    data.coap_binding_data.udp.message_id = 0x04;
+    data.token.size = 8;
 
     size_t calculated_msg_size = _anj_coap_calculate_msg_header_max_size(&data);
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -151,10 +152,7 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_bootstrap_request) {
                          "\x00\x00\x00\x00\x00\x00\x00\x00" // token
                          "\xb2\x62\x73"                     // uri path /bs
                          "\x47\x65\x70\x3d\x6e\x61\x6d\x65" // uri-query ep=name
-                         "\x06\x70\x63\x74\x3d\x36\x30"     // uri-query pct=60
-            ;
-    memcpy(&EXPECTED[4], data.token.bytes,
-           8); // copy token
+                         "\x06\x70\x63\x74\x3d\x36\x30";    // uri-query pct=60
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 30);
@@ -169,6 +167,8 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_bootstrap_pack_request) {
 
     data.operation = ANJ_OP_BOOTSTRAP_PACK_REQ;
     data.accept = _ANJ_COAP_FORMAT_SENML_ETCH_JSON;
+    data.coap_binding_data.udp.message_id = 0x05;
+    data.token.size = 8;
 
     size_t calculated_msg_size = _anj_coap_calculate_msg_header_max_size(&data);
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -208,7 +208,7 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_non_con_notify) {
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
 
     uint8_t EXPECTED[] = "\x52"         // NonConfirmable, tkl 2
-                         "\x45\x00\x06" // CONTENT 2.5 msg id 0006
+                         "\x45\x00\x00" // CONTENT 2.5 msg id not filled
                          "\x44\x44"     // token
                          "\x62\x22\x33" // observe 0x2233
                          "\x60"         // content-format 0
@@ -232,20 +232,19 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_send) {
     data.content_format = _ANJ_COAP_FORMAT_OPAQUE_STREAM;
     data.payload = (uint8_t *) "<1/1>";
     data.payload_size = 5;
+    data.token.size = 8;
 
     size_t calculated_msg_size = _anj_coap_calculate_msg_header_max_size(&data);
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
 
     uint8_t EXPECTED[] = "\x48"         // Confirmable, tkl 8
-                         "\x02\x00\x07" // POST 0x02, msg id 0007
-                         "\x00\x00\x00\x00\x00\x00\x00\x00" // token
+                         "\x02\x00\x00" // POST 0x02, msg id not filled
+                         "\x00\x00\x00\x00\x00\x00\x00\x00" // token not filled
                          "\xb2\x64\x70"                     // uri path /dp
                          "\x11\x2A" // content_format: octet-stream
                          "\xFF"
                          "\x3c\x31\x2f\x31\x3e";
-    memcpy(&EXPECTED[4], data.token.bytes,
-           8); // copy token
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 23);
@@ -264,20 +263,19 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_non_con_send) {
     data.content_format = _ANJ_COAP_FORMAT_OPAQUE_STREAM;
     data.payload = (uint8_t *) "<1/1>";
     data.payload_size = 5;
+    data.token.size = 8;
 
     size_t calculated_msg_size = _anj_coap_calculate_msg_header_max_size(&data);
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
 
     uint8_t EXPECTED[] = "\x58"         // NonConfirmable, tkl 8
-                         "\x02\x00\x08" // POST 0x02, msg id 0008
+                         "\x02\x00\x00" // POST 0x02, msg id not set
                          "\x00\x00\x00\x00\x00\x00\x00\x00" // token
                          "\xb2\x64\x70"                     // uri path /dp
                          "\x11\x2A" // content_format: octet-stream
                          "\xFF"
                          "\x3c\x31\x2f\x31\x3e";
-    memcpy(&EXPECTED[4], data.token.bytes,
-           8); // copy token
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 23);
@@ -306,14 +304,12 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_con_notify) {
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
 
     uint8_t EXPECTED[] = "\x42"         // Confirmable, tkl 2
-                         "\x45\x00\x09" // CONTENT 2.5 msg id 0009
+                         "\x45\x00\x00" // CONTENT 2.5 msg id not set
                          "\x44\x44"     // token
                          "\x62\x22\x33" // observe 0x2233
                          "\x60"         // content-format 0
                          "\xFF"
-                         "\x32\x31\x31"
-
-            ;
+                         "\x32\x31\x31";
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 14);
@@ -321,6 +317,78 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_con_notify) {
                          <= calculated_msg_size);
     ANJ_UNIT_ASSERT_TRUE(15 + (out_msg_size - data.payload_size)
                          >= calculated_msg_size);
+}
+
+ANJ_UNIT_TEST(anj_prepare_udp, prepare_downloader_get) {
+    _anj_coap_msg_t data = { 0 };
+    uint8_t buff[100];
+    size_t out_msg_size;
+
+    data.operation = ANJ_OP_COAP_DOWNLOADER_GET;
+    char *path = "/ab/cde/efgh";
+
+    data.attr.downloader_attr.path[0] = &path[1];
+    data.attr.downloader_attr.path_len[0] = 2;
+    data.attr.downloader_attr.path[1] = &path[4];
+    data.attr.downloader_attr.path_len[1] = 3;
+    data.attr.downloader_attr.path[2] = &path[8];
+    data.attr.downloader_attr.path_len[2] = 4;
+    data.attr.downloader_attr.paths_count = 3;
+    data.token.size = 2;
+    data.token.bytes[0] = 0x44;
+    data.token.bytes[1] = 0x44;
+    data.coap_binding_data.udp.message_id = 0x0A;
+
+    ANJ_UNIT_ASSERT_SUCCESS(
+            _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
+
+    uint8_t EXPECTED[] = "\x42"                 // Confirmable, tkl 2
+                         "\x01\x00\x0A"         // GET 0x01, msg id 0010
+                         "\x44\x44"             // token
+                         "\xb2\x61\x62"         // uri path /ab
+                         "\x03\x63\x64\x65"     // uri path /cde
+                         "\x04\x65\x66\x67\x68" // uri path /efgh
+            ;
+    memcpy(&EXPECTED[4], data.token.bytes, 2); // copy token
+
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
+    ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(EXPECTED) - 1);
+}
+
+ANJ_UNIT_TEST(anj_prepare_udp, prepare_downloader_get_empty_path) {
+    _anj_coap_msg_t data = { 0 };
+    uint8_t buff[100];
+    size_t out_msg_size;
+
+    data.operation = ANJ_OP_COAP_DOWNLOADER_GET;
+    char *path = "/ab//efgh";
+
+    data.attr.downloader_attr.path[0] = &path[1];
+    data.attr.downloader_attr.path_len[0] = 2;
+    data.attr.downloader_attr.path[1] = NULL; // empty path segment
+    data.attr.downloader_attr.path_len[1] = 0;
+    data.attr.downloader_attr.path[2] = &path[5];
+    data.attr.downloader_attr.path_len[2] = 4;
+    data.attr.downloader_attr.paths_count = 3;
+    data.token.size = 2;
+    data.token.bytes[0] = 0x44;
+    data.token.bytes[1] = 0x44;
+    data.coap_binding_data.udp.message_id = 0x0A;
+
+    ANJ_UNIT_ASSERT_SUCCESS(
+            _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
+
+    uint8_t EXPECTED[] = "\x42"                 // Confirmable, tkl 2
+                         "\x01\x00\x0A"         // GET 0x01, msg id 0010
+                         "\x44\x44"             // token
+                         "\xb2\x61\x62"         // uri path /ab
+                         "\x00"                 // uri path /
+                         "\x04\x65\x66\x67\x68" // uri path /efgh
+            ;
+    memcpy(&EXPECTED[4], data.token.bytes, 2); // copy token
+
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
+    ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(EXPECTED) - 1);
 }
 
 ANJ_UNIT_TEST(anj_prepare_udp, prepare_ack_notify) {
@@ -349,9 +417,7 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_ack_notify) {
                          "\x62\x22\x33" // observe 0x2233
                          "\x60"         // content-format 0
                          "\xFF"
-                         "\x32\x31\x31"
-
-            ;
+                         "\x32\x31\x31";
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 14);
@@ -378,10 +444,9 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_response) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
 
-    uint8_t EXPECTED[] = "\x63"         // ACK, tkl 3
-                         "\x41\x22\x22" // CREATED 0x41
-                         "\x11\x22\x33" // token
-            ;
+    uint8_t EXPECTED[] = "\x63"          // ACK, tkl 3
+                         "\x41\x22\x22"  // CREATED 0x41
+                         "\x11\x22\x33"; // token
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 7);
@@ -554,6 +619,9 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_reset) {
 
     data.operation = ANJ_OP_COAP_RESET;
     data.coap_binding_data.udp.message_id = 0x2222;
+    // this value should be ignored - data.operation = ANJ_OP_COAP_RESET makes
+    // _anj_coap_encode_udp() overwrite the token size to 0
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
@@ -571,12 +639,15 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_ping) {
     size_t out_msg_size;
 
     data.operation = ANJ_OP_COAP_PING_UDP;
+    // this value should be ignored - data.operation = ANJ_OP_COAP_PING_UDP
+    // makes _anj_coap_encode_udp() overwrite the token size to 0
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
 
     uint8_t EXPECTED[] =
-            "\x40\x00\x00\x0A"; // Confirmable, tkl 0, empty msg, msg id 0A00
+            "\x40\x00\x00\x00"; // Confirmable, tkl 0, empty msg, msg id not set
 
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(buff, EXPECTED, sizeof(EXPECTED) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, 4);
@@ -589,6 +660,9 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_empty_response) {
 
     data.operation = ANJ_OP_COAP_EMPTY_MSG;
     data.coap_binding_data.udp.message_id = 0x2222;
+    // this value should be ignored - data.operation = ANJ_OP_COAP_EMPTY_MSG
+    // makes _anj_coap_encode_udp() overwrite the token size to 0
+    data.token.size = 8;
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_encode_udp(&data, buff, sizeof(buff), &out_msg_size));
@@ -615,6 +689,7 @@ ANJ_UNIT_TEST(anj_prepare_udp, prepare_error_buff_size) {
     data.attr.register_attr.endpoint = "name";
     data.attr.register_attr.lifetime = 120;
     data.attr.register_attr.lwm2m_ver = "1.2";
+    data.token.size = 8;
 
     for (size_t i = _ANJ_COAP_UDP_HEADER_LENGTH + 1; i < 55; i++) {
         ANJ_UNIT_ASSERT_FAILED(

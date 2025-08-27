@@ -7,13 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-
-#include <anj/utils.h>
 
 #include "../utils.h"
 #include "coap.h"

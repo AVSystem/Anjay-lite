@@ -1,0 +1,32 @@
+enum {
+{% for res in obj.resources %}
+    /**
+     * {{ res.name }}: {{ res.operations }}, {{ res.multiple_str }}, {{ res.mandatory_str }}
+     * type: {{ res.type}}, range: {{ res.range_enumeration }}, units: {{ res.units }}
+     * {{ res.description }}
+     */
+    RID_{{ res.name_upper }} = {{ res.rid }},
+{% endfor %}
+};
+
+enum {
+{% for res in obj.resources %}
+    RID_{{ res.name_upper }}_IDX,
+{% endfor %}
+    RID_IDX_COUNT
+};
+
+static anj_dm_res_t resources_defs[] = {
+{% for res in obj.resources %}
+    [RID_{{ res.name_upper }}_IDX] = {
+        .rid = RID_{{ res.name_upper }},
+{% if not "E" in res.operations %}
+        .type = {{ res.type_enum }},
+{% endif %}
+        .operation = {{ res.kind_enum }},
+    },
+{% endfor %}
+};
+
+ANJ_STATIC_ASSERT(RID_IDX_COUNT == ANJ_ARRAY_SIZE(resources_defs),
+                  {{ obj.name_snake }}_object_resource_count_mismatch);

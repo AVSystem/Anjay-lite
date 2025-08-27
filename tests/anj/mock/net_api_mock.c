@@ -110,8 +110,8 @@ int anj_udp_connect(anj_net_ctx_t *ctx,
         g_force_connection_failure = false;
         return FORCED_ERROR;
     }
-    mock->hostname = hostname;
-    mock->port = port;
+    strcpy(mock->hostname, hostname);
+    strcpy(mock->port, port);
     if (mock->call_result[ANJ_NET_FUN_CONNECT] == ANJ_NET_OK
             && mock->net_eagain_calls == 0) {
         mock->state = ANJ_NET_SOCKET_STATE_CONNECTED;

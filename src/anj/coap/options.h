@@ -7,13 +7,15 @@
  * See the attached LICENSE file for details.
  */
 
-#ifndef SRC_ANJ_COAP_OPTIONS_H
-#define SRC_ANJ_COAP_OPTIONS_H
+#include <anj/init.h>
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
+#ifndef SRC_ANJ_COAP_OPTIONS_H
+#    define SRC_ANJ_COAP_OPTIONS_H
+
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
+#    include <string.h>
 
 /**
  * CoAP option numbers, as defined in RFC7252/RFC7641/RFC7959.
@@ -39,6 +41,7 @@
 #define _ANJ_COAP_OPTION_PROXY_URI         35
 #define _ANJ_COAP_OPTION_PROXY_SCHEME      39
 #define _ANJ_COAP_OPTION_SIZE1             60
+#define _ANJ_COAP_OPTION_SIZE2             28
 
 /**
  * CoAP Signaling option codes, as defined in RFC 8323.
@@ -56,28 +59,29 @@
  * Constant returned from some of option-retrieving functions, indicating
  * the absence of requested option.
  */
-#define _ANJ_COAP_OPTION_MISSING 1
+#    define _ANJ_COAP_OPTION_MISSING 1
 
-#define _ANJ_COAP_OPTIONS_INIT_EMPTY(Name, OptionsSize) \
-    anj_coap_option_t _Opt##Name[OptionsSize];          \
-    anj_coap_options_t Name = {                         \
-        .options_size = OptionsSize,                    \
-        .options_number = 0,                            \
-        .options = _Opt##Name,                          \
-        .buff_size = 0,                                 \
-        .buff_begin = NULL                              \
-    }
+#    define _ANJ_COAP_OPTIONS_INIT_EMPTY(Name, OptionsSize) \
+        anj_coap_option_t _Opt##Name[OptionsSize];          \
+        anj_coap_options_t Name = {                         \
+            .options_size = OptionsSize,                    \
+            .options_number = 0,                            \
+            .options = _Opt##Name,                          \
+            .buff_size = 0,                                 \
+            .buff_begin = NULL                              \
+        }
 
-#define _ANJ_COAP_OPTIONS_INIT_EMPTY_WITH_BUFF(Name, OptionsSize, MsgBuffSize) \
-    anj_coap_option_t _Opt##Name[OptionsSize];                                 \
-    uint8_t _OptionMsgBuffer##Name[MsgBuffSize] = { 0 };                       \
-    anj_coap_options_t Name = {                                                \
-        .options_size = OptionsSize,                                           \
-        .options_number = 0,                                                   \
-        .options = _Opt##Name,                                                 \
-        .buff_size = MsgBuffSize,                                              \
-        .buff_begin = (void *) _OptionMsgBuffer##Name                          \
-    }
+#    define _ANJ_COAP_OPTIONS_INIT_EMPTY_WITH_BUFF(          \
+            Name, OptionsSize, MsgBuffSize)                  \
+        anj_coap_option_t _Opt##Name[OptionsSize];           \
+        uint8_t _OptionMsgBuffer##Name[MsgBuffSize] = { 0 }; \
+        anj_coap_options_t Name = {                          \
+            .options_size = OptionsSize,                     \
+            .options_number = 0,                             \
+            .options = _Opt##Name,                           \
+            .buff_size = MsgBuffSize,                        \
+            .buff_begin = (void *) _OptionMsgBuffer##Name    \
+        }
 
 typedef struct anj_coap_option {
     const uint8_t *payload;

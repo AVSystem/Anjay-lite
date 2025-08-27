@@ -34,12 +34,12 @@
 #define DEFAULT_HOST_IPV6 "::1"
 #define DEFAULT_PORT "9998"
 
-#define ANJ_NET_FAILED (-3)
-#define ANJ_NET_EINVAL (-4)
-#define ANJ_NET_EIO (-5)
-#define ANJ_NET_ENOTCONN (-6)
-#define ANJ_NET_EBADFD (-7)
-#define ANJ_NET_ENOMEM (-8)
+#define ANJ_NET_FAILED (-1)
+#define ANJ_NET_EINVAL (-2)
+#define ANJ_NET_EIO (-3)
+#define ANJ_NET_ENOTCONN (-4)
+#define ANJ_NET_EBADFD (-5)
+#define ANJ_NET_ENOMEM (-6)
 
 static int setup_local_server(int type, int af, const char *port_str) {
     int server_sock;

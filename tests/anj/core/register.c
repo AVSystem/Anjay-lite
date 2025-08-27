@@ -107,6 +107,7 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
     verify_payload(expected_register, sizeof(expected_register) - 1, &msg);
     // register message response with 2 location paths
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     msg.location_path.location_count = 2;
@@ -136,6 +137,7 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
     verify_payload(expected_update, sizeof(expected_update) - 1, &msg);
     // empty response
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
@@ -159,6 +161,7 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
     verify_payload(expected_deregister, sizeof(expected_deregister) - 1, &msg);
     // empty response
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_DELETED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
@@ -221,6 +224,7 @@ ANJ_UNIT_TEST(register, location_path_too_long) {
 
     // register message response with 2 location paths
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     msg.location_path.location_count = 1;
@@ -270,6 +274,7 @@ ANJ_UNIT_TEST(register, register_with_block_transfer) {
 
     // first block response
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CONTINUE;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
@@ -293,6 +298,7 @@ ANJ_UNIT_TEST(register, register_with_block_transfer) {
             ANJ_EXCHANGE_STATE_WAITING_MSG);
     // second block response
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     ASSERT_EQ(_anj_register_operation_status(&anj),
@@ -360,6 +366,7 @@ ANJ_UNIT_TEST(register, update_with_data_model_payload) {
     verify_payload(expected_update, sizeof(expected_update) - 1, &msg);
     // empty response
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
@@ -395,6 +402,7 @@ ANJ_UNIT_TEST(register, update_with_lifetime) {
     verify_payload(expected_update, sizeof(expected_update) - 1, &msg);
     // empty response
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,

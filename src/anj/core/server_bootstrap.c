@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/anj_config.h>
+#include <anj/init.h>
 
 #include <assert.h>
 #include <stdint.h>
@@ -24,7 +24,7 @@
 #include "../coap/coap.h"
 #include "../dm/dm_integration.h"
 #include "../exchange.h"
-#include "../utils.h"
+#include "../exchange_cache.h"
 #include "bootstrap.h"
 #include "core.h"
 #include "core_utils.h"
@@ -108,6 +108,15 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
 
     _anj_exchange_handlers_t exchange_handlers = { 0 };
     uint8_t response_code = 0;
+
+#    ifdef ANJ_WITH_CACHE
+    // check if it's a retransmission
+    if (_anj_exchange_cache_check(&anj->exchange_cache,
+                                  msg.coap_binding_data.udp.message_id)
+            != _ANJ_EXCHANGE_CACHE_MISS) {
+        return 0;
+    }
+#    endif // ANJ_WITH_CACHE
 
     // find the right module to handle the message
     switch (msg.operation) {

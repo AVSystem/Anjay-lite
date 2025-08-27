@@ -1,0 +1,143 @@
+{% import 'macros.jinja2' as m with context %}
+{% set multiple_insts = false %}
+
+{%- include 'header.c.jinja2' +%}
+
+{% include 'resources_defs.c.jinja2' +%}
+
+{% if obj.has_any_multiple_resources %}
+{% for res in obj.resources if res.multiple %}
+{%if dynamic_resources_instances %}
+// TODO: Change maximum number of resource instances if needed
+{% endif %}
+#define {{ res.name_upper }}_RES_INST_COUNT {{ resource_instances[res.rid] }}
+
+typedef struct {
+    // TODO: Add resource-instance-specific state here
+} {{ res.name_snake }}_res_inst_t;
+
+static anj_riid_t {{ res.name_snake }}_res_insts_ids[{{ res.name_upper }}_RES_INST_COUNT];
+{%if dynamic_resources_instances %}
+static anj_riid_t {{ res.name_snake }}_res_insts_ids_cached[{{ res.name_upper }}_RES_INST_COUNT];
+{% endif %}
+
+static {{ res.name_snake }}_res_inst_t {{ res.name_snake }}_res_insts[{{ res.name_upper }}_RES_INST_COUNT];
+{% if dynamic_resources_instances %}
+static {{ res.name_snake }}_res_inst_t {{ res.name_snake }}_res_insts_cached[{{ res.name_upper }}_RES_INST_COUNT];
+{% endif %}
+
+static {{ res.name_snake }}_res_inst_t *get_res_inst_{{ res.name_snake }}(anj_riid_t riid) {
+    for (uint16_t i = 0; i < {{ res.name_upper }}_RES_INST_COUNT; i++) {
+        if ({{ res.name_snake }}_res_insts_ids[i] == riid) {
+            return &{{ res.name_snake }}_res_insts[i];
+        }
+    }
+    return NULL;
+}
+
+{% endfor %}
+{% endif %}
+typedef struct {
+    anj_dm_obj_t object;
+    // TODO: Add object-specific state here
+} {{ obj.name_snake }}_obj_ctx_t;
+
+static {{ obj.name_snake }}_obj_ctx_t *get_ctx(const anj_dm_obj_t *obj);
+
+{% include 'res_handlers.c.jinja2' %}
+
+{% if obj.needs_instance_reset_handler %}
+{% include 'inst_reset_handler.c.jinja2' +%}
+
+{% endif -%}
+
+{% if m.needs_transactional %}
+{% include 'transactional_handlers.c.jinja2' +%}
+
+{% endif -%}
+
+{% if obj.has_any_multiple_resources and dynamic_resources_instances %}
+{% include 'dynamic_res_handlers.c.jinja2' +%}
+
+{% endif -%}
+static const anj_dm_handlers_t OBJECT_HANDLERS = {
+{% if obj.has_any_readable_resources %}
+    .res_read = res_read,
+{% endif %}
+{% if obj.has_any_writable_resources %}
+    .res_write = res_write,
+{% endif %}
+{% if obj.has_any_executable_resources %}
+    .res_execute = res_execute,
+{% endif %}
+{% if obj.needs_instance_reset_handler %}
+    .inst_reset = inst_reset,
+{% endif %}
+{% if obj.has_any_multiple_resources and dynamic_resources_instances %}
+    .res_inst_create = res_inst_create,
+    .res_inst_delete = res_inst_delete,
+{% endif %}
+{% if m.needs_transactional %}
+    .transaction_begin = transaction_begin,
+    .transaction_validate = transaction_validate,
+    .transaction_end = transaction_end,
+{% endif %}
+};
+
+// Single instance object
+static const anj_dm_obj_inst_t INSTANCE = {
+    .iid = 0,
+    .res_count = RID_IDX_COUNT,
+    .resources = resources_defs,
+};
+
+static {{ obj.name_snake }}_obj_ctx_t object_ctx = {
+    .object = {
+        .oid = {{ m.obj_res_oid_def }},
+{% if obj.version %}
+        .version = "{{ obj.version }}",
+{% endif %}
+        .handlers = &OBJECT_HANDLERS,
+        .insts = &INSTANCE,
+        .max_inst_count = 1, // single instance object
+    }
+    // TODO: Initialize object-specific state here
+};
+
+static inline {{ obj.name_snake }}_obj_ctx_t *get_ctx(const anj_dm_obj_t *obj) {
+    (void) obj; // Can be used to retrieve context from
+                // object pointer using ANJ_CONTAINER_OF if needed
+    return &object_ctx;
+}
+
+const anj_dm_obj_t *{{ obj.name_snake }}_object_create(void) {
+    {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(NULL);
+    
+{% for res in obj.resources if res.multiple %}
+    // {{ res.name_snake }} resource initialization
+    resources_defs[RID_{{ res.name_upper }}_IDX].max_inst_count = {{ res.name_upper }}_RES_INST_COUNT;
+    resources_defs[RID_{{ res.name_upper }}_IDX].insts = {{ res.name_snake }}_res_insts_ids;
+
+{% if obj.has_any_multiple_resources and dynamic_resources_instances %}
+    memset({{ res.name_snake }}_res_insts_ids,
+           ANJ_ID_INVALID,
+           sizeof({{ res.name_snake }}_res_insts_ids));
+
+    // Initialize resource instances
+    // TODO: You might initialize first instance here
+    // {{ res.name_snake }}_res_insts_ids[0] = ...;
+    // {{ res.name_snake }}_res_insts[0]. ... = ...;
+
+{% else %}
+    for (uint16_t i = 0; i < {{ res.name_upper }}_RES_INST_COUNT; i++) {
+        {{ res.name_snake }}_res_insts_ids[i] = i; // Initialize resource instance id
+
+        // TODO: Initialize resource instances
+        // {{ res.name_snake }}_res_insts[i]. ... = ...
+    }
+{% endif %}
+{% endfor %}
+    // TODO: Dynamic object initialization logic here
+
+    return &ctx->object;
+}

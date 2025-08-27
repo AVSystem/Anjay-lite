@@ -127,9 +127,7 @@ static double next_temperature_with_limit(double current_temp,
     return new_temp;
 }
 
-void update_sensor_value(anj_t *anj, const anj_dm_obj_t *obj) {
-    (void) obj;
-
+void update_temperature_obj_value(anj_t *anj) {
     temp_obj_ctx_t *ctx = get_ctx();
 
     double prev_temp_value = ctx->sensor_value;

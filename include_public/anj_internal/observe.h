@@ -11,7 +11,7 @@
 #define ANJ_INTERNAL_OBSERVE_H
 
 #define ANJ_INTERNAL_INCLUDE_COAP
-#include <anj_internal/coap.h>
+#include <anj_internal/coap.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_COAP
 
 #ifndef ANJ_INTERNAL_INCLUDE_OBSERVE
@@ -62,6 +62,7 @@ struct _anj_observe_observation_struct {
     bool observe_active;
 
     uint64_t last_notify_timestamp;
+    uint64_t next_conf_notify_timestamp;
 
     /* This field is used for the purpose of the "Change Value Conditions"
      * attributes handling. This value is written from data model when:

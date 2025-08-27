@@ -30,6 +30,17 @@
 
 #include <anj_unit_test.h>
 
+#define MAX_OBJECT_COUNT 6
+
+enum transaction_end_result {
+    TRANSACTION_END_RESULT_OBJ_0,
+    TRANSACTION_END_RESULT_OBJ_1,
+    TRANSACTION_END_RESULT_OBJ_2,
+    TRANSACTION_END_RESULT_OBJ_3,
+    TRANSACTION_END_RESULT_OBJ_4,
+    TRANSACTION_END_RESULT_OBJ_21
+};
+
 static anj_dm_res_t obj_2_new_inst_res[2] = {
     {
         .rid = 1,
@@ -91,24 +102,7 @@ static int res_read(anj_t *anj,
     }
     return 0;
 }
-static int write_value;
-static int res_write(anj_t *anj,
-                     const anj_dm_obj_t *obj,
-                     anj_iid_t iid,
-                     anj_rid_t rid,
-                     anj_riid_t riid,
-                     const anj_res_value_t *value) {
-    (void) anj;
-    (void) obj;
-    (void) iid;
-    if (rid == 1 || riid == 3 || riid == 1) {
-        write_value = value->int_value;
-    } else if (rid == 4) {
-        return anj_dm_write_string_chunked(value, res_4_buff,
-                                           sizeof(res_4_buff), NULL);
-    }
-    return 0;
-}
+
 static int res_execute_counter;
 static size_t res_execute_arg_len;
 static const char *res_execute_arg;
@@ -128,15 +122,6 @@ static int res_execute(anj_t *anj,
     return 0;
 }
 
-static bool validation_error = false;
-static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
-    (void) obj;
-    if (validation_error) {
-        return ANJ_DM_ERR_BAD_REQUEST;
-    }
-    return 0;
-}
-
 static int res_inst_delete(anj_t *anj,
                            const anj_dm_obj_t *obj,
                            anj_iid_t iid,
@@ -147,7 +132,14 @@ static int res_inst_delete(anj_t *anj,
     (void) iid;
     (void) rid;
     (void) riid;
-    anj_riid_t *insts = (anj_riid_t *) obj->insts[1].resources[rid].insts;
+
+    anj_riid_t *insts;
+    if (obj->oid == 222) {
+        insts = (anj_riid_t *) obj->insts[0].resources[0].insts;
+    } else {
+        insts = (anj_riid_t *) obj->insts[1].resources[rid].insts;
+    }
+
     if (insts[0] == riid) {
         insts[0] = insts[1];
         insts[1] = ANJ_ID_INVALID;
@@ -165,7 +157,12 @@ static int res_inst_create(anj_t *anj,
     (void) anj;
     (void) iid;
 
-    anj_dm_res_t *res = (anj_dm_res_t *) &obj->insts[1].resources[rid];
+    anj_dm_res_t *res;
+    if (obj->oid == 222) {
+        res = (anj_dm_res_t *) &obj->insts[0].resources[0];
+    } else {
+        res = (anj_dm_res_t *) &obj->insts[1].resources[rid];
+    }
     anj_riid_t *inst = (anj_riid_t *) res->insts;
     uint16_t insert_pos = 0;
     for (uint16_t i = 0; i < res->max_inst_count; ++i) {
@@ -181,6 +178,17 @@ static int res_inst_create(anj_t *anj,
     return 0;
 }
 
+static int res_write(anj_t *anj,
+                     const anj_dm_obj_t *obj,
+                     anj_iid_t iid,
+                     anj_rid_t rid,
+                     anj_riid_t riid,
+                     const anj_res_value_t *value);
+
+static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj);
+static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj);
+static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result);
+
 static const anj_dm_handlers_t handlers = {
     .inst_create = inst_create,
     .inst_delete = inst_delete,
@@ -189,7 +197,9 @@ static const anj_dm_handlers_t handlers = {
     .res_inst_create = res_inst_create,
     .res_write = res_write,
     .res_read = res_read,
-    .transaction_validate = transaction_validate
+    .transaction_begin = transaction_begin,
+    .transaction_validate = transaction_validate,
+    .transaction_end = transaction_end
 };
 
 static anj_riid_t res_insts[] = { 1, 2 };
@@ -255,6 +265,25 @@ static anj_dm_obj_inst_t obj_1_insts[2] = {
     }
 };
 
+static anj_dm_obj_t obj_0 = {
+    .oid = 0,
+    .insts = &(anj_dm_obj_inst_t) {
+        .iid = 0,
+        .res_count = 1,
+        .resources =
+                (anj_dm_res_t[])
+                        {
+                            {
+                                .rid = 0,
+                                .operation = ANJ_DM_RES_R,
+                                .type = ANJ_DATA_TYPE_INT
+                            }
+                        }
+    },
+    .max_inst_count = 1,
+    .handlers = &handlers
+};
+
 static anj_dm_obj_t obj_1 = {
     .oid = 111,
     .version = "1.1",
@@ -294,6 +323,44 @@ static anj_dm_obj_t obj_2 = {
     .oid = 222,
     .insts = obj_2_insts,
     .max_inst_count = 2,
+    .handlers = &handlers
+};
+
+static anj_dm_obj_t obj_4 = {
+    .oid = 444,
+    .insts = &(anj_dm_obj_inst_t) {
+        .iid = 0,
+        .res_count = 1,
+        .resources =
+                (anj_dm_res_t[])
+                        {
+                            {
+                                .rid = 0,
+                                .operation = ANJ_DM_RES_R,
+                                .type = ANJ_DATA_TYPE_INT
+                            }
+                        }
+    },
+    .max_inst_count = 1,
+    .handlers = &handlers
+};
+
+static anj_dm_obj_t obj_21 = {
+    .oid = 21,
+    .insts = &(anj_dm_obj_inst_t) {
+        .iid = 0,
+        .res_count = 1,
+        .resources =
+                (anj_dm_res_t[])
+                        {
+                            {
+                                .rid = 0,
+                                .operation = ANJ_DM_RES_R,
+                                .type = ANJ_DATA_TYPE_INT
+                            }
+                        }
+    },
+    .max_inst_count = 1,
     .handlers = &handlers
 };
 
@@ -393,6 +460,78 @@ static anj_dm_obj_t obj_3 = {
 
 #endif // ANJ_WITH_EXTERNAL_DATA
 
+static int write_value;
+static int write_value2;
+static int write_value3;
+static int res_write(anj_t *anj,
+                     const anj_dm_obj_t *obj,
+                     anj_iid_t iid,
+                     anj_rid_t rid,
+                     anj_riid_t riid,
+                     const anj_res_value_t *value) {
+    (void) anj;
+    (void) obj;
+    (void) iid;
+
+    ASSERT_TRUE(obj != &obj_0 && obj != &obj_21);
+
+    if (rid == 4) {
+        return anj_dm_write_string_chunked(value, res_4_buff,
+                                           sizeof(res_4_buff), NULL);
+    } else if (iid == 2 && rid == 2 && (riid == 2 || riid == 5)) {
+        write_value2 = value->int_value;
+    } else if (iid == 1 && rid == 2 && (riid == 1 || riid == 2)) {
+        write_value3 = value->int_value;
+    } else {
+        write_value = value->int_value;
+    }
+
+    return 0;
+}
+
+static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
+    (void) anj;
+
+    ASSERT_TRUE(obj != &obj_0 && obj != &obj_21);
+
+    return 0;
+}
+
+static bool validation_error = false;
+static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
+    ASSERT_TRUE(obj != &obj_0 && obj != &obj_21);
+
+    if (validation_error) {
+        return ANJ_DM_ERR_BAD_REQUEST;
+    }
+    return 0;
+}
+
+static int transaction_end_results[MAX_OBJECT_COUNT];
+static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+    (void) anj;
+
+    ASSERT_TRUE(obj != &obj_0 && obj != &obj_21);
+
+    if (obj == &obj_0) {
+        transaction_end_results[TRANSACTION_END_RESULT_OBJ_0] = result;
+    } else if (obj == &obj_1) {
+        transaction_end_results[TRANSACTION_END_RESULT_OBJ_1] = result;
+    } else if (obj == &obj_2) {
+        transaction_end_results[TRANSACTION_END_RESULT_OBJ_2] = result;
+#ifdef ANJ_WITH_EXTERNAL_DATA
+    } else if (obj == &obj_3) {
+        transaction_end_results[TRANSACTION_END_RESULT_OBJ_3] = result;
+#endif // ANJ_WITH_EXTERNAL_DATA
+    } else if (obj == &obj_4) {
+        transaction_end_results[TRANSACTION_END_RESULT_OBJ_4] = result;
+    } else if (obj == &obj_21) {
+        transaction_end_results[TRANSACTION_END_RESULT_OBJ_21] = result;
+    }
+}
+
+#define DEFAULT_TRANSACTION_END_RESULT 0xFFFFFFFF
+
 #define SET_UP()                                           \
     uint8_t payload[512];                                  \
     size_t payload_len = sizeof(payload);                  \
@@ -403,12 +542,18 @@ static anj_dm_obj_t obj_3 = {
     msg.coap_binding_data.udp.message_id = 0x1111;         \
     anj_t anj = { 0 };                                     \
     _anj_dm_initialize(&anj);                              \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_0)); \
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_1)); \
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_2)); \
+                                                           \
     _anj_exchange_ctx_t exchange_ctx;                      \
     _anj_exchange_init(&exchange_ctx, 0);                  \
     uint8_t response_code;                                 \
-    _anj_exchange_handlers_t handlers;
+    _anj_exchange_handlers_t handlers;                     \
+    write_value = 0;                                       \
+    write_value2 = 0;                                      \
+    write_value3 = 0;                                      \
+    memset(&transaction_end_results, 0xFF, sizeof(transaction_end_results))
 
 #define PROCESS_REQUEST(Bootstrap)                                             \
     _anj_dm_process_request(&anj, &msg, Bootstrap ? _ANJ_SSID_BOOTSTRAP : 1,   \
@@ -498,6 +643,7 @@ ANJ_UNIT_TEST(dm_integration, register_operation) {
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(expected) - 1);
 
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
@@ -548,6 +694,7 @@ ANJ_UNIT_TEST(dm_integration, update_operation_with_payload) {
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(expected) - 1);
 
     msg.operation = ANJ_OP_RESPONSE;
+    msg.coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
@@ -1341,6 +1488,66 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root) {
     verify_payload(expected, sizeof(expected) - 1, &msg);
 }
 
+ANJ_UNIT_TEST(dm_integration, read_composite_skip_security_and_oscore) {
+    SET_UP();
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_21));
+
+    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\x87"        /* array(7) */
+        "\xA1"        /* map(1) */
+        "\x00"        /* unsigned(0) => SenML Name */
+        "\x64/0/0"    /* text(4) */
+        "\xA1"        /* map(1) */
+        "\x00"        /* unsigned(0) => SenML Name */
+        "\x66/0/0/0"  /* text(6) */
+        "\xA1"        /* map(1) */
+        "\x00"        /* unsigned(0) => SenML Name */
+        "\x62/0"      /* text(2) */
+        "\xA1"        /* map(1) */
+        "\x00"        /* unsigned(0) => SenML Name */
+        "\x61/"       /* text(1) */
+        "\xA1"        /* map(1) */
+        "\x00"        /* unsigned(0) => SenML Name */
+        "\x63/21"     /* text(3) */
+        "\xA1"        /* map(1) */
+        "\x00"        /* unsigned(0) => SenML Name */
+        "\x65/21/0"   /* text(5) */
+        "\xA1"        /* map(1) */
+        "\x00"        /* unsigned(0) => SenML Name */
+        "\x67/21/0/0" /* text(7) */
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"             // ACK, tkl 1
+                      "\x45\x11\x11\x01" // content, msg_id token
+                      "\xC1\x70"         // content_format: senml_cbor
+                      "\xFF"
+                      "\x86\xA2"
+                      "\x00\x68/111/1/0"
+                      "\x02\x01"
+                      "\xA2"
+                      "\x00\x68/111/2/0"
+                      "\x02\x03"
+                      "\xA2"
+                      "\x00\x6A/111/2/2/1"
+                      "\x02\x06"
+                      "\xA2"
+                      "\x00\x6A/111/2/2/2"
+                      "\x02\x07"
+                      "\xA2"
+                      "\x00\x68/111/2/4"
+                      "\x03\x60"
+                      "\xA2"
+                      "\x00\x6A/222/1/2/1"
+                      "\x02\x00";
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+}
+
 ANJ_UNIT_TEST(dm_integration, read_composite_root_block2) {
     SET_UP();
     msg.operation = ANJ_OP_DM_READ_COMP;
@@ -1411,6 +1618,8 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_block2) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_root_with_other_paths) {
     SET_UP();
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_4));
+
     msg.operation = ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
@@ -1425,7 +1634,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_with_other_paths) {
         "\x61/"          /* text(1) */
         "\xA1"           /* map(1) */
         "\x00"           /* unsigned(0) => SenML Name */
-        "\x6A/222/1/2/1" /* text(1) */
+        "\x64/444"       /* text(1) */
     };
     msg.payload = (uint8_t *) input_payload;
     msg.payload_size = sizeof(input_payload) - 1;
@@ -1434,7 +1643,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_with_other_paths) {
                       "\x45\x11\x11\x01" // content, msg_id token
                       "\xC1\x70"         // content_format: senml_cbor
                       "\xFF"
-                      "\x88\xA2"
+                      "\x89\xA2"
                       "\x00\x6A/111/2/2/1"
                       "\x02\x06"
                       "\xA2"
@@ -1456,8 +1665,84 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_with_other_paths) {
                       "\x00\x6A/222/1/2/1"
                       "\x02\x00"
                       "\xA2"
-                      "\x00\x6A/222/1/2/1"
-                      "\x02\x00";
+                      "\x00\x68/444/0/0"
+                      "\x02\x03"
+                      "\xA2"
+                      "\x00\x68/444/0/0"
+                      "\x02\x03";
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+}
+
+ANJ_UNIT_TEST(dm_integration, read_composite_duplicate_path) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+
+    char input_payload[] = {
+        "\x82"         /* array(2) */
+        "\xA1"         /* map(1) */
+        "\x00"         /* unsigned(0) => SenML Name */
+        "\x68/111/1/0" /* text(8) */
+        "\xA1"         /* map(1) */
+        "\x00"         /* unsigned(0) => SenML Name */
+        "\x68/111/1/0" /* text(8) */
+    };
+
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"             // ACK, tkl 1
+                      "\x45\x11\x11\x01" // content, msg_id token
+                      "\xC1\x70"         // content_format: senmlcbor
+                      "\xFF"
+                      "\x82"
+                      "\xA2"
+                      "\x00\x68/111/1/0"
+                      "\x02\x01"
+                      "\xA2"
+                      "\x00\x68/111/1/0"
+                      "\x02\x01";
+
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+}
+
+ANJ_UNIT_TEST(dm_integration, read_composite_duplicate_path_lwm2m) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.accept = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+
+    char input_payload[] = {
+        "\x82"         /* array(2) */
+        "\xA1"         /* map(1) */
+        "\x00"         /* unsigned(0) => SenML Name */
+        "\x68/111/1/0" /* text(8) */
+        "\xA1"         /* map(1) */
+        "\x00"         /* unsigned(0) => SenML Name */
+        "\x68/111/1/0" /* text(8) */
+    };
+
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"             // ACK, tkl 1
+                      "\x45\x11\x11\x01" // content, msg_id token
+                      "\xC2\x2D\x18"     // content_format: lwm2m_cbor
+                      "\xFF"
+                      "\xBF"
+                      "\x18\x6F"
+                      "\xBF"
+                      "\x01"
+                      "\xBF"
+                      "\x00"
+                      "\x01"
+                      "\x00"
+                      "\x01"
+                      "\xFF\xFF\xFF";
+
     verify_payload(expected, sizeof(expected) - 1, &msg);
 }
 
@@ -1484,6 +1769,67 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_empty) {
                       "\xFF\x80";
     obj_1.max_inst_count = 2;
     obj_2.max_inst_count = 2;
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+}
+
+ANJ_UNIT_TEST(dm_integration, read_composite_double_root) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\x82"  /* array(2) */
+        "\xA1"  /* map(1) */
+        "\x00"  /* unsigned(0) => SenML Name */
+        "\x61/" /* text(1) */
+        "\xA1"  /* map(1) */
+        "\x00"  /* unsigned(0) => SenML Name */
+        "\x61/" /* text(1) */
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"             // ACK, tkl 1
+                      "\x45\x11\x11\x01" // content, msg_id token
+                      "\xC1\x70"         // content_format: senml_cbor
+                      "\xFF"
+                      "\x8C\xA2"
+                      "\x00\x68/111/1/0"
+                      "\x02\x01"
+                      "\xA2"
+                      "\x00\x68/111/2/0"
+                      "\x02\x03"
+                      "\xA2"
+                      "\x00\x6A/111/2/2/1"
+                      "\x02\x06"
+                      "\xA2"
+                      "\x00\x6A/111/2/2/2"
+                      "\x02\x07"
+                      "\xA2"
+                      "\x00\x68/111/2/4"
+                      "\x03\x60"
+                      "\xA2"
+                      "\x00\x6A/222/1/2/1"
+                      "\x02\x00"
+                      "\xA2"
+                      "\x00\x68/111/1/0"
+                      "\x02\x01"
+                      "\xA2"
+                      "\x00\x68/111/2/0"
+                      "\x02\x03"
+                      "\xA2"
+                      "\x00\x6A/111/2/2/1"
+                      "\x02\x06"
+                      "\xA2"
+                      "\x00\x6A/111/2/2/2"
+                      "\x02\x07"
+                      "\xA2"
+                      "\x00\x68/111/2/4"
+                      "\x03\x60"
+                      "\xA2"
+                      "\x00\x6A/222/1/2/1"
+                      "\x02\x00";
     verify_payload(expected, sizeof(expected) - 1, &msg);
 }
 
@@ -1584,6 +1930,707 @@ ANJ_UNIT_TEST(dm_integration, read_composite_one_path_exists) {
     verify_payload(expected, sizeof(expected) - 1, &msg);
 }
 
+ANJ_UNIT_TEST(dm_integration, read_composite_unauthorized) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\x82"         /* array(2) */
+        "\xA1"         /* map(1) */
+        "\x00"         /* unsigned(0) => SenML Name */
+        "\x66/0/0/0"   /* text(6) */
+        "\xA1"         /* map(1) */
+        "\x00"         /* unsigned(0) => SenML Name */
+        "\x68/111/1/0" /* text(8) */
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"             // ACK, tkl 1
+                      "\x45\x11\x11\x01" // content, msg_id token
+                      "\xC1\x70"         // content_format: senml_cbor
+                      "\xFF"
+                      "\x81"
+                      "\xA2"
+                      "\x00\x68/111/1/0"
+                      "\x02\x01";
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+}
+
+ANJ_UNIT_TEST(dm_integration, write_composite) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [222, 1, 2, 1]: 456}
+    char input_payload[] = {
+        "\xA3"         // map(3)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+        "\x84"         // array(4)
+        "\x18\xDE"     // unsigned(222)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x01"         // unsigned(1)
+        "\x19\x01\xC8" // unsigned(456)
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x44\x11\x11\x01"; // changed, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    ASSERT_EQ(write_value, 123);
+    ASSERT_EQ(write_value2, 321);
+    ASSERT_EQ(write_value3, 456);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+}
+
+ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [222, 1, 2, 1]: 456, [0, 0, 0]:
+    // "coap://localhost:9000"}
+    char input_payload[] = {
+        "\xA4"         // map(4)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+        "\x84"         // array(4)
+        "\x18\xDE"     // unsigned(222)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x01"         // unsigned(1)
+        "\x19\x01\xC8" // unsigned(456)
+        "\x83"         // array(3)
+        "\x15"         // unsigned(0)
+        "\x00"         // unsigned(0)
+        "\x00"         // unsigned(0)
+        "\x75"         // text(21)
+        "\x63\x6F\x61\x70\x3A\x2F\x2F\x6C\x6F\x63\x61\x6C\x68\x6F\x73\x74\x3A"
+        "\x39\x30\x30\x30" // "coap://localhost:9000"
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x81\x11\x11\x01"; // unauthorized, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    // it is user resposibility to restore previous values if transaction_end
+    // indicates that an error has occurred
+    ASSERT_EQ(write_value, 123);
+    ASSERT_EQ(write_value2, 321);
+    ASSERT_EQ(write_value3, 456);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_ERR_UNAUTHORIZED);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_ERR_UNAUTHORIZED);
+    // transaction_end will not be called for object 0 because there will be
+    // error before calling transaction_begin
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_0],
+              DEFAULT_TRANSACTION_END_RESULT);
+}
+
+ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized_in_the_middle) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [0, 0, 0]:
+    // "coap://localhost:9000", [222, 1, 2, 1]: 456}
+    char input_payload[] = {
+        "\xA4"         // map(4)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+        "\x83"         // array(3)
+        "\x00"         // unsigned(0)
+        "\x00"         // unsigned(0)
+        "\x00"         // unsigned(0)
+        "\x75"         // text(21)
+        "\x63\x6F\x61\x70\x3A\x2F\x2F\x6C\x6F\x63\x61\x6C\x68\x6F\x73\x74\x3A"
+        "\x39\x30\x30\x30" // "coap://localhost:9000"
+        "\x84"             // array(4)
+        "\x18\xDE"         // unsigned(222)
+        "\x01"             // unsigned(1)
+        "\x02"             // unsigned(2)
+        "\x01"             // unsigned(1)
+        "\x19\x01\xC8"     // unsigned(456)
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x81\x11\x11\x01"; // unauthorized, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    // it is user resposibility to restore previous values if transaction_end
+    // indicates that an error has occurred
+    ASSERT_EQ(write_value, 123);
+    ASSERT_EQ(write_value2, 321);
+    ASSERT_EQ(write_value3, 0);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_ERR_UNAUTHORIZED);
+    // transaction_end will not be called for objects 0 and 2 because there will
+    // be error before calling transaction_begin
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              DEFAULT_TRANSACTION_END_RESULT);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_0],
+              DEFAULT_TRANSACTION_END_RESULT);
+}
+
+ANJ_UNIT_TEST(dm_integration, write_composite_nonexistent_path) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [888, 1, 2]: 666, [222, 1, 2, 1]:
+    // 456}
+    char input_payload[] = {
+        "\xA4"         // map(4)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+        "\x83"         // array(3)
+        "\x19\x03\x78" // unsigned(888)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x19\x02\x9A" // unsigned(666)
+        "\x84"         // array(4)
+        "\x18\xDE"     // unsigned(222)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x01"         // unsigned(1)
+        "\x19\x01\xC8" // unsigned(456)
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x84\x11\x11\x01"; // not found, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    // it is user resposibility to restore previous values if transaction_end
+    // indicates that an error has occurred
+    ASSERT_EQ(write_value, 123);
+    ASSERT_EQ(write_value2, 321);
+    // an error will occur before entering the value for /222/1/2/1
+    ASSERT_EQ(write_value3, 0);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_ERR_NOT_FOUND);
+    // transaction_end will not be called for object 2 because there will be
+    // error before calling transaction_begin
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              DEFAULT_TRANSACTION_END_RESULT);
+}
+
+ANJ_UNIT_TEST(dm_integration,
+              write_composite_nonexistent_resource_instance_create) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [222, 1, 2, 2]: 456, [111, 2, 2, 2]: 321}
+    char input_payload[] = {
+        "\xA3"         // map(3)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\xDE"     // unsigned(222)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\xC8" // unsigned(456)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x44\x11\x11\x01"; // changed, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    ASSERT_EQ(write_value, 123);
+    ASSERT_EQ(write_value2, 321);
+    ASSERT_EQ(write_value3, 456);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+
+    // /222/1/2/2
+    ASSERT_EQ(obj_2_insts[0].resources[0].insts[1], 2);
+
+    // restore initial state
+    obj_2_res_insts[1] = ANJ_ID_INVALID;
+}
+
+ANJ_UNIT_TEST(dm_integration,
+              write_composite_nonexistent_resource_instance_not_enough_space) {
+    obj_2_res.max_inst_count = 1;
+
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [222, 1, 2, 2]: 456, [111, 2, 2, 2]: 321}
+    char input_payload[] = {
+        "\xA3"         // map(3)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\xDE"     // unsigned(222)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\xC8" // unsigned(456)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\xA0\x11\x11\x01"; // internal error, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    // it is user resposibility to restore previous values if transaction_end
+    // indicates that an error has occurred
+    ASSERT_EQ(write_value, 123);
+    // an error will occur before entering the value for /222/1/2/2 and
+    // /111/2/2/2
+    ASSERT_EQ(write_value2, 0);
+    ASSERT_EQ(write_value3, 0);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              _ANJ_DM_ERR_MEMORY);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              _ANJ_DM_ERR_MEMORY);
+
+    obj_2_res.max_inst_count = 2;
+}
+
+ANJ_UNIT_TEST(dm_integration,
+              write_composite_delete_resource_instances_senml_etch_cbor) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\x83"           /* array(3) */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/222/1/2/1" /* text(6) existing resource instance*/
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/222/1/2/7" /* text(6) nonexistent resource instance */
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        /* A missing value should also cause resource instance deletion */
+        "\xA1"           /* map(1) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/111/2/2/2" /* text(6) existing resource instance */
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x44\x11\x11\x01"; // changed, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+
+    // /222/1/2/1
+    ASSERT_EQ(obj_2_insts[0].resources[0].insts[0], ANJ_ID_INVALID);
+    // /111/2/2/2
+    ASSERT_EQ(obj_1_insts[1].resources[2].insts[1], ANJ_ID_INVALID);
+    // /111/2/2/1 still exists
+    ASSERT_EQ(obj_1_insts[1].resources[2].insts[0], 1);
+
+    // restore initial state
+    obj_2_res_insts[0] = 1;
+    res_insts[0] = 1;
+    res_insts[1] = 2;
+}
+
+ANJ_UNIT_TEST(dm_integration,
+              write_composite_delete_resource_instances_lwm2m_cbor) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\xA3"     // map(3)
+        "\x84"     // array(4)
+        "\x18\xDE" // unsigned(222)
+        "\x01"     // unsigned(1)
+        "\x02"     // unsigned(2)
+        "\x01"     // unsigned(1)
+        "\xF6"     // primitive(22)
+        "\x84"     // array(4)
+        "\x18\xDE" // unsigned(222)
+        "\x01"     // unsigned(1)
+        "\x02"     // unsigned(2)
+        "\x07"     // unsigned(7)
+        "\xF6"     // primitive(22)
+        "\x84"     // array(4)
+        "\x18\x6F" // unsigned(111)
+        "\x02"     // unsigned(2)
+        "\x02"     // unsigned(2)
+        "\x02"     // unsigned(2)
+        "\xF6"     // primitive(22)
+    };
+
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x44\x11\x11\x01"; // changed, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+
+    // /222/1/2/1
+    ASSERT_EQ(obj_2_insts[0].resources[0].insts[0], ANJ_ID_INVALID);
+    // /111/2/2/2
+    ASSERT_EQ(obj_1_insts[1].resources[2].insts[1], ANJ_ID_INVALID);
+    // /111/2/2/1 still exists
+    ASSERT_EQ(obj_1_insts[1].resources[2].insts[0], 1);
+
+    // restore initial state
+    obj_2_res_insts[0] = 1;
+    res_insts[0] = 1;
+    res_insts[1] = 2;
+}
+
+ANJ_UNIT_TEST(dm_integration, write_composite_try_delete_resource) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\x83"           /* array(3) */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x68/111/2/1"   /* text(6) existing resource */
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/222/1/2/7" /* text(6) nonexistent resource instance */
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        /* A missing value should also cause resource instance deletion */
+        "\xA1"           /* map(1) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/111/2/2/2" /* text(6) existing resource instance */
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x80\x11\x11\x01"; // bad request, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    // transaction_end will not be called for object 1 because there will be
+    // error before calling transaction_begin
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              DEFAULT_TRANSACTION_END_RESULT);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              DEFAULT_TRANSACTION_END_RESULT);
+}
+
+ANJ_UNIT_TEST(dm_integration,
+              write_composite_try_delete_resource_that_doesnt_exist) {
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\x83"           /* array(3) */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/222/1/2/1" /* text(6) existing resource instance*/
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x68/222/1/9"   /* text(6) nonexistent resource */
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/111/2/2/2" /* text(6) existing resource instance */
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x80\x11\x11\x01"; // bad request, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    // transaction_end will not be called for object 1 because there will be
+    // error before calling transaction_begin
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              DEFAULT_TRANSACTION_END_RESULT);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_ERR_BAD_REQUEST);
+
+    // restore initial state
+    obj_2_res_insts[0] = 1;
+}
+
+ANJ_UNIT_TEST(dm_integration,
+              write_composite_delete_resource_instances_not_writable) {
+    obj_2_res.operation = ANJ_DM_RES_RM;
+
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    char input_payload[] = {
+        "\x83"           /* array(3) */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/222/1/2/1" /* text(6) existing resource instance*/
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/222/1/2/7" /* text(6) nonexistent resource instance */
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+        "\xA2"           /* map(2) */
+        "\x00"           /* unsigned(0) => SenML Name */
+        "\x6A/111/2/2/2" /* text(6) existing resource instance */
+        "\x02"           /* unsigned(2) => SenML Value */
+        "\xF6"           /* null */
+    };
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = sizeof(input_payload) - 1;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x85\x11\x11\x01"; // not allowed, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    // transaction_end will not be called for object 1 because there will be
+    // error before calling transaction_begin
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              DEFAULT_TRANSACTION_END_RESULT);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+
+    // restore initial state
+    obj_2_res_insts[0] = 1;
+    obj_2_res.operation = ANJ_DM_RES_RWM;
+}
+
+ANJ_UNIT_TEST(dm_integration, write_composite_block) {
+    const int block_size = 16;
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [222, 1, 2, 1]: 456}
+    char input_payload[] = {
+        "\xA3"         // map(3)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+        "\x84"         // array(4)
+        "\x18\xDE"     // unsigned(222)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x01"         // unsigned(1)
+        "\x19\x01\xC8" // unsigned(456)
+    };
+    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.block.number = 0;
+    msg.block.size = block_size;
+    msg.block.more_flag = true;
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = block_size;
+    PROCESS_REQUEST_BLOCK();
+    char expected1[] = "\x61"             // ACK, tkl 1
+                       "\x5F\x11\x11\x01" // continue, msg_id token
+                       "\xd1\x0e\x08";    // block1 0 more
+    verify_payload(expected1, sizeof(expected1) - 1, &msg);
+
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.block.number = 1;
+    msg.block.size = block_size;
+    msg.block.more_flag = false;
+    msg.payload = (uint8_t *) &input_payload[block_size];
+    msg.payload_size = sizeof(input_payload) - block_size - 1;
+    msg.coap_binding_data.udp.message_id++;
+
+    ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
+                                                ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                                &msg),
+                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+
+    char expected2[] = "\x61"             // ACK, tkl 1
+                       "\x44\x11\x12\x01" // changed, msg_id token
+                       "\xd1\x0e\x10";    // block1 1
+    verify_payload(expected2, sizeof(expected2) - 1, &msg);
+    ASSERT_EQ(write_value, 123);
+    ASSERT_EQ(write_value2, 321);
+    ASSERT_EQ(write_value3, 456);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+}
+
+ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
+    const int block_size = 16;
+    SET_UP();
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.uri = ANJ_MAKE_ROOT_PATH();
+    // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [888, 1, 2]: 666, [222, 1, 2, 1]:
+    // 456}
+    char input_payload[] = {
+        "\xA4"         // map(4)
+        "\x83"         // array(3)
+        "\x18\x6F"     // unsigned(111)
+        "\x01"         // unsigned(1)
+        "\x01"         // unsigned(1)
+        "\x18\x7B"     // unsigned(123)
+        "\x84"         // array(4)
+        "\x18\x6F"     // unsigned(111)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x02"         // unsigned(2)
+        "\x19\x01\x41" // unsigned(321)
+        "\x83"         // array(3)
+        "\x19\x03\x78" // unsigned(888)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x19\x02\x9A" // unsigned(666)
+        "\x84"         // array(4)
+        "\x18\xDE"     // unsigned(222)
+        "\x01"         // unsigned(1)
+        "\x02"         // unsigned(2)
+        "\x01"         // unsigned(1)
+        "\x19\x01\xC8" // unsigned(456)
+    };
+    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.block.number = 0;
+    msg.block.size = block_size;
+    msg.block.more_flag = true;
+    msg.payload = (uint8_t *) input_payload;
+    msg.payload_size = block_size;
+    PROCESS_REQUEST_BLOCK();
+    char expected1[] = "\x61"             // ACK, tkl 1
+                       "\x5F\x11\x11\x01" // continue, msg_id token
+                       "\xd1\x0e\x08";    // block1 0 more
+    verify_payload(expected1, sizeof(expected1) - 1, &msg);
+
+    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.block.number = 1;
+    msg.block.size = block_size;
+    msg.block.more_flag = false;
+    msg.payload = (uint8_t *) &input_payload[block_size];
+    msg.payload_size = sizeof(input_payload) - block_size - 1;
+    msg.coap_binding_data.udp.message_id++;
+
+    ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
+                                                ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                                &msg),
+                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+
+    char expected2[] = "\x61"              // ACK, tkl 1
+                       "\x84\x11\x12\x01"; // not found, msg_id token
+
+    verify_payload(expected2, sizeof(expected2) - 1, &msg);
+    // it is user resposibility to restore previous values if transaction_end
+    // indicates that an error has occurred
+    ASSERT_EQ(write_value, 123);
+    ASSERT_EQ(write_value2, 321);
+    // an error will occur before entering the value for /222/1/2/1
+    ASSERT_EQ(write_value3, 0);
+
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_ERR_NOT_FOUND);
+    // transaction_end will not be called for object 2 because there will be
+    // error before calling transaction_begin
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              DEFAULT_TRANSACTION_END_RESULT);
+}
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
 
 ANJ_UNIT_TEST(dm_integration, execute_operation) {
@@ -1751,6 +2798,28 @@ ANJ_UNIT_TEST(dm_integration, write_replace_operation_on_resource_instance) {
     res_insts[1] = 2;
 }
 
+ANJ_UNIT_TEST(dm_integration,
+              write_replace_operation_on_two_resource_instance) {
+    SET_UP();
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    msg.operation = ANJ_OP_DM_WRITE_REPLACE;
+    msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 2);
+    // {[111, 2, 2]: {3: 5, 5: 10}}
+    msg.payload = (uint8_t *) "\xA1\x83\x18\x6F\x02\x02\xA2\x03\x05\x05\x0A";
+    msg.payload_size = 11;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x44\x11\x11\x01"; // changed, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+    ANJ_UNIT_ASSERT_EQUAL(write_value, 5);
+    ANJ_UNIT_ASSERT_EQUAL(res_insts[0], 3);
+    ANJ_UNIT_ASSERT_EQUAL(write_value2, 10);
+    ANJ_UNIT_ASSERT_EQUAL(res_insts[1], 5);
+
+    res_insts[0] = 1;
+    res_insts[1] = 2;
+}
+
 ANJ_UNIT_TEST(dm_integration, create_with_write) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -1782,7 +2851,6 @@ ANJ_UNIT_TEST(dm_integration, create_with_empty_write) {
     char expected[] = "\x61"              // ACK, tkl 1
                       "\x41\x11\x11\x01"; // created, msg_id token
     verify_payload(expected, sizeof(expected) - 1, &msg);
-    ANJ_UNIT_ASSERT_EQUAL(write_value, 43);
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[0].iid, 0);
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[1].iid, 1);
     reset_obj_2_insts();

@@ -7,15 +7,15 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/defs.h>
 #include <anj/utils.h>
 
-#include "../utils.h"
 #include "base64.h"
 #include "io.h"
 #include "text_decoder.h"

@@ -7,19 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_SRC_CORE_SERVER_H
-#define ANJ_SRC_CORE_SERVER_H
+#    define ANJ_SRC_CORE_SERVER_H
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
+#    include <stdbool.h>
+#    include <stdint.h>
+#    include <string.h>
 
-#include <anj/compat/net/anj_net_api.h>
-#include <anj/core.h>
-#include <anj/defs.h>
-
-#include "../coap/coap.h"
-#include "../exchange.h"
+#    include <anj/compat/net/anj_net_api.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
 /**
  * Establishes a connection to the server. If @ref ANJ_NET_EAGAIN is returned,
@@ -168,6 +167,6 @@ int _anj_server_prepare_server_request(anj_t *anj,
  * @return MAX_TRANSMIT_WAIT value in milliseconds.
  */
 uint64_t _anj_server_calculate_max_transmit_wait(
-        const _anj_exchange_udp_tx_params_t *params);
+        const anj_exchange_udp_tx_params_t *params);
 
 #endif // ANJ_SRC_CORE_SERVER_H

@@ -7,34 +7,29 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_DM_SECURITY_OBJECT_H
-#define ANJ_DM_SECURITY_OBJECT_H
+#    define ANJ_DM_SECURITY_OBJECT_H
 
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#    include <stdbool.h>
+#    include <stddef.h>
+#    include <stdint.h>
 
-#include <anj/anj_config.h>
-#include <anj/defs.h>
-#include <anj/dm/core.h>
+#    include <anj/defs.h>
+#    include <anj/dm/core.h>
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 extern "C" {
-#endif
-
-#ifdef ANJ_WITH_DEFAULT_SECURITY_OBJ
-
-#    ifdef ANJ_WITH_BOOTSTRAP
-#        define ANJ_DM_SECURITY_OBJ_INSTANCES 2
-#    else // ANJ_WITH_BOOTSTRAP
-#        define ANJ_DM_SECURITY_OBJ_INSTANCES 1
-#    endif // ANJ_WITH_BOOTSTRAP
-
-#    if !defined(ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE)   \
-            || !defined(ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE) \
-            || !defined(ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE)
-#        error "if default Security Object is enabled, its parameters needs to be defined"
 #    endif
+
+#    ifdef ANJ_WITH_DEFAULT_SECURITY_OBJ
+
+#        ifdef ANJ_WITH_BOOTSTRAP
+#            define ANJ_DM_SECURITY_OBJ_INSTANCES 2
+#        else // ANJ_WITH_BOOTSTRAP
+#            define ANJ_DM_SECURITY_OBJ_INSTANCES 1
+#        endif // ANJ_WITH_BOOTSTRAP
 
 /*
  * Security Object Instance context, used to store Instance specific data, don't
@@ -150,10 +145,10 @@ int anj_dm_security_obj_add_instance(anj_dm_security_obj_t *security_obj_ctx,
 int anj_dm_security_obj_install(anj_t *anj,
                                 anj_dm_security_obj_t *security_obj_ctx);
 
-#endif // ANJ_WITH_DEFAULT_SECURITY_OBJ
+#    endif // ANJ_WITH_DEFAULT_SECURITY_OBJ
 
-#ifdef __cplusplus
+#    ifdef __cplusplus
 }
-#endif
+#    endif
 
 #endif // ANJ_DM_SECURITY_OBJECT_H

@@ -7,12 +7,13 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #include <assert.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
-#include <anj/anj_config.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/log/log.h>
@@ -22,7 +23,6 @@
 #include "../coap/coap.h"
 #include "../exchange.h"
 #include "../io/io.h"
-#include "../utils.h"
 #include "core.h"
 #include "core_utils.h"
 #include "lwm2m_send.h"

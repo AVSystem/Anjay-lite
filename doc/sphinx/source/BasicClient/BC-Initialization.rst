@@ -36,7 +36,7 @@ the root of your project directory with the following content:
 .. highlight:: cmake
 .. snippet-source:: examples/tutorial/BC-Initialization/CMakeLists.txt
 
-    cmake_minimum_required(VERSION 3.6.0)
+    cmake_minimum_required(VERSION 3.16.0)
 
     project(anjay_lite_bc_initialization C)
 

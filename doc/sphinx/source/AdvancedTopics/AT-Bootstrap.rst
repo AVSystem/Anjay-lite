@@ -8,7 +8,9 @@
 
 Bootstrap
 =========
-**Overview**
+
+Overview
+^^^^^^^^
 
 The LwM2M Protocol Specification defines the Bootstrap Interface, whose primary
 role is to provision LwM2M-enabled devices with the necessary configuration and
@@ -136,7 +138,7 @@ Use the following configuration fields:
 
 In addition to the ANJ_WITH_BOOTSTRAP flag, you can enable the ANJ_WITH_BOOTSTRAP_DISCOVER configuration flag to support the Bootstrap-Discover operation.
 
-This feature is useful in advanced setups where the LwM2M Bootstrap Server needs to inspect the device’s data model. If not required, you can disable this flag to reduce Anjay Lite's flash memory usage.
+This feature is useful in advanced setups where the LwM2M Bootstrap Server needs to inspect the device's data model. If not required, you can disable this flag to reduce Anjay Lite's flash memory usage.
 
 **Handling Bootstrap Operations**
 

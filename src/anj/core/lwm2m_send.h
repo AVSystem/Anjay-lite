@@ -7,16 +7,15 @@
  * See the attached LICENSE file for details.
  */
 
+#include <anj/init.h>
+
 #ifndef ANJ_SRC_LWM2M_SEND_H
-#define ANJ_SRC_LWM2M_SEND_H
+#    define ANJ_SRC_LWM2M_SEND_H
 
-#include <stdint.h>
+#    include <anj/core.h>
+#    include <anj/defs.h>
 
-#include <anj/anj_config.h>
-#include <anj/core.h>
-#include <anj/defs.h>
-
-#ifdef ANJ_WITH_LWM2M_SEND
+#    ifdef ANJ_WITH_LWM2M_SEND
 
 /**
  * This function checks if any LwM2M Send request should be sent. Function
@@ -34,6 +33,6 @@ void _anj_lwm2m_send_process(anj_t *anj,
                              _anj_exchange_handlers_t *out_handlers,
                              _anj_coap_msg_t *out_msg);
 
-#endif // ANJ_WITH_LWM2M_SEND
+#    endif // ANJ_WITH_LWM2M_SEND
 
 #endif // ANJ_SRC_LWM2M_SEND_H
