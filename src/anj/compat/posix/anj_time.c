@@ -16,30 +16,31 @@
 #include <sys/types.h>
 
 #include <anj/compat/time.h>
+#include <anj/time.h>
 
 #ifdef ANJ_WITH_TIME_POSIX_COMPAT
 
 #    include <time.h>
 
-static uint64_t get_time(clockid_t clk_id) {
+/* Get the current time in microseconds from selected clock type */
+static int64_t get_time(clockid_t clk_id) {
     struct timespec res;
     if (clock_gettime(clk_id, &res)) {
         return 0;
     }
-    return (uint64_t) res.tv_sec * 1000
-           + (uint64_t) res.tv_nsec / (1000 * 1000);
+    return (int64_t) res.tv_sec * 1000 * 1000 + (int64_t) res.tv_nsec / 1000;
 }
 
-uint64_t anj_time_now(void) {
+anj_time_monotonic_t anj_time_monotonic_now(void) {
 #    ifdef CLOCK_MONOTONIC
-    return get_time(CLOCK_MONOTONIC);
-#    else  // CLOCK_MONOTONIC
-    return get_time(CLOCK_REALTIME);
-#    endif // CLOCK_MONOTONIC
+    return anj_time_monotonic_new(get_time(CLOCK_MONOTONIC), ANJ_TIME_UNIT_US);
+#    else  /* CLOCK_MONOTONIC */
+    return anj_time_monotonic_new(get_time(CLOCK_REALTIME), ANJ_TIME_UNIT_US);
+#    endif /* CLOCK_MONOTONIC */
 }
 
-uint64_t anj_time_real_now(void) {
-    return get_time(CLOCK_REALTIME);
+anj_time_real_t anj_time_real_now(void) {
+    return anj_time_real_new(get_time(CLOCK_REALTIME), ANJ_TIME_UNIT_US);
 }
 
 #endif // ANJ_WITH_TIME_POSIX_COMPAT

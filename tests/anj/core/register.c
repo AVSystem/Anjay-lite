@@ -54,7 +54,7 @@ verify_payload(char *expected, size_t expected_len, _anj_coap_msg_t *msg) {
     };                                                                      \
     ASSERT_OK(anj_dm_server_obj_add_instance(&Server_obj, &Server_inst_1)); \
     ASSERT_OK(anj_dm_server_obj_install(&Anj, &Server_obj));                \
-    _anj_exchange_init(&Exchange_ctx, 0);                                   \
+    _anj_exchange_init(&Exchange_ctx);                                      \
     _anj_register_ctx_init(&Anj);
 
 #define NEW_REQUEST(Msg, Exchange_ctx, Exchange_handlers, Payload)          \
@@ -84,7 +84,7 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
         .has_endpoint = true,
         .endpoint = "name",
         .has_lifetime = true,
-        .lifetime = 1,
+        .lifetime = anj_time_duration_new(1, ANJ_TIME_UNIT_S),
         .has_lwm2m_ver = true,
         .lwm2m_ver = _ANJ_LWM2M_VERSION_STR
     };
@@ -195,7 +195,7 @@ ANJ_UNIT_TEST(register, exchange_failed) {
     NEW_REQUEST(msg, exchange_ctx, exchange_handlers, payload);
     // register message is checked in previous test
     // cancel the exchange to simulate exchange failure
-    _anj_exchange_terminate(&exchange_ctx);
+    _anj_exchange_terminate(&exchange_ctx, _ANJ_EXCHANGE_ERROR_NETWORK);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_ERROR);
 }
@@ -333,7 +333,7 @@ ANJ_UNIT_TEST(register, block_transfer_with_error) {
     // first block request
     NEW_REQUEST(msg, exchange_ctx, exchange_handlers, payload);
     ASSERT_TRUE(anj.dm.op_in_progress);
-    _anj_exchange_terminate(&exchange_ctx);
+    _anj_exchange_terminate(&exchange_ctx, _ANJ_EXCHANGE_ERROR_NETWORK);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_ERROR);
     ASSERT_FALSE(anj.dm.op_in_progress);
@@ -388,8 +388,9 @@ ANJ_UNIT_TEST(register, update_with_lifetime) {
 
     anj.register_ctx.location_path[0][0] = 'd';
     anj.register_ctx.location_path_len[0] = 1;
-    _anj_register_update(&anj, &(uint32_t) { 2 }, false, &msg,
-                         &exchange_handlers);
+
+    anj_time_duration_t lifetime = anj_time_duration_new(2, ANJ_TIME_UNIT_S);
+    _anj_register_update(&anj, &lifetime, false, &msg, &exchange_handlers);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_IN_PROGRESS);
 

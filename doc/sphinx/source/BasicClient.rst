@@ -6,7 +6,7 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Basic client
+Basic Client
 ============
 
 In this tutorial we will focus on creating simple LwM2M Client based on Anjay
@@ -18,6 +18,7 @@ Lite library.
 
    BasicClient/BC-Initialization
    BasicClient/BC-MandatoryObjects
+   BasicClient/BC-Security
    BasicClient/BC-BasicObjectImplementation
    BasicClient/BC-Notifications
    BasicClient/BC-Send

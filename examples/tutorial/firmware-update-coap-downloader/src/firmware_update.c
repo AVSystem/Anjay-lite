@@ -20,7 +20,7 @@
 #include <anj/coap_downloader.h>
 #include <anj/defs.h>
 #include <anj/dm/fw_update.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #include "firmware_update.h"
 
@@ -71,7 +71,7 @@ static anj_dm_fw_update_result_t fu_uri_write(void *user_ptr,
                                               const char *_uri) {
     (void) user_ptr;
     log(L_INFO, "fu_uri_write called with URI: %s", _uri);
-    int res = anj_coap_downloader_start(&coap_downloader, _uri);
+    int res = anj_coap_downloader_start(&coap_downloader, _uri, NULL);
     if (res == ANJ_COAP_DOWNLOADER_ERR_INVALID_URI) {
         return ANJ_DM_FW_UPDATE_RESULT_INVALID_URI;
     } else if (res) {

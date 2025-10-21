@@ -9,6 +9,14 @@
 
 #include <anj/init.h>
 
+/**
+ * @file
+ * @brief Default implementation of the LwM2M Device Object (/3).
+ *
+ * Provides installation and basic metadata resources such as manufacturer,
+ * model, serial number, firmware version, and reboot handling.
+ */
+
 #ifndef ANJ_DM_DEVICE_OBJECT_H
 #    define ANJ_DM_DEVICE_OBJECT_H
 
@@ -20,70 +28,74 @@ extern "C" {
 #    endif
 
 #    ifdef ANJ_WITH_DEFAULT_DEVICE_OBJ
-
-/*
- * HACK: error handling is not supported so in order to comply with the
- * definition of the object only one instance of Error Code resource is
- * defined with the value set to 0 which means "no errors".
- */
-#        define ANJ_DM_DEVICE_ERR_CODE_RES_INST_MAX_COUNT 1
-
 /**
- * Callback function type for handling the LwM2M Reboot resource (/3/0/4).
+ * Callback function type for handling the Reboot Resource (/3/0/4).
  *
- * This function is invoked when the Reboot resource is executed by the LwM2M
+ * This function is invoked when the Reboot Resource is executed by the LwM2M
  * server. The user is expected to perform a system reboot after this callback
  * returns.
  *
- * @note The Execute operation may be sent as a Confirmable message,
- *       so it is recommended to delay the reboot until the response is
- *       successfully sent.
+ * @warning The Execute operation is a Confirmable CoAP request, so the LwM2M
+ *          server expects an acknowledgement. It's recommended to delay the
+ *          reboot until the response is successfully sent by the client.
  *
- * @param arg  Opaque argument passed to the callback.
- * @param anj  Anjay object reporting the status change.
+ * @param arg Opaque argument passed to the callback, as provided in @ref
+ *            anj_dm_device_object_init_t::reboot_cb_arg.
+ * @param anj Anjay object.
  */
 typedef void anj_dm_reboot_callback_t(void *arg, anj_t *anj);
 
 /**
- * Device object initialization structure. Should be filled before passing to
- * @ref anj_dm_device_obj_install .
+ * Device Object initialization structure. Should be filled before passing to
+ * @ref anj_dm_device_obj_install.
  *
- * NOTE: when passing this structure to @ref anj_dm_device_obj_install, its
- * fields ARE NOT copied internally to DM, which means all dynamically
- * allocated strings MUST NOT be freed before removing the device object from
- * the DM.
+ * @note Supported Binding and Modes Resource (/3/0/16) is defined by
+ *       @ref ANJ_SUPPORTED_BINDING_MODES.
  *
- * NOTE: Supported binding and modes resource (/3/0/16) is defined by
- * @ref ANJ_SUPPORTED_BINDING_MODES
+ * @warning Strings passed to this structure are not copied internally when
+ *          @ref anj_dm_device_obj_install is called. The user must ensure that
+ *          they remain valid for the entire lifetime of @ref anj_t object or
+ *          until the Object is removed using @ref anj_dm_remove_obj.
  */
 typedef struct {
-    // /3/0/0 resource value
+    /** Manufacturer Resource (/3/0/0) value. */
     const char *manufacturer;
-    // /3/0/1 resource value
+
+    /** Model Number Resource (/3/0/1) value. */
     const char *model_number;
-    // /3/0/2 resource value
+
+    /** Serial Number Resource (/3/0/2) value. */
     const char *serial_number;
-    // /3/0/3 resource value
+
+    /** Firmware Version Resource (/3/0/3) value. */
     const char *firmware_version;
-    // /3/0/4 resource callback
-    // if not set, execute on /3/0/4 (reboot) resource will fail
+
+    /** Reboot Resource (/3/0/4) callback.
+     *
+     * @note If not set, Execute operation on this resource will fail.
+     */
     anj_dm_reboot_callback_t *reboot_cb;
-    // argument passed to the reboot callback
-    void *reboot_handler_arg;
+
+    /**
+     * Argument passed to @ref reboot_cb when it is invoked.
+     */
+    void *reboot_cb_arg;
 } anj_dm_device_object_init_t;
 
 /**
- * Complex structure of a whole Device Object entity context that holds the
- * Object and its Instance that are linked to Static Data Model.
+ * Internal state of Device Object.
  *
- * User is expected to instantiate a structure of this type and not modify it
- * directly throughout the LwM2M Client life.
+ * @warning The user must ensure that this structure remains valid for the
+ *          entire lifetime of @ref anj_t object or until the Object is removed
+ *          using @ref anj_dm_remove_obj.
+ *
+ * @anj_internal_fields_do_not_use
  */
 typedef struct {
     anj_dm_obj_t obj;
     anj_dm_obj_inst_t inst;
     anj_dm_reboot_callback_t *reboot_cb;
-    void *reboot_handler_arg;
+    void *reboot_cb_arg;
     const char *manufacturer;
     const char *model_number;
     const char *serial_number;
@@ -92,16 +104,18 @@ typedef struct {
 } anj_dm_device_obj_t;
 
 /**
- * Installs device object (/3) in DM.
+ * Installs Device Object (/3) in data model.
  *
  * Example usage:
  * @code
  * static int reboot_cb(void *arg, anj_t *anj) {
  *     // perform reboot
  * }
- * ...
+ *
+ * // ...
+ *
  * anj_dm_device_obj_t dev_obj;
- * anj_dm_device_object_init_t dev_obj_init = {
+ * static const anj_dm_device_object_init_t dev_obj_init = {
  *     .manufacturer = "manufacturer",
  *     .model_number = "model_number",
  *     .serial_number = "serial_number",
@@ -111,17 +125,16 @@ typedef struct {
  * anj_dm_device_obj_install(&anj, &dev_obj, &dev_obj_init);
  * @endcode
  *
- * @param anj        Anjay object to operate on.
- * @param device_obj Pointer to a device object structure. Must be non-NULL.
- * @param obj_init   Pointer to a device object's initialization structure. Must
- *                   be non-NULL.
+ * @param anj        Anjay object.
+ * @param device_obj Pointer to a variable that will hold the state of the
+ *                   Object.
+ * @param obj_init   Pointer to Object's initialization structure.
  *
- * @returns non-zero value on error (i.e. object is already installed),
- *          0 otherwise.
+ * @return 0 on success, a non-zero value in case of an error.
  */
 int anj_dm_device_obj_install(anj_t *anj,
                               anj_dm_device_obj_t *device_obj,
-                              anj_dm_device_object_init_t *obj_init);
+                              const anj_dm_device_object_init_t *obj_init);
 
 #    endif // ANJ_WITH_DEFAULT_DEVICE_OBJ
 

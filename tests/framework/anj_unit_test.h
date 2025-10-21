@@ -16,7 +16,7 @@
  * Internal functions used by the library to implement the functionality.
  */
 /**@{*/
-void anj_unit_abort__(const char *msg, const char *file, int line);
+int anj_unit_abort__(const char *msg, const char *file, int line);
 
 // clang-format off
 #define ANJ_UNIT_CHECK_EQUAL__(actual, expected, strings)\

@@ -10,6 +10,8 @@
 #ifndef ANJ_INTERNAL_BOOTSTRAP_H
 #define ANJ_INTERNAL_BOOTSTRAP_H
 
+#include <anj/time.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -42,7 +44,7 @@ extern "C" {
 #define _ANJ_BOOTSTRAP_FINISHED 2
 /** Bootstrap-related exchange failed. */
 #define _ANJ_BOOTSTRAP_ERR_EXCHANGE_ERROR (-1)
-/** Bootstrap lifetime has expired. */
+/** Bootstrap bootstrap_finish_timeout has expired. */
 #define _ANJ_BOOTSTRAP_ERR_BOOTSTRAP_TIMEOUT (-2)
 /** A non-timeout communication error. */
 #define _ANJ_BOOTSTRAP_ERR_NETWORK (-3)
@@ -57,8 +59,8 @@ extern "C" {
 typedef struct {
     bool in_progress;
     bool bootstrap_finish_handled;
-    uint32_t bootstrap_finish_timeout;
-    uint64_t lifetime;
+    anj_time_duration_t bootstrap_lifetime;
+    anj_time_monotonic_t bootstrap_finish_timeout;
     int error_code;
     const char *endpoint;
 } _anj_bootstrap_ctx_t;

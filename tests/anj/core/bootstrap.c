@@ -20,14 +20,13 @@
 #include "../../../src/anj/core/bootstrap.h"
 #include "../../../src/anj/dm/dm_io.h"
 #include "../../../src/anj/exchange.h"
-
 #include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
 static anj_dm_res_t server_ssid = {
     .rid = 0,
-    .operation = ANJ_DM_RES_R,
+    .kind = ANJ_DM_RES_R,
     .type = ANJ_DATA_TYPE_INT,
 };
 
@@ -103,13 +102,13 @@ static anj_dm_res_t res_obj_0[] = {
     {
         // bootstrap_server
         .rid = 1,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_BOOL,
     },
     {
         // ssid
         .rid = 10,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT,
     }
 };
@@ -144,8 +143,9 @@ static anj_dm_obj_t mock_security = {
     _anj_dm_initialize(&anj);                        \
     ASSERT_OK(anj_dm_add_obj(&anj, &mock_server));   \
     ASSERT_OK(anj_dm_add_obj(&anj, &mock_security)); \
-    set_mock_time(0);                                \
-    _anj_bootstrap_ctx_init(&anj, endpoint, 247)
+    mock_time_reset();                               \
+    _anj_bootstrap_ctx_init(&anj, endpoint,          \
+                            anj_time_duration_new(247, ANJ_TIME_UNIT_S));
 
 #define PROCESS_BOOTSTRAP_REQUEST(Exchange_result)                        \
     _anj_coap_msg_t request = { 0 };                                      \
@@ -221,7 +221,10 @@ ANJ_UNIT_TEST(bootstrap, bootstrap_timeout) {
     PROCESS_BOOTSTRAP_REQUEST(0);
     ASSERT_EQ(_anj_bootstrap_process(&anj, &request, &exchange_handlers),
               _ANJ_BOOTSTRAP_IN_PROGRESS);
-    set_mock_time(anj.bootstrap_ctx.bootstrap_finish_timeout + 1);
+    mock_time_advance(
+            anj_time_duration_add(anj.bootstrap_ctx.bootstrap_lifetime,
+                                  anj_time_duration_new(1, ANJ_TIME_UNIT_S)));
+
     ASSERT_EQ(_anj_bootstrap_process(&anj, &request, &exchange_handlers),
               _ANJ_BOOTSTRAP_ERR_BOOTSTRAP_TIMEOUT);
 }

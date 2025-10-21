@@ -27,11 +27,14 @@
 #include "../../src/anj/coap/coap.h"
 #include "../../src/anj/exchange.h"
 
+#include "../mock/time_api_mock.h"
+
 #include <anj_unit_test.h>
 
 #ifdef ANJ_WITH_OBSERVE
 
-#    define ONE_DAY_MS 86400000
+#    define ONE_DAY anj_time_duration_new(1, ANJ_TIME_UNIT_DAY)
+#    define ONE_DAY_MS (24 * 60 * 60 * 1000)
 
 static uint64_t mock_time_value = 0;
 static double get_res_value_double = 0;
@@ -77,39 +80,39 @@ static anj_dm_handlers_t handlers = {
 static anj_dm_res_t inst_0_res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_BOOL,
     },
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_DOUBLE,
     },
     {
         .rid = 2,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_DOUBLE,
     },
     {
         .rid = 3,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_DOUBLE,
     },
     {
         .rid = 4,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_DOUBLE,
     },
     {
         .rid = 6,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .type = ANJ_DATA_TYPE_DOUBLE,
         .max_inst_count = 1,
         .insts = (anj_riid_t[]){ 1 }
     },
     {
         .rid = 7,
-        .operation = ANJ_DM_RES_WM,
+        .kind = ANJ_DM_RES_WM,
         .type = ANJ_DATA_TYPE_DOUBLE,
         .max_inst_count = 1,
         .insts = (anj_riid_t[]){ 1 }
@@ -130,7 +133,7 @@ static anj_dm_obj_t obj_3 = {
 static anj_dm_res_t inst_0_res_obj_4[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .type = ANJ_DATA_TYPE_DOUBLE,
         .max_inst_count = 1,
         .insts = (anj_riid_t[]){ 1 }
@@ -147,41 +150,41 @@ static anj_dm_obj_t obj_4 = {
     .max_inst_count = 1,
     .handlers = &handlers
 };
-
-#    define NOTIFICATION_INIT()                        \
-        inst_0.res_count = 2;                          \
-        _anj_exchange_ctx_t exchange_ctx;              \
-        _anj_exchange_init(&exchange_ctx, 0);          \
-        exchange_ctx.msg_id = 0;                       \
-        uint16_t message_id = 1;                       \
-        anj_t anj = { 0 };                             \
-        _anj_dm_initialize(&anj);                      \
-        anj_dm_add_obj(&anj, &obj_3);                  \
-        anj_dm_add_obj(&anj, &obj_4);                  \
-        _anj_exchange_handlers_t out_handlers = { 0 }; \
-        _anj_observe_server_state_t srv = {            \
-            .ssid = 1,                                 \
-            .default_max_period = 77,                  \
-        };                                             \
-        _anj_coap_msg_t out_msg = { 0 };               \
-        uint64_t time_to_next_call = 0;                \
-                                                       \
-        const size_t payload_buff_size = 1024;         \
-        uint8_t payload[payload_buff_size];            \
-        const size_t out_buff_size = 1024;             \
-        uint8_t out_buff[out_buff_size];               \
-        size_t out_msg_size;                           \
-        set_mock_time(0);                              \
-        set_res_value_double(0.0);                     \
-        set_res_value_bool(false);
+#    define NOTIFICATION_INIT()                                         \
+        inst_0.res_count = 2;                                           \
+        _anj_exchange_ctx_t exchange_ctx;                               \
+        _anj_exchange_init(&exchange_ctx);                              \
+        exchange_ctx.msg_id = 0;                                        \
+        uint16_t message_id = 1;                                        \
+        anj_t anj = { 0 };                                              \
+        _anj_dm_initialize(&anj);                                       \
+        anj_dm_add_obj(&anj, &obj_3);                                   \
+        anj_dm_add_obj(&anj, &obj_4);                                   \
+        _anj_exchange_handlers_t out_handlers = { 0 };                  \
+        _anj_observe_server_state_t srv = {                             \
+            .ssid = 1,                                                  \
+            .default_max_period = 77,                                   \
+        };                                                              \
+        _anj_coap_msg_t out_msg = { 0 };                                \
+        anj_time_duration_t time_to_next_call = ANJ_TIME_DURATION_ZERO; \
+                                                                        \
+        const size_t payload_buff_size = 1024;                          \
+        uint8_t payload[payload_buff_size];                             \
+        const size_t out_buff_size = 1024;                              \
+        uint8_t out_buff[out_buff_size];                                \
+        size_t out_msg_size;                                            \
+        mock_time_reset();                                              \
+        set_res_value_double(0.0);                                      \
+        set_res_value_bool(false);                                      \
+        anj_time_real_t time_real_zero = anj_time_real_now();
 
 #    define INIT_OBSERVE_MODULE() _anj_observe_init(&anj);
 
-#    define anj_process(expected_time_to_next_call_ms, Token, token_size)     \
+#    define anj_process(expected_time_to_next_call, Token, token_size)        \
         ASSERT_TRUE(token_size == 1 || token_size == 0);                      \
         ASSERT_OK(anj_observe_time_to_next_notification(&anj, &srv,           \
                                                         &time_to_next_call)); \
-        ASSERT_EQ(time_to_next_call, expected_time_to_next_call_ms);          \
+        ASSERT_EQ(time_to_next_call.us, expected_time_to_next_call.us);       \
         ASSERT_OK(_anj_observe_process(&anj, &out_handlers, &srv, &out_msg)); \
                                                                               \
         ASSERT_EQ(out_msg.token.size, token_size);                            \
@@ -243,22 +246,6 @@ static anj_dm_obj_t obj_4 = {
             message_id++;                                                      \
         }
 
-void set_mock_time(uint64_t time) {
-    mock_time_value = time;
-}
-
-static void add_to_mock_time(uint64_t add) {
-    mock_time_value += add;
-}
-
-uint64_t anj_time_now(void) {
-    return mock_time_value;
-}
-
-uint64_t anj_time_real_now(void) {
-    return mock_time_value;
-}
-
 static void set_res_value_double(double val) {
     get_res_value_double = val;
 }
@@ -286,7 +273,9 @@ static void setup_observations(_anj_observe_ctx_t *ctx,
             ctx->observations[i].last_sent_value.double_value =
                     get_res_value_double;
         }
-        ctx->observations[i].next_conf_notify_timestamp = ONE_DAY_MS;
+        ctx->observations[i].next_conf_notify_timestamp =
+                anj_time_real_add(anj_time_real_now(), ONE_DAY);
+        ;
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         ctx->observations[i].accept_opt = _ANJ_COAP_FORMAT_NOT_DEFINED;
         ctx->observations[i].content_format_opt = _ANJ_COAP_FORMAT_NOT_DEFINED;
@@ -297,7 +286,8 @@ static void setup_observations(_anj_observe_ctx_t *ctx,
 static void check_observations(_anj_observe_ctx_t *ctx,
                                anj_uri_path_t *paths,
                                size_t path_count,
-                               bool confirmable) {
+                               bool confirmable,
+                               anj_time_real_t timestamp) {
     size_t path_counter = 0;
     for (size_t i = 0;
          i < ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER && path_counter < path_count;
@@ -307,16 +297,19 @@ static void check_observations(_anj_observe_ctx_t *ctx,
             continue;
         }
         path_counter++;
-        ASSERT_EQ(ctx->observations[i].last_notify_timestamp, anj_time_now());
+        ASSERT_TRUE(anj_time_real_eq(ctx->observations[i].last_notify_timestamp,
+                                     anj_time_real_now()));
         if (confirmable) {
-            ASSERT_EQ(ctx->observations[i].next_conf_notify_timestamp,
-                      anj_time_now() + ONE_DAY_MS);
+            ASSERT_TRUE(anj_time_real_eq(
+                    ctx->observations[i].next_conf_notify_timestamp,
+                    anj_time_real_add(anj_time_real_now(), ONE_DAY)));
         } else {
             // unfortunately it will be not true after sending first confirmable
             // notification or when mock_time_value != 0 during
             // setup_observations call
-            ASSERT_EQ(ctx->observations[i].next_conf_notify_timestamp,
-                      ONE_DAY_MS);
+            ASSERT_TRUE(anj_time_real_eq(
+                    ctx->observations[i].next_conf_notify_timestamp,
+                    timestamp));
         }
     }
 
@@ -326,6 +319,7 @@ static void check_observations(_anj_observe_ctx_t *ctx,
 ANJ_UNIT_TEST(notification_op, notification_max_period) {
     NOTIFICATION_INIT();
     INIT_OBSERVE_MODULE();
+
     anj_uri_path_t paths[] = { ANJ_MAKE_RESOURCE_PATH(3, 0, 1) };
     _anj_attr_notification_t effective_attributes = {
         .has_max_period = true,
@@ -335,23 +329,24 @@ ANJ_UNIT_TEST(notification_op, notification_max_period) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(10000, 0, 0);
-    anj_process(10000, 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(10000, 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change) {
@@ -363,22 +358,154 @@ ANJ_UNIT_TEST(notification_op, notification_change) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(0.1);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 }
+
+#    define GT_LS_TEST                                                         \
+        srv.default_max_period = 0;                                            \
+        setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),     \
+                           &effective_attributes);                             \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        set_res_value_double(20.0);                                            \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+                                                                               \
+        anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);     \
+        anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);     \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));      \
+                                                                               \
+        anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);      \
+        anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);      \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));      \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);                          \
+                                                                               \
+        anj_exchange(false);                                                   \
+        check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);           \
+        check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),     \
+                           false, anj_time_real_add(time_real_zero, ONE_DAY)); \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(1000, ANJ_TIME_UNIT_MS));      \
+                                                                               \
+        set_res_value_double(11.0);                                            \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        set_res_value_double(9.0);                                             \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+                                                                               \
+        anj_process(anj_time_duration_new(9000, ANJ_TIME_UNIT_MS), 0, 0);      \
+        anj_process(anj_time_duration_new(9000, ANJ_TIME_UNIT_MS), 0, 0);      \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(4000, ANJ_TIME_UNIT_MS));      \
+                                                                               \
+        set_res_value_double(11.0);                                            \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+                                                                               \
+        anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);      \
+        anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);      \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));      \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);                          \
+                                                                               \
+        anj_exchange(false);                                                   \
+        check_out_buff(false, 0x21, 2, _ANJ_COAP_FORMAT_SENML_CBOR);           \
+        check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),     \
+                           false, anj_time_real_add(time_real_zero, ONE_DAY)); \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS));     \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        /* value equals threshold - notification should not be sent */         \
+        set_res_value_double(10.0);                                            \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        /* set "manually" last value to 10.0 (equall to gt/ls attribute) */    \
+        anj.observe_ctx.observations[0].last_sent_value.double_value = 10.0;   \
+                                                                               \
+        set_res_value_double(9.0);                                             \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+        anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);                          \
+        anj_exchange(false);                                                   \
+        check_out_buff(false, 0x21, 3, _ANJ_COAP_FORMAT_SENML_CBOR);           \
+        check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),     \
+                           false, anj_time_real_add(time_real_zero, ONE_DAY)); \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS));     \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        /* set "manually" last value to 10.0 (equall to gt/ls attribute) */    \
+        anj.observe_ctx.observations[0].last_sent_value.double_value = 10.0;   \
+                                                                               \
+        set_res_value_double(11.0);                                            \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+        anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);                          \
+        anj_exchange(false);                                                   \
+        check_out_buff(false, 0x21, 4, _ANJ_COAP_FORMAT_SENML_CBOR);           \
+        check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),     \
+                           false, anj_time_real_add(time_real_zero, ONE_DAY)); \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS));     \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        /* set "manually" last value to 10.0 (equall to gt/ls attribute) */    \
+        anj.observe_ctx.observations[0].last_sent_value.double_value = 10.0;   \
+                                                                               \
+        /* last value equals current - no notification should be sent */       \
+        set_res_value_double(10.0);                                            \
+        ASSERT_OK(anj_observe_data_model_changed(                              \
+                &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),                        \
+                ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));                    \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);                          \
+                                                                               \
+        mock_time_advance(anj_time_duration_new(50000, ANJ_TIME_UNIT_MS));     \
+                                                                               \
+        anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
 ANJ_UNIT_TEST(notification_op, notification_change_gt) {
     NOTIFICATION_INIT();
@@ -391,78 +518,7 @@ ANJ_UNIT_TEST(notification_op, notification_change_gt) {
         .greater_than = 10
     };
 
-    srv.default_max_period = 0;
-    setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
-                       &effective_attributes);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    set_res_value_double(20.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(10000, 0, 0);
-    anj_process(10000, 0, 0);
-
-    add_to_mock_time(5000);
-
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
-
-    add_to_mock_time(5000);
-
-    anj_process(0, 0x21, 1);
-
-    anj_exchange(false);
-    check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    add_to_mock_time(1000);
-
-    set_res_value_double(11.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    set_res_value_double(9.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(9000, 0, 0);
-    anj_process(9000, 0, 0);
-
-    add_to_mock_time(4000);
-
-    set_res_value_double(11.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
-
-    add_to_mock_time(5000);
-
-    anj_process(0, 0x21, 1);
-
-    anj_exchange(false);
-    check_out_buff(false, 0x21, 2, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    add_to_mock_time(50000);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    GT_LS_TEST;
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change_ls) {
@@ -478,78 +534,7 @@ ANJ_UNIT_TEST(notification_op, notification_change_ls) {
         .less_than = 10
     };
 
-    srv.default_max_period = 0;
-    setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
-                       &effective_attributes);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    set_res_value_double(20.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(10000, 0, 0);
-    anj_process(10000, 0, 0);
-
-    add_to_mock_time(5000);
-
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
-
-    add_to_mock_time(5000);
-
-    anj_process(0, 0x21, 1);
-
-    anj_exchange(false);
-    check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    add_to_mock_time(1000);
-
-    set_res_value_double(11.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    set_res_value_double(9.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(9000, 0, 0);
-    anj_process(9000, 0, 0);
-
-    add_to_mock_time(4000);
-
-    set_res_value_double(11.0);
-    ASSERT_OK(anj_observe_data_model_changed(
-            &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
-            ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
-
-    add_to_mock_time(5000);
-
-    anj_process(0, 0x21, 1);
-
-    anj_exchange(false);
-    check_out_buff(false, 0x21, 2, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-
-    add_to_mock_time(50000);
-
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    GT_LS_TEST;
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change_step) {
@@ -571,74 +556,76 @@ ANJ_UNIT_TEST(notification_op, notification_change_step) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_double(20.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(10000, 0, 0);
-    anj_process(10000, 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
-    add_to_mock_time(1000);
+    mock_time_advance(anj_time_duration_new(1000, ANJ_TIME_UNIT_MS));
 
     set_res_value_double(11.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_double(10.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(9000, 0, 0);
-    anj_process(9000, 0, 0);
+    anj_process(anj_time_duration_new(9000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(9000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(4000);
+    mock_time_advance(anj_time_duration_new(4000, ANJ_TIME_UNIT_MS));
 
     set_res_value_double(11.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 2, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
-    add_to_mock_time(50000);
+    mock_time_advance(anj_time_duration_new(50000, ANJ_TIME_UNIT_MS));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 #    ifdef ANJ_WITH_LWM2M12
@@ -655,22 +642,22 @@ ANJ_UNIT_TEST(notification_op, notification_change_edge_falling) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_bool(true);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_bool(false);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     anj.observe_ctx.observations[0].last_sent_value.bool_value = true;
 
@@ -679,13 +666,14 @@ ANJ_UNIT_TEST(notification_op, notification_change_edge_falling) {
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change_edge_raising) {
@@ -702,22 +690,22 @@ ANJ_UNIT_TEST(notification_op, notification_change_edge_raising) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_bool(true);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_bool(false);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     anj.observe_ctx.observations[0].last_sent_value.bool_value = false;
 
@@ -726,13 +714,14 @@ ANJ_UNIT_TEST(notification_op, notification_change_edge_raising) {
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op,
@@ -748,20 +737,21 @@ ANJ_UNIT_TEST(notification_op,
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(true);
     check_out_buff(true, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), true);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), true,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op,
@@ -777,20 +767,21 @@ ANJ_UNIT_TEST(notification_op,
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_confirmable_from_server) {
@@ -803,20 +794,21 @@ ANJ_UNIT_TEST(notification_op, notification_confirmable_from_server) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(true);
     check_out_buff(true, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), true);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), true,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_confirmable_after_24h) {
@@ -828,35 +820,40 @@ ANJ_UNIT_TEST(notification_op, notification_confirmable_after_24h) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    set_mock_time(ONE_DAY_MS - 77000);
+    mock_time_advance(
+            anj_time_duration_new(ONE_DAY_MS - 77000, ANJ_TIME_UNIT_MS));
     // non-con notification
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    set_mock_time(ONE_DAY_MS);
+    mock_time_advance(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS));
     // con notification
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(true);
     check_out_buff(true, 0x21, 2, _ANJ_COAP_FORMAT_SENML_CBOR);
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), true);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), true,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    set_mock_time(ONE_DAY_MS + 77000);
+    mock_time_advance(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS));
     // non-con notification
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(false);
-    ASSERT_EQ(anj.observe_ctx.observations[0].next_conf_notify_timestamp,
-              2 * ONE_DAY_MS);
+    ASSERT_TRUE(anj_time_real_eq(
+            anj.observe_ctx.observations[0].next_conf_notify_timestamp,
+            anj_time_real_add(time_real_zero,
+                              anj_time_duration_mul(ONE_DAY, 2))));
 }
 
 ANJ_UNIT_TEST(notification_op, notification_confirmable_get_reset) {
@@ -869,14 +866,14 @@ ANJ_UNIT_TEST(notification_op, notification_confirmable_get_reset) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     anj_exchange(-1);
     check_out_buff(true, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
@@ -898,8 +895,8 @@ ANJ_UNIT_TEST(notification_op,
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_double(11.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -913,7 +910,7 @@ ANJ_UNIT_TEST(notification_op,
 
     // Even though 5.0 doesn't meet the "Change Value Condition", we send
     // notifications because the previously reported value met them
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
     ASSERT_EQ(anj.observe_ctx.observations[0].last_sent_value.double_value,
               get_res_value_double);
 }
@@ -928,15 +925,15 @@ ANJ_UNIT_TEST(notification_op, observe_number_overflow) {
                        &effective_attributes);
     anj.observe_ctx.observations[0].observe_number = 0xFFFFFE;
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(0.1);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
     anj_exchange(false);
     uint8_t EXPECTED_POSITIVE1[] =
             "\x51" /* Ver = 1, Type = 1 (Non-con), TKL = 1 */
@@ -955,7 +952,7 @@ ANJ_UNIT_TEST(notification_op, observe_number_overflow) {
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
     anj_exchange(false);
     uint8_t EXPECTED_POSITIVE2[] =
             "\x51" /* Ver = 1, Type = 1 (Non-con), TKL = 1 */
@@ -970,7 +967,7 @@ ANJ_UNIT_TEST(notification_op, observe_number_overflow) {
     memset(&out_msg, 0, sizeof(out_msg));
     message_id++;
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change_with_more_than_one_server) {
@@ -988,8 +985,8 @@ ANJ_UNIT_TEST(notification_op, notification_change_with_more_than_one_server) {
     anj.observe_ctx.observations[1].ssid = 2;
     anj.observe_ctx.observations[2].ssid = 3;
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     set_res_value_double(20.0);
     // server with SSID 1 changed resource value
@@ -998,29 +995,29 @@ ANJ_UNIT_TEST(notification_op, notification_change_with_more_than_one_server) {
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 1));
 
     // change time only to tests timestamps
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
     srv.ssid = 2;
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
     anj_exchange(false);
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
     srv.ssid = 3;
-    anj_process(0, 0x23, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x23, 1);
     anj_exchange(false);
     check_out_buff(false, 0x23, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
     check_observations(&anj.observe_ctx,
                        &(anj_uri_path_t[2]){ ANJ_MAKE_INSTANCE_PATH(3, 0),
                                              ANJ_MAKE_OBJECT_PATH(3) }[0],
-                       2, false);
+                       2, false, anj_time_real_add(time_real_zero, ONE_DAY));
 
     srv.ssid = 1;
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
     srv.ssid = 2;
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
     srv.ssid = 3;
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change_added_object_instance) {
@@ -1039,8 +1036,8 @@ ANJ_UNIT_TEST(notification_op, notification_change_added_object_instance) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(&anj,
                                              &ANJ_MAKE_INSTANCE_PATH(3, 0),
@@ -1048,18 +1045,19 @@ ANJ_UNIT_TEST(notification_op, notification_change_added_object_instance) {
     // skip /3/0/1/5
     // skip /3/0/1
 
-    anj_process(0, 0x23, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x23, 1);
     anj_exchange(false);
     check_out_buff(false, 0x23, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    anj_process(0, 0x24, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x24, 1);
     anj_exchange(false);
     check_out_buff(false, 0x24, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change_added_resource_instance) {
@@ -1080,35 +1078,36 @@ ANJ_UNIT_TEST(notification_op, notification_change_added_resource_instance) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 0, 6, 1),
             ANJ_OBSERVE_CHANGE_TYPE_ADDED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
     // skip /3/0/8/1
 
-    anj_process(0, 0x23, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x23, 1);
     anj_exchange(false);
     check_out_buff(false, 0x23, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    anj_process(0, 0x24, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x24, 1);
     anj_exchange(false);
     check_out_buff(false, 0x24, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    anj_process(0, 0x25, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x25, 1);
     anj_exchange(false);
     check_out_buff(false, 0x25, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(time_real_zero, ONE_DAY));
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, notification_change_deleted) {
@@ -1134,10 +1133,11 @@ ANJ_UNIT_TEST(notification_op, notification_change_deleted) {
     anj.observe_ctx.attributes_storage[3].ssid = 3;
     anj.observe_ctx.attributes_storage[3].path = ANJ_MAKE_OBJECT_PATH(3);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 
-    add_to_mock_time(4000);
+    mock_time_advance(anj_time_duration_new(4000, ANJ_TIME_UNIT_MS));
+
     ASSERT_OK(
             anj_observe_data_model_changed(&anj, &ANJ_MAKE_INSTANCE_PATH(3, 1),
                                            ANJ_OBSERVE_CHANGE_TYPE_DELETED, 0));
@@ -1145,9 +1145,15 @@ ANJ_UNIT_TEST(notification_op, notification_change_deleted) {
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 0);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 0);
     ASSERT_EQ(anj.observe_ctx.observations[2].ssid, 1);
-    ASSERT_EQ(anj.observe_ctx.observations[0].last_notify_timestamp, 0);
-    ASSERT_EQ(anj.observe_ctx.observations[1].last_notify_timestamp, 0);
-    ASSERT_EQ(anj.observe_ctx.observations[2].last_notify_timestamp, 0);
+    ASSERT_TRUE(anj_time_real_eq(
+            anj.observe_ctx.observations[0].last_notify_timestamp,
+            time_real_zero));
+    ASSERT_TRUE(anj_time_real_eq(
+            anj.observe_ctx.observations[1].last_notify_timestamp,
+            time_real_zero));
+    ASSERT_TRUE(anj_time_real_eq(
+            anj.observe_ctx.observations[2].last_notify_timestamp,
+            time_real_zero));
 
     ASSERT_EQ(anj.observe_ctx.attributes_storage[0].ssid, 0);
     ASSERT_EQ(anj.observe_ctx.attributes_storage[1].ssid, 0);
@@ -1177,12 +1183,12 @@ ANJ_UNIT_TEST(notification_op, time_to_next_call_different_max_period) {
                        });
     anj.observe_ctx.observations[1].effective_attr.max_period = 5;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(6000);
+    mock_time_advance(anj_time_duration_new(6000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 }
 
 // check if we get correct time_to_next_call when there are two observations
@@ -1202,12 +1208,12 @@ ANJ_UNIT_TEST(notification_op,
                        });
     anj.observe_ctx.observations[1].effective_attr.has_max_period = false;
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(78000);
+    mock_time_advance(anj_time_duration_new(78000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 }
 
 // check if we get correct time_to_next_call when there are two observations
@@ -1227,12 +1233,12 @@ ANJ_UNIT_TEST(notification_op,
                        });
     anj.observe_ctx.observations[1].effective_attr.has_max_period = false;
 
-    anj_process(10000, 0, 0);
-    anj_process(10000, 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(10000);
+    mock_time_advance(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 }
 
 // check if we get correct time_to_next_call when there are two observations
@@ -1252,20 +1258,20 @@ ANJ_UNIT_TEST(notification_op, time_to_next_call_different_min_period) {
                        });
     anj.observe_ctx.observations[1].effective_attr.min_period = 5;
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(6000);
+    mock_time_advance(anj_time_duration_new(6000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 }
 
 // check if we get correct time_to_next_call when there are two observations
@@ -1288,19 +1294,19 @@ ANJ_UNIT_TEST(notification_op,
                        });
     anj.observe_ctx.observations[1].effective_attr.has_min_period = false;
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(10000, 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(10000);
+    mock_time_advance(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 }
 
 // check if we get correct time_to_next_call when there are two observations
@@ -1323,19 +1329,19 @@ ANJ_UNIT_TEST(notification_op,
                        });
     anj.observe_ctx.observations[1].effective_attr.has_min_period = false;
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(10000, 0, 0);
+    anj_process(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(10000);
+    mock_time_advance(anj_time_duration_new(10000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 }
 
 ANJ_UNIT_TEST(notification_op, time_notification_for_different_servers) {
@@ -1357,16 +1363,16 @@ ANJ_UNIT_TEST(notification_op, time_notification_for_different_servers) {
     anj.observe_ctx.observations[2].effective_attr.max_period = 20;
 
     srv.ssid = 1;
-    anj_process(100000, 0, 0);
-    anj_process(100000, 0, 0);
+    anj_process(anj_time_duration_new(100000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(100000, ANJ_TIME_UNIT_MS), 0, 0);
 
     srv.ssid = 2;
-    anj_process(50000, 0, 0);
-    anj_process(50000, 0, 0);
+    anj_process(anj_time_duration_new(50000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(50000, ANJ_TIME_UNIT_MS), 0, 0);
 
     srv.ssid = 3;
-    anj_process(20000, 0, 0);
-    anj_process(20000, 0, 0);
+    anj_process(anj_time_duration_new(20000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(20000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, read_callback_failed) {
@@ -1383,8 +1389,8 @@ ANJ_UNIT_TEST(notification_op, read_callback_failed) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     res_read_ret_val = ANJ_COAP_CODE_INTERNAL_SERVER_ERROR;
@@ -1396,7 +1402,7 @@ ANJ_UNIT_TEST(notification_op, read_callback_failed) {
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 0);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 0);
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, build_callback_failed) {
@@ -1410,22 +1416,22 @@ ANJ_UNIT_TEST(notification_op, build_callback_failed) {
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    anj_process(77000, 0, 0);
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
     res_read_ret_val = ANJ_COAP_CODE_INTERNAL_SERVER_ERROR;
     ASSERT_EQ(_anj_exchange_new_client_request(&exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
               ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 0);
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
     ASSERT_EQ(_anj_exchange_new_client_request(&exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
@@ -1433,7 +1439,7 @@ ANJ_UNIT_TEST(notification_op, build_callback_failed) {
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 0);
     res_read_ret_val = 0;
     memset(&out_msg, 0, sizeof(out_msg));
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, time_update) {
@@ -1443,22 +1449,24 @@ ANJ_UNIT_TEST(notification_op, time_update) {
     anj_uri_path_t paths[] = { ANJ_MAKE_RESOURCE_PATH(3, 0, 1) };
     _anj_attr_notification_t effective_attributes = { 0 };
 
-    set_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
+    anj_time_real_t observation_timestamp_start = anj_time_real_now();
 
     /* So now last_notify_timestamp is set to 5000 but the current time is 2500
      */
-    set_mock_time(2500);
+    mock_time_advance(anj_time_duration_new(-2500, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
     anj_exchange(false);
     check_out_buff(false, 0x21, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false);
+    check_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths), false,
+                       anj_time_real_add(observation_timestamp_start, ONE_DAY));
 
-    anj_process(77000, 0, 0);
+    anj_process(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, no_active_observation_for_server_ssid) {
@@ -1477,7 +1485,7 @@ ANJ_UNIT_TEST(notification_op, no_active_observation_for_server_ssid) {
     anj.observe_ctx.observations[0].ssid = 10;
     anj.observe_ctx.observations[1].observe_active = false;
 
-    anj_process(ANJ_TIME_UNDEFINED, 0, 0);
+    anj_process(ANJ_TIME_DURATION_INVALID, 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_op, dont_check_observation_without_ssid) {
@@ -1513,9 +1521,9 @@ ANJ_UNIT_TEST(notification_op,
     setup_observations(&anj.observe_ctx, paths, ANJ_ARRAY_SIZE(paths),
                        &effective_attributes);
 
-    set_mock_time(77000);
+    mock_time_advance(anj_time_duration_new(77000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x21, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x21, 1);
 
     _anj_observe_observation_t *processing_observation =
             anj.observe_ctx.processing_observation;
@@ -1560,7 +1568,9 @@ ANJ_UNIT_TEST(notification_op,
                         .max_period = 20                                 \
                     };                                                   \
             anj.observe_ctx.observations[0].next_conf_notify_timestamp = \
-                    ONE_DAY_MS;                                          \
+                    anj_time_real_add(time_real_zero, ONE_DAY);          \
+            anj.observe_ctx.observations[0].last_notify_timestamp =      \
+                    time_real_zero;                                      \
             anj.observe_ctx.observations[1].ssid = 1;                    \
             anj.observe_ctx.observations[1].token.size = 1;              \
             anj.observe_ctx.observations[1].token.bytes[0] = 0x23;       \
@@ -1574,7 +1584,9 @@ ANJ_UNIT_TEST(notification_op,
                         .max_period = 15                                 \
                     };                                                   \
             anj.observe_ctx.observations[1].next_conf_notify_timestamp = \
-                    ONE_DAY_MS;                                          \
+                    anj_time_real_add(time_real_zero, ONE_DAY);          \
+            anj.observe_ctx.observations[1].last_notify_timestamp =      \
+                    time_real_zero;                                      \
             anj.observe_ctx.observations[2].ssid = 1;                    \
             anj.observe_ctx.observations[2].token.size = 1;              \
             anj.observe_ctx.observations[2].token.bytes[0] = 0x22;       \
@@ -1593,7 +1605,9 @@ ANJ_UNIT_TEST(notification_op,
                         .max_period = 5                                  \
                     };                                                   \
             anj.observe_ctx.observations[2].next_conf_notify_timestamp = \
-                    ONE_DAY_MS;                                          \
+                    anj_time_real_add(time_real_zero, ONE_DAY);          \
+            anj.observe_ctx.observations[2].last_notify_timestamp =      \
+                    time_real_zero;                                      \
             anj.observe_ctx.observations[3].ssid = 1;                    \
             anj.observe_ctx.observations[3].token.size = 1;              \
             anj.observe_ctx.observations[3].token.bytes[0] = 0x22;       \
@@ -1612,7 +1626,9 @@ ANJ_UNIT_TEST(notification_op,
                         .max_period = 10                                 \
                     };                                                   \
             anj.observe_ctx.observations[3].next_conf_notify_timestamp = \
-                    ONE_DAY_MS;                                          \
+                    anj_time_real_add(time_real_zero, ONE_DAY);          \
+            anj.observe_ctx.observations[3].last_notify_timestamp =      \
+                    time_real_zero;                                      \
             anj.observe_ctx.observations[4].ssid = 1;                    \
             anj.observe_ctx.observations[4].token.size = 1;              \
             anj.observe_ctx.observations[4].token.bytes[0] = 0x22;       \
@@ -1632,7 +1648,9 @@ ANJ_UNIT_TEST(notification_op,
                         .has_less_than = true                            \
                     };                                                   \
             anj.observe_ctx.observations[4].next_conf_notify_timestamp = \
-                    ONE_DAY_MS;
+                    anj_time_real_add(anj_time_real_now(), ONE_DAY);     \
+            anj.observe_ctx.observations[4].last_notify_timestamp =      \
+                    time_real_zero;
 
 #        define CHECK_COMPOSITE_OBSERVATION(check_all_last_sent_val,           \
                                             Observe_number, confirmable)       \
@@ -1647,18 +1665,18 @@ ANJ_UNIT_TEST(notification_op,
                 ASSERT_EQ(anj.observe_ctx.observations[4].observe_number,      \
                           Observe_number);                                     \
                                                                                \
-                ASSERT_EQ(                                                     \
+                ASSERT_TRUE(anj_time_real_eq(                                  \
                         anj.observe_ctx.observations[0].last_notify_timestamp, \
-                        anj_time_real_now());                                  \
-                ASSERT_EQ(                                                     \
+                        anj_time_real_now()));                                 \
+                ASSERT_TRUE(anj_time_real_eq(                                  \
                         anj.observe_ctx.observations[1].last_notify_timestamp, \
-                        0);                                                    \
-                ASSERT_EQ(                                                     \
+                        time_real_zero));                                      \
+                ASSERT_TRUE(anj_time_real_eq(                                  \
                         anj.observe_ctx.observations[2].last_notify_timestamp, \
-                        anj_time_real_now());                                  \
-                ASSERT_EQ(                                                     \
+                        anj_time_real_now()));                                 \
+                ASSERT_TRUE(anj_time_real_eq(                                  \
                         anj.observe_ctx.observations[3].last_notify_timestamp, \
-                        anj_time_real_now());                                  \
+                        anj_time_real_now()));                                 \
                 ASSERT_EQ(anj.observe_ctx.observations[2]                      \
                                   .last_sent_value.double_value,               \
                           get_res_value_double);                               \
@@ -1676,21 +1694,27 @@ ANJ_UNIT_TEST(notification_op,
                                       .last_sent_value.double_value,           \
                               0);                                              \
                 }                                                              \
-                uint64_t next_conf_notify_timestamp =                          \
-                        confirmable ? ONE_DAY_MS + anj_time_real_now()         \
-                                    : ONE_DAY_MS;                              \
-                ASSERT_EQ(anj.observe_ctx.observations[0]                      \
-                                  .next_conf_notify_timestamp,                 \
-                          next_conf_notify_timestamp);                         \
-                ASSERT_EQ(anj.observe_ctx.observations[2]                      \
-                                  .next_conf_notify_timestamp,                 \
-                          next_conf_notify_timestamp);                         \
-                ASSERT_EQ(anj.observe_ctx.observations[3]                      \
-                                  .next_conf_notify_timestamp,                 \
-                          next_conf_notify_timestamp);                         \
-                ASSERT_EQ(anj.observe_ctx.observations[4]                      \
-                                  .next_conf_notify_timestamp,                 \
-                          next_conf_notify_timestamp);                         \
+                anj_time_real_t next_conf_notify_timestamp =                   \
+                        confirmable                                            \
+                                ? anj_time_real_add(anj_time_real_now(),       \
+                                                    ONE_DAY)                   \
+                                : anj_time_real_add(time_real_zero, ONE_DAY);  \
+                ASSERT_TRUE(                                                   \
+                        anj_time_real_eq(anj.observe_ctx.observations[0]       \
+                                                 .next_conf_notify_timestamp,  \
+                                         next_conf_notify_timestamp));         \
+                ASSERT_TRUE(                                                   \
+                        anj_time_real_eq(anj.observe_ctx.observations[2]       \
+                                                 .next_conf_notify_timestamp,  \
+                                         next_conf_notify_timestamp));         \
+                ASSERT_TRUE(                                                   \
+                        anj_time_real_eq(anj.observe_ctx.observations[3]       \
+                                                 .next_conf_notify_timestamp,  \
+                                         next_conf_notify_timestamp));         \
+                ASSERT_TRUE(                                                   \
+                        anj_time_real_eq(anj.observe_ctx.observations[4]       \
+                                                 .next_conf_notify_timestamp,  \
+                                         next_conf_notify_timestamp));         \
             }
 
 #        define CHECK_ALL_COMPOSITE_OBSERVATIONS_NOTIF_STATE(state)         \
@@ -1714,12 +1738,12 @@ ANJ_UNIT_TEST(notification_comp_op, notification_max_period) {
     INIT_OBSERVE_MODULE();
     SET_COMPOSITE_OBSERVATION();
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
 
@@ -1727,7 +1751,7 @@ ANJ_UNIT_TEST(notification_comp_op, notification_max_period) {
 
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, notification_confirmable_after_24h) {
@@ -1737,36 +1761,40 @@ ANJ_UNIT_TEST(notification_comp_op, notification_confirmable_after_24h) {
     // turn off second observation
     anj.observe_ctx.observations[1].ssid = 0;
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    set_mock_time(ONE_DAY_MS - 5000);
+    mock_time_advance(
+            anj_time_duration_new(ONE_DAY_MS - 5000, ANJ_TIME_UNIT_MS));
     // non-con notification
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
     CHECK_COMPOSITE_OBSERVATION(true, 1, false);
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    // ONE_DAY_MS + some random value
-    set_mock_time(ONE_DAY_MS + 123);
+    // ONE_DAY + some random value
+    mock_time_advance(anj_time_duration_new(5000 + 123, ANJ_TIME_UNIT_MS));
     // con notification
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(true);
     CHECK_COMPOSITE_OBSERVATION(true, 2, true);
     check_out_buff(true, 0x22, 2, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    set_mock_time(ONE_DAY_MS + 6000);
+    mock_time_advance(anj_time_duration_new(6000 - 123, ANJ_TIME_UNIT_MS));
     // non-con notification
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
-    ASSERT_EQ(anj.observe_ctx.observations[0].next_conf_notify_timestamp,
-              2 * ONE_DAY_MS + 123);
+    ASSERT_TRUE(anj_time_real_eq(
+            anj.observe_ctx.observations[0].next_conf_notify_timestamp,
+            anj_time_real_add(time_real_zero,
+                              anj_time_duration_new(2 * ONE_DAY_MS + 123,
+                                                    ANJ_TIME_UNIT_MS))));
 }
 
 /* Check if last_sent_value is updated even if "Change Value Condition" wasn't
@@ -1785,19 +1813,19 @@ ANJ_UNIT_TEST(notification_comp_op, notification_max_period_with_not_met_gt) {
     anj.observe_ctx.observations[4].effective_attr.greater_than = 5.0;
     anj.observe_ctx.observations[4].effective_attr.has_less_than = false;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(1.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 1, 3),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
-    add_to_mock_time(5000);
+    mock_time_advance(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
 
@@ -1813,7 +1841,7 @@ ANJ_UNIT_TEST(notification_comp_op, notification_max_period_with_not_met_gt) {
 
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, notification_gt_in_one_observation) {
@@ -1826,16 +1854,16 @@ ANJ_UNIT_TEST(notification_comp_op, notification_gt_in_one_observation) {
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[2].effective_attr.greater_than = 25.0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 3),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -1849,9 +1877,9 @@ ANJ_UNIT_TEST(notification_comp_op, notification_gt_in_one_observation) {
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
 
@@ -1861,7 +1889,7 @@ ANJ_UNIT_TEST(notification_comp_op, notification_gt_in_one_observation) {
     CHECK_COMPOSITE_OBSERVATION(true, 1, false);
 
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 #        ifdef ANJ_WITH_LWM2M12
 ANJ_UNIT_TEST(notification_comp_op,
@@ -1876,8 +1904,8 @@ ANJ_UNIT_TEST(notification_comp_op,
     anj.observe_ctx.observations[3].effective_attr.has_con = true;
     anj.observe_ctx.observations[3].effective_attr.con = 0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -1891,9 +1919,9 @@ ANJ_UNIT_TEST(notification_comp_op,
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
 
@@ -1903,7 +1931,7 @@ ANJ_UNIT_TEST(notification_comp_op,
     CHECK_COMPOSITE_OBSERVATION(true, 1, false);
 
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op,
@@ -1918,8 +1946,8 @@ ANJ_UNIT_TEST(notification_comp_op,
     anj.observe_ctx.observations[3].effective_attr.has_con = true;
     anj.observe_ctx.observations[3].effective_attr.con = 1;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -1933,9 +1961,9 @@ ANJ_UNIT_TEST(notification_comp_op,
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(true);
 
@@ -1945,7 +1973,7 @@ ANJ_UNIT_TEST(notification_comp_op,
     CHECK_COMPOSITE_OBSERVATION(true, 1, true);
 
     check_out_buff(true, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op,
@@ -1963,8 +1991,8 @@ ANJ_UNIT_TEST(notification_comp_op,
     anj.observe_ctx.observations[3].effective_attr.has_con = true;
     anj.observe_ctx.observations[3].effective_attr.con = 1;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -1978,9 +2006,9 @@ ANJ_UNIT_TEST(notification_comp_op,
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(true);
 
@@ -1989,7 +2017,7 @@ ANJ_UNIT_TEST(notification_comp_op,
     CHECK_COMPOSITE_OBSERVATION(true, 1, true);
 
     check_out_buff(true, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, notification_con_from_server) {
@@ -2002,8 +2030,8 @@ ANJ_UNIT_TEST(notification_comp_op, notification_con_from_server) {
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[2].effective_attr.greater_than = 25.0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -2017,9 +2045,9 @@ ANJ_UNIT_TEST(notification_comp_op, notification_con_from_server) {
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(true);
 
@@ -2028,7 +2056,7 @@ ANJ_UNIT_TEST(notification_comp_op, notification_con_from_server) {
     CHECK_COMPOSITE_OBSERVATION(true, 1, true);
 
     check_out_buff(true, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 #        endif // ANJ_WITH_LWM2M12
 
@@ -2044,8 +2072,8 @@ ANJ_UNIT_TEST(notification_comp_op,
     anj.observe_ctx.observations[0].effective_attr.has_step = true;
     anj.observe_ctx.observations[0].effective_attr.step = 10;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 0, 6, 1),
@@ -2060,7 +2088,7 @@ ANJ_UNIT_TEST(notification_comp_op,
     // Even though 5.0 doesn't meet the "Change Value Condition", we send
     // notifications because previously we reported that the resource instance
     // was added
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
     ASSERT_EQ(anj.observe_ctx.observations[0].last_sent_value.double_value,
               get_res_value_double);
     ASSERT_EQ(anj.observe_ctx.observations[0].notification_to_send, true);
@@ -2075,8 +2103,8 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_object) {
     // to check if observation have proper last_sent_value
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(&anj, &ANJ_MAKE_OBJECT_PATH(3),
@@ -2090,9 +2118,9 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_object) {
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
 
@@ -2105,7 +2133,7 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_object) {
     CHECK_COMPOSITE_OBSERVATION(false, 1, false);
 
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, added_new_object_instance) {
@@ -2116,8 +2144,8 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_object_instance) {
     // to check if observation have proper last_sent_value
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(&anj,
@@ -2133,9 +2161,9 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_object_instance) {
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
 
@@ -2148,7 +2176,7 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_object_instance) {
     CHECK_COMPOSITE_OBSERVATION(false, 1, false);
 
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, added_new_resource_instance) {
@@ -2160,8 +2188,8 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_resource_instance) {
     anj.observe_ctx.observations[0].effective_attr.has_step = true;
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -2175,9 +2203,9 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_resource_instance) {
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, true);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(false);
 
@@ -2188,7 +2216,7 @@ ANJ_UNIT_TEST(notification_comp_op, added_new_resource_instance) {
     CHECK_COMPOSITE_OBSERVATION(false, 1, false);
 
     check_out_buff(false, 0x22, 1, _ANJ_COAP_FORMAT_SENML_CBOR);
-    anj_process(0, 0x23, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x23, 1);
 }
 
 ANJ_UNIT_TEST(
@@ -2262,8 +2290,8 @@ ANJ_UNIT_TEST(notification_comp_op,
     anj.observe_ctx.observations[3].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[3].path = ANJ_MAKE_RESOURCE_PATH(4, 0, 1);
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(&anj,
                                              &ANJ_MAKE_INSTANCE_PATH(3, 0),
@@ -2276,7 +2304,7 @@ ANJ_UNIT_TEST(notification_comp_op,
     ASSERT_EQ(anj.observe_ctx.observations[4].notification_to_send, false);
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
     // Attributes gt/lt/st/edge should be disable at this step if the path
     // points to a multi-instance resource, and the path didn't exist in the
     // data model when composite observation was added
@@ -2296,8 +2324,8 @@ ANJ_UNIT_TEST(notification_comp_op, notification_con_get_reset) {
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[2].effective_attr.greater_than = 25.0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -2311,9 +2339,9 @@ ANJ_UNIT_TEST(notification_comp_op, notification_con_get_reset) {
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     // change mock time for timestamp test
-    add_to_mock_time(50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_MS));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     anj_exchange(-1);
 
@@ -2325,7 +2353,7 @@ ANJ_UNIT_TEST(notification_comp_op, notification_con_get_reset) {
     CHECK_ALL_COMPOSITE_OBSERVATIONS_SSID(0);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 1);
 
-    anj_process(14950, 0, 0);
+    anj_process(anj_time_duration_new(14950, ANJ_TIME_UNIT_MS), 0, 0);
 }
 #        endif // ANJ_WITH_LWM2M12
 
@@ -2334,20 +2362,20 @@ ANJ_UNIT_TEST(notification_comp_op, unrelated_paths) {
     INIT_OBSERVE_MODULE();
     SET_COMPOSITE_OBSERVATION();
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(4, 0, 3),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
     CHECK_ALL_COMPOSITE_OBSERVATIONS_NOTIF_STATE(false);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_INSTANCE_PATH(4, 0, 3, 5),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
     CHECK_ALL_COMPOSITE_OBSERVATIONS_NOTIF_STATE(false);
 
     ASSERT_OK(anj_observe_data_model_changed(&anj,
@@ -2355,14 +2383,14 @@ ANJ_UNIT_TEST(notification_comp_op, unrelated_paths) {
                                              ANJ_OBSERVE_CHANGE_TYPE_ADDED,
                                              0));
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
     CHECK_ALL_COMPOSITE_OBSERVATIONS_NOTIF_STATE(false);
 
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_INSTANCE_PATH(4, 0, 3, 5),
             ANJ_OBSERVE_CHANGE_TYPE_ADDED, 0));
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
     CHECK_ALL_COMPOSITE_OBSERVATIONS_NOTIF_STATE(false);
 
     ASSERT_OK(anj_observe_data_model_changed(&anj,
@@ -2370,7 +2398,7 @@ ANJ_UNIT_TEST(notification_comp_op, unrelated_paths) {
                                              ANJ_OBSERVE_CHANGE_TYPE_ADDED,
                                              0));
 
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
     CHECK_ALL_COMPOSITE_OBSERVATIONS_NOTIF_STATE(false);
 
     ASSERT_OK(anj_observe_data_model_changed(&anj,
@@ -2393,8 +2421,8 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_model_changed_when_changed) {
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[2].effective_attr.greater_than = 25.0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     res_read_ret_val = -1;
@@ -2410,7 +2438,7 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_model_changed_when_changed) {
     CHECK_ALL_COMPOSITE_OBSERVATIONS_SSID(0);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 1);
 
-    anj_process(15000, 0, 0);
+    anj_process(anj_time_duration_new(15000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, read_failed_in_process_when_changed) {
@@ -2422,8 +2450,8 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_process_when_changed) {
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[2].effective_attr.greater_than = 25.0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -2442,7 +2470,7 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_process_when_changed) {
 
     // there is no change value condition attributes for observations[1] so we
     // do not call read_resource callback
-    anj_process(0, 0x23, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x23, 1);
     res_read_ret_val = 0;
 }
 
@@ -2454,8 +2482,8 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_model_changed_when_added) {
     anj.observe_ctx.observations[2].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[2].effective_attr.greater_than = 25.0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     res_read_ret_val = -1;
@@ -2472,7 +2500,7 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_model_changed_when_added) {
     CHECK_ALL_COMPOSITE_OBSERVATIONS_SSID(0);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 1);
 
-    anj_process(15000, 0, 0);
+    anj_process(anj_time_duration_new(15000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, read_failed_in_process_when_added) {
@@ -2484,8 +2512,8 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_process_when_added) {
     anj.observe_ctx.observations[0].effective_attr.has_greater_than = true;
     anj.observe_ctx.observations[0].effective_attr.greater_than = 25.0;
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     /* read_resource is not called here, we expect that /3/0/2
      * already exists, and since multi-instance resources cannot have "Change
@@ -2508,7 +2536,7 @@ ANJ_UNIT_TEST(notification_comp_op, read_failed_in_process_when_added) {
 
     // there is no change value condition attributes so we do not call
     // read_resource callback
-    anj_process(0, 0x23, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x23, 1);
     res_read_ret_val = 0;
 }
 
@@ -2524,8 +2552,8 @@ ANJ_UNIT_TEST(notification_comp_op,
     // /3/0/11 doesn't exist
     anj.observe_ctx.observations[2].path = ANJ_MAKE_RESOURCE_PATH(3, 0, 11);
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     /* is_any_resource_readable may return ANJ_COAP_CODE_NOT_FOUND, it means
      * that path doesn't exists */
@@ -2558,8 +2586,8 @@ ANJ_UNIT_TEST(notification_comp_op,
     anj.observe_ctx.observations[0].effective_attr.greater_than = 25.0;
     anj.observe_ctx.observations[0].path = ANJ_MAKE_RESOURCE_PATH(3, 0, 17);
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     /* is_any_resource_readable is not called here, we expect that /3/0/17
      * already exists, and since multi-instance resources cannot have "Change
@@ -2585,7 +2613,7 @@ ANJ_UNIT_TEST(notification_comp_op,
      * wouldn't be (at least for anj.observe_ctx.observations[0]) because
      * multi-instance resources cannot have "Change Value Condition" attributes
      */
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 }
 
 ANJ_UNIT_TEST(notification_comp_op, build_callback_failed) {
@@ -2593,15 +2621,15 @@ ANJ_UNIT_TEST(notification_comp_op, build_callback_failed) {
     INIT_OBSERVE_MODULE();
     SET_COMPOSITE_OBSERVATION();
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(20.0);
     ASSERT_OK(anj_observe_data_model_changed(
             &anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 3),
             ANJ_OBSERVE_CHANGE_TYPE_VALUE_CHANGED, 0));
 
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
     res_read_ret_val = -1;
     ASSERT_EQ(_anj_exchange_new_client_request(&exchange_ctx, &out_msg,
                                                &out_handlers, payload,
@@ -2615,7 +2643,7 @@ ANJ_UNIT_TEST(notification_comp_op, build_callback_failed) {
     ASSERT_EQ(anj.observe_ctx.observations[1].notification_to_send, false);
 
     memset(&out_msg, 0, sizeof(out_msg));
-    anj_process(15000, 0, 0);
+    anj_process(anj_time_duration_new(15000, ANJ_TIME_UNIT_MS), 0, 0);
 }
 
 ANJ_UNIT_TEST(notification_comp_op,
@@ -2626,8 +2654,8 @@ ANJ_UNIT_TEST(notification_comp_op,
 
     anj.observe_ctx.observations[0].path = ANJ_MAKE_RESOURCE_PATH(3, 0, 17);
 
-    anj_process(5000, 0, 0);
-    anj_process(5000, 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
+    anj_process(anj_time_duration_new(5000, ANJ_TIME_UNIT_MS), 0, 0);
 
     set_res_value_double(30.0);
     ASSERT_OK(anj_observe_data_model_changed(
@@ -2643,7 +2671,7 @@ ANJ_UNIT_TEST(notification_comp_op,
     /* is_any_resource_readable may return FLUF_COAP_CODE_NOT_FOUND, it means
      * that path doesn't exists, but it should never happen in such a situation
      */
-    anj_process(0, 0x22, 1);
+    anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
 
     CHECK_ALL_COMPOSITE_OBSERVATIONS_SSID(1);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 1);

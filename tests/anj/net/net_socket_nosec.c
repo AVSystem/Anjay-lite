@@ -142,51 +142,6 @@ static int test_default_udp_connection(anj_net_ctx_t *ctx, int af) {
             ctx, af, af == AF_INET ? DEFAULT_HOST_IPV4 : DEFAULT_HOST_IPV6);
 }
 
-static int get_local_port(int sockfd, char *out_buffer, size_t size) {
-    struct sockaddr addr;
-    socklen_t addrlen = sizeof(addr);
-
-    if (sockfd < 0) {
-        return -1;
-    }
-
-    if (getsockname(sockfd, &addr, &addrlen)) {
-        return -1;
-    }
-
-    uint16_t port_in_net_order;
-    switch (addr.sa_family) {
-    case AF_INET: {
-        struct sockaddr_in *addr_in = (struct sockaddr_in *) &addr;
-        port_in_net_order = addr_in->sin_port;
-        break;
-    }
-    case AF_INET6: {
-        struct sockaddr_in6 *addr_in = (struct sockaddr_in6 *) &addr;
-        port_in_net_order = addr_in->sin6_port;
-        break;
-    }
-    default:
-        return -1;
-    }
-
-    char tmp[ANJ_U16_STR_MAX_LEN + 1] = { 0 };
-    int len = anj_uint16_to_string_value(tmp, ntohs(port_in_net_order));
-    if (len > size) {
-        return -1;
-    }
-    memcpy(out_buffer, tmp, len);
-    return 0;
-}
-
-static void check_af(int sockfd, int expected_af) {
-    struct sockaddr addr;
-    socklen_t addrlen = sizeof(addr);
-
-    ANJ_UNIT_ASSERT_EQUAL(getsockname(sockfd, &addr, &addrlen), 0);
-    ANJ_UNIT_ASSERT_EQUAL(addr.sa_family, expected_af);
-}
-
 // Checking if IPv4 and IPv6 addresses are available on the host under
 // localhost
 ANJ_UNIT_TEST(check_host_machine, check_localhost_address) {
@@ -267,15 +222,6 @@ ANJ_UNIT_TEST(tcp_socket, get_opt) {
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_create_ctx(&tcp_sock_ctx, NULL), ANJ_NET_OK);
     ANJ_UNIT_ASSERT_NOT_NULL(tcp_sock_ctx);
 
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_bytes_received(tcp_sock_ctx,
-                                                     &bytes_received),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(bytes_received, 0);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_bytes_sent(tcp_sock_ctx, &bytes_sent),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(bytes_sent, 0);
-
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_state(tcp_sock_ctx, &state), ANJ_NET_OK);
     ANJ_UNIT_ASSERT_EQUAL(state, ANJ_NET_SOCKET_STATE_CLOSED);
 
@@ -303,13 +249,13 @@ ANJ_UNIT_TEST(tcp_socket, get_mtu_after_connect) {
 
     int32_t mtu;
     socklen_t dummy = sizeof(mtu);
-    const int *system_sockfd =
-            (const int *) anj_tcp_get_system_socket(tcp_sock_ctx);
-    ANJ_UNIT_ASSERT_NOT_NULL(system_sockfd);
     int32_t inner_mtu;
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_inner_mtu(tcp_sock_ctx, &inner_mtu),
                           ANJ_NET_OK);
-    getsockopt(*system_sockfd, IPPROTO_IP, IP_MTU, &mtu, &dummy);
+    // HACK: Generally, next line is an antipattern, but it's only a unit test
+    // of a compat layer. The next line works only when sockfd of type int is
+    // the first field of anj_net_ctx_t.
+    getsockopt(*((int *) tcp_sock_ctx), IPPROTO_IP, IP_MTU, &mtu, &dummy);
     ANJ_UNIT_ASSERT_EQUAL(inner_mtu + 80, mtu);
 
     /* after test cleanup */
@@ -335,11 +281,11 @@ ANJ_UNIT_TEST(tcp_socket, get_mtu_after_connect_ipv6) {
 
     int32_t mtu;
     socklen_t dummy = sizeof(mtu);
-    const int *system_sockfd =
-            (const int *) anj_tcp_get_system_socket(tcp_sock_ctx);
-    ANJ_UNIT_ASSERT_NOT_NULL(system_sockfd);
     int32_t inner_mtu;
-    getsockopt(*system_sockfd, IPPROTO_IP, IP_MTU, &mtu, &dummy);
+    // HACK: Generally, next line is an antipattern, but it's only a unit test
+    // of a compat layer. The next line works only when sockfd of type int is
+    // the first field of anj_net_ctx_t.
+    getsockopt(*((int *) tcp_sock_ctx), IPPROTO_IP, IP_MTU, &mtu, &dummy);
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_inner_mtu(tcp_sock_ctx, &inner_mtu),
                           ANJ_NET_OK);
     ANJ_UNIT_ASSERT_EQUAL(inner_mtu + 100, mtu);
@@ -389,15 +335,6 @@ ANJ_UNIT_TEST(tcp_socket, connect_ipv4) {
                                        sizeof(buf)),
                           ANJ_NET_OK);
     ANJ_UNIT_ASSERT_EQUAL(bytes_received, 16);
-
-    uint64_t value;
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_bytes_received(tcp_sock_ctx, &value),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(value, 22);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_bytes_sent(tcp_sock_ctx, &value),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(value, 5);
 
     /* after test cleanup */
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);
@@ -603,7 +540,6 @@ ANJ_UNIT_TEST(tcp_socket, connect_ipv6) {
     ANJ_UNIT_ASSERT_NOT_NULL(tcp_sock_ctx);
 
     int connfd = test_default_tcp_connection(tcp_sock_ctx, AF_INET6);
-    check_af(*(const int *) anj_tcp_get_system_socket(tcp_sock_ctx), AF_INET6);
 
     /* after test cleanup */
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);
@@ -627,115 +563,6 @@ ANJ_UNIT_TEST(tcp_socket, connect_ipv6_hostname) {
 
     int connfd = test_tcp_connection_by_hostname(tcp_sock_ctx, AF_INET6,
                                                  DEFAULT_HOSTNAME);
-    check_af(*(const int *) anj_tcp_get_system_socket(tcp_sock_ctx), AF_INET6);
-
-    /* after test cleanup */
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_NULL(tcp_sock_ctx);
-
-    shutdown(connfd, SHUT_RDWR);
-    close(connfd);
-}
-
-ANJ_UNIT_TEST(tcp_socket, bind_to_local_port_restart_connection_ipv4) {
-    anj_net_ctx_t *tcp_sock_ctx = NULL;
-    anj_net_socket_configuration_t sock_config = {
-        .af_setting = ANJ_NET_AF_SETTING_FORCE_INET4
-    };
-    anj_net_config_t config = {
-        .raw_socket_config = sock_config
-    };
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_create_ctx(&tcp_sock_ctx, &config),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_NOT_NULL(tcp_sock_ctx);
-
-    /* Create server side socket */
-    int sockfd = setup_local_server(SOCK_STREAM, AF_INET, DEFAULT_PORT);
-    ANJ_UNIT_ASSERT_NOT_EQUAL(sockfd, -1);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_connect(tcp_sock_ctx, DEFAULT_HOSTNAME,
-                                          DEFAULT_PORT),
-                          ANJ_NET_OK);
-    int connfd = accept_incomming_conn_keep_listening_sock_open(sockfd, 0);
-    ANJ_UNIT_ASSERT_NOT_EQUAL(connfd, -1);
-
-    char port[ANJ_U16_STR_MAX_LEN + 1] = { 0 };
-    const int *system_sockfd =
-            (const int *) anj_tcp_get_system_socket(tcp_sock_ctx);
-    get_local_port(*system_sockfd, port, sizeof(port));
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_close(tcp_sock_ctx), ANJ_NET_OK);
-
-    shutdown(connfd, SHUT_RDWR);
-    close(connfd);
-
-    /* restart the connection using the same port */
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_reuse_last_port(tcp_sock_ctx), ANJ_NET_OK);
-
-    anj_net_socket_state_t state;
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_state(tcp_sock_ctx, &state), ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(state, ANJ_NET_SOCKET_STATE_BOUND);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_connect(tcp_sock_ctx, DEFAULT_HOSTNAME,
-                                          DEFAULT_PORT),
-                          ANJ_NET_OK);
-    /* accept connection only from the same port */
-    connfd = accept_incomming_conn(sockfd, atoi(port));
-    ANJ_UNIT_ASSERT_NOT_EQUAL(connfd, -1);
-
-    /* after test cleanup */
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_NULL(tcp_sock_ctx);
-
-    shutdown(connfd, SHUT_RDWR);
-    close(connfd);
-}
-
-ANJ_UNIT_TEST(tcp_socket, bind_to_local_port_restart_connection_ipv6) {
-    anj_net_ctx_t *tcp_sock_ctx = NULL;
-    anj_net_socket_configuration_t sock_config = {
-        .af_setting = ANJ_NET_AF_SETTING_FORCE_INET6
-    };
-    anj_net_config_t config = {
-        .raw_socket_config = sock_config
-    };
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_create_ctx(&tcp_sock_ctx, &config),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_NOT_NULL(tcp_sock_ctx);
-
-    /* Create server side socket */
-    int sockfd = setup_local_server(SOCK_STREAM, AF_INET6, DEFAULT_PORT);
-    ANJ_UNIT_ASSERT_NOT_EQUAL(sockfd, -1);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_connect(tcp_sock_ctx, DEFAULT_HOST_IPV6,
-                                          DEFAULT_PORT),
-                          ANJ_NET_OK);
-    int connfd = accept_incomming_conn_keep_listening_sock_open(sockfd, 0);
-    ANJ_UNIT_ASSERT_NOT_EQUAL(connfd, -1);
-
-    char port[ANJ_U16_STR_MAX_LEN + 1] = { 0 };
-    const int *system_sockfd =
-            (const int *) anj_tcp_get_system_socket(tcp_sock_ctx);
-    get_local_port(*system_sockfd, port, sizeof(port));
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_close(tcp_sock_ctx), ANJ_NET_OK);
-
-    shutdown(connfd, SHUT_RDWR);
-    close(connfd);
-
-    /* restart the connection using the same port */
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_reuse_last_port(tcp_sock_ctx), ANJ_NET_OK);
-
-    anj_net_socket_state_t state;
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_get_state(tcp_sock_ctx, &state), ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(state, ANJ_NET_SOCKET_STATE_BOUND);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_connect(tcp_sock_ctx, DEFAULT_HOST_IPV6,
-                                          DEFAULT_PORT),
-                          ANJ_NET_OK);
-    /* accept connection only from the same port */
-    connfd = accept_incomming_conn(sockfd, atoi(port));
-    ANJ_UNIT_ASSERT_NOT_EQUAL(connfd, -1);
 
     /* after test cleanup */
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);
@@ -747,28 +574,27 @@ ANJ_UNIT_TEST(tcp_socket, bind_to_local_port_restart_connection_ipv6) {
 
 /* ANJ_NET_AF_SETTING_UNSPEC should behave like
  * ANJ_NET_AF_SETTING_PREFERRED_INET4 */
-#define CONNECT_PREFERRED_IPV4_OR_UNSPEC(af_value)                             \
-    anj_net_ctx_t *tcp_sock_ctx = NULL;                                        \
-    anj_net_socket_configuration_t sock_config = {                             \
-        .af_setting = af_value                                                 \
-    };                                                                         \
-    anj_net_config_t config = {                                                \
-        .raw_socket_config = sock_config                                       \
-    };                                                                         \
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_create_ctx(&tcp_sock_ctx, &config),          \
-                          ANJ_NET_OK);                                         \
-    ANJ_UNIT_ASSERT_NOT_NULL(tcp_sock_ctx);                                    \
-                                                                               \
-    /* Create server side socket for IPv4 connection and try to connect */     \
-    int connfd = test_tcp_connection_by_hostname(tcp_sock_ctx, AF_INET,        \
-                                                 DEFAULT_HOSTNAME);            \
-    check_af(*(const int *) anj_tcp_get_system_socket(tcp_sock_ctx), AF_INET); \
-                                                                               \
-    /* after test cleanup */                                                   \
-    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);     \
-    ANJ_UNIT_ASSERT_NULL(tcp_sock_ctx);                                        \
-                                                                               \
-    shutdown(connfd, SHUT_RDWR);                                               \
+#define CONNECT_PREFERRED_IPV4_OR_UNSPEC(af_value)                         \
+    anj_net_ctx_t *tcp_sock_ctx = NULL;                                    \
+    anj_net_socket_configuration_t sock_config = {                         \
+        .af_setting = af_value                                             \
+    };                                                                     \
+    anj_net_config_t config = {                                            \
+        .raw_socket_config = sock_config                                   \
+    };                                                                     \
+    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_create_ctx(&tcp_sock_ctx, &config),      \
+                          ANJ_NET_OK);                                     \
+    ANJ_UNIT_ASSERT_NOT_NULL(tcp_sock_ctx);                                \
+                                                                           \
+    /* Create server side socket for IPv4 connection and try to connect */ \
+    int connfd = test_tcp_connection_by_hostname(tcp_sock_ctx, AF_INET,    \
+                                                 DEFAULT_HOSTNAME);        \
+                                                                           \
+    /* after test cleanup */                                               \
+    ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK); \
+    ANJ_UNIT_ASSERT_NULL(tcp_sock_ctx);                                    \
+                                                                           \
+    shutdown(connfd, SHUT_RDWR);                                           \
     close(connfd);
 
 ANJ_UNIT_TEST(tcp_socket, connect_unspec) {
@@ -794,7 +620,6 @@ ANJ_UNIT_TEST(tcp_socket, connect_preferred_ipv6) {
     /* Create server side socket for IPv6 connection and try to connect */
     int connfd = test_tcp_connection_by_hostname(tcp_sock_ctx, AF_INET6,
                                                  DEFAULT_HOSTNAME);
-    check_af(*(const int *) anj_tcp_get_system_socket(tcp_sock_ctx), AF_INET6);
 
     /* after test cleanup */
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);
@@ -821,8 +646,6 @@ ANJ_UNIT_TEST(tcp_socket, connect_preferred_ipv6) {
     /* Create server side socket for IPv6 connection and try to connect */ \
     int connfd = test_tcp_connection_by_hostname(tcp_sock_ctx, AF_INET6,   \
                                                  DEFAULT_HOST_IPV6);       \
-    check_af(*(const int *) anj_tcp_get_system_socket(tcp_sock_ctx),       \
-             AF_INET6);                                                    \
                                                                            \
     /* after test cleanup */                                               \
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK); \
@@ -855,7 +678,6 @@ ANJ_UNIT_TEST(tcp_socket, connect_preferred_ipv6_but_unavailable) {
     /* Create server side socket for IPv4 connection and try to connect */
     int connfd = test_tcp_connection_by_hostname(tcp_sock_ctx, AF_INET,
                                                  DEFAULT_HOST_IPV4);
-    check_af(*(const int *) anj_tcp_get_system_socket(tcp_sock_ctx), AF_INET);
 
     /* after test cleanup */
     ANJ_UNIT_ASSERT_EQUAL(anj_tcp_cleanup_ctx(&tcp_sock_ctx), ANJ_NET_OK);
@@ -932,15 +754,6 @@ ANJ_UNIT_TEST(udp_socket, get_opt) {
     ANJ_UNIT_ASSERT_EQUAL(anj_udp_create_ctx(&udp_sock_ctx, NULL), ANJ_NET_OK);
     ANJ_UNIT_ASSERT_NOT_NULL(udp_sock_ctx);
 
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_bytes_received(udp_sock_ctx,
-                                                     &bytes_received),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(bytes_received, 0);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_bytes_sent(udp_sock_ctx, &bytes_sent),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(bytes_sent, 0);
-
     ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_state(udp_sock_ctx, &state), ANJ_NET_OK);
     ANJ_UNIT_ASSERT_EQUAL(state, ANJ_NET_SOCKET_STATE_CLOSED);
 
@@ -969,10 +782,10 @@ ANJ_UNIT_TEST(udp_socket, get_mtu_after_connect) {
     int32_t mtu;
     socklen_t dummy = sizeof(mtu);
     int32_t inner_mtu;
-    const int *system_sockfd =
-            (const int *) anj_udp_get_system_socket(udp_sock_ctx);
-    ANJ_UNIT_ASSERT_NOT_NULL(system_sockfd);
-    getsockopt(*system_sockfd, IPPROTO_IP, IP_MTU, &mtu, &dummy);
+    // HACK: Generally, next line is an antipattern, but it's only a unit test
+    // of a compat layer. The next line works only when sockfd of type int is
+    // the first field of anj_net_ctx_t.
+    getsockopt(*((int *) udp_sock_ctx), IPPROTO_IP, IP_MTU, &mtu, &dummy);
     ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_inner_mtu(udp_sock_ctx, &inner_mtu),
                           ANJ_NET_OK);
     ANJ_UNIT_ASSERT_EQUAL(inner_mtu + 28, mtu);
@@ -1000,10 +813,10 @@ ANJ_UNIT_TEST(udp_socket, get_mtu_after_connect_ipv6) {
     int32_t mtu;
     socklen_t dummy = sizeof(mtu);
     int32_t inner_mtu;
-    const int *system_sockfd =
-            (const int *) anj_udp_get_system_socket(udp_sock_ctx);
-    ANJ_UNIT_ASSERT_NOT_NULL(system_sockfd);
-    getsockopt(*system_sockfd, IPPROTO_IP, IP_MTU, &mtu, &dummy);
+    // HACK: Generally, next line is an antipattern, but it's only a unit test
+    // of a compat layer. The next line works only when sockfd of type int is
+    // the first field of anj_net_ctx_t.
+    getsockopt(*((int *) udp_sock_ctx), IPPROTO_IP, IP_MTU, &mtu, &dummy);
     ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_inner_mtu(udp_sock_ctx, &inner_mtu),
                           ANJ_NET_OK);
     ANJ_UNIT_ASSERT_EQUAL(inner_mtu + 48, mtu);
@@ -1058,15 +871,6 @@ ANJ_UNIT_TEST(udp_socket, connect_ipv4) {
                                        sizeof(buf)),
                           ANJ_NET_OK);
     ANJ_UNIT_ASSERT_EQUAL(bytes_received, 16);
-
-    uint64_t value;
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_bytes_received(udp_sock_ctx, &value),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(value, 22);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_bytes_sent(udp_sock_ctx, &value),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(value, 5);
 
     /* after test cleanup */
     ANJ_UNIT_ASSERT_EQUAL(anj_udp_cleanup_ctx(&udp_sock_ctx), ANJ_NET_OK);
@@ -1199,73 +1003,6 @@ ANJ_UNIT_TEST(udp_socket, connect_invalid_port) {
     ANJ_UNIT_ASSERT_NULL(udp_sock_ctx);
 }
 
-ANJ_UNIT_TEST(udp_socket, bind_to_local_port) {
-    size_t bytes_sent = 0;
-
-    anj_net_ctx_t *udp_sock_ctx = NULL;
-    anj_net_socket_configuration_t sock_config = {
-        .af_setting = ANJ_NET_AF_SETTING_FORCE_INET4
-    };
-    anj_net_config_t config = {
-        .raw_socket_config = sock_config
-    };
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_create_ctx(&udp_sock_ctx, &config),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_NOT_NULL(udp_sock_ctx);
-
-    int sockfd = test_udp_connection_by_hostname(udp_sock_ctx, AF_INET,
-                                                 DEFAULT_HOSTNAME);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_send(udp_sock_ctx, &bytes_sent,
-                                       (const uint8_t *) "hello", 5),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(bytes_sent, 5);
-
-    uint8_t buf[100];
-    struct sockaddr_in client_addr;
-    socklen_t client_addr_len = sizeof(client_addr);
-    ANJ_UNIT_ASSERT_EQUAL(recvfrom(sockfd, buf, sizeof(buf), 0,
-                                   (struct sockaddr *) &client_addr,
-                                   &client_addr_len),
-                          5);
-
-    uint16_t port_in_net_order = client_addr.sin_port;
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_close(udp_sock_ctx), ANJ_NET_OK);
-
-    shutdown(sockfd, SHUT_RDWR);
-    close(sockfd);
-
-    /* restart the connection using the same port */
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_reuse_last_port(udp_sock_ctx), ANJ_NET_OK);
-
-    anj_net_socket_state_t state;
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_get_state(udp_sock_ctx, &state), ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(state, ANJ_NET_SOCKET_STATE_BOUND);
-
-    sockfd = test_udp_connection_by_hostname(udp_sock_ctx, AF_INET,
-                                             DEFAULT_HOSTNAME);
-
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_send(udp_sock_ctx, &bytes_sent,
-                                       (const uint8_t *) "world!", 6),
-                          ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_EQUAL(bytes_sent, 6);
-    ANJ_UNIT_ASSERT_EQUAL(recvfrom(sockfd, buf, sizeof(buf), 0,
-                                   (struct sockaddr *) &client_addr,
-                                   &client_addr_len),
-                          6);
-
-    /* check if the port is the same as with the last connection */
-    ANJ_UNIT_ASSERT_EQUAL(port_in_net_order, client_addr.sin_port);
-
-    /* after test cleanup */
-    ANJ_UNIT_ASSERT_EQUAL(anj_udp_cleanup_ctx(&udp_sock_ctx), ANJ_NET_OK);
-    ANJ_UNIT_ASSERT_NULL(udp_sock_ctx);
-
-    shutdown(sockfd, SHUT_RDWR);
-    close(sockfd);
-}
-
 ANJ_UNIT_TEST(udp_socket, connect_ipv6) {
     anj_net_ctx_t *udp_sock_ctx = NULL;
     anj_net_socket_configuration_t sock_config = {
@@ -1280,7 +1017,6 @@ ANJ_UNIT_TEST(udp_socket, connect_ipv6) {
 
     int sockfd = test_udp_connection_by_hostname(udp_sock_ctx, AF_INET6,
                                                  DEFAULT_HOSTNAME);
-    check_af(*(const int *) anj_udp_get_system_socket(udp_sock_ctx), AF_INET6);
 
     /* after test cleanup */
     ANJ_UNIT_ASSERT_EQUAL(anj_udp_cleanup_ctx(&udp_sock_ctx), ANJ_NET_OK);

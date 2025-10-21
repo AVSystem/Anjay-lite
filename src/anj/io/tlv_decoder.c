@@ -166,14 +166,19 @@ static int tlv_get_double(_anj_io_in_ctx_t *ctx) {
     if (ctx->decoder.tlv.entries->bytes_read
             == ctx->decoder.tlv.entries->length) {
         switch (ctx->decoder.tlv.entries->length) {
-        case 4:
-            ctx->out_value.double_value =
-                    _anj_ntohf(*(uint32_t *) &ctx->out_value.double_value);
+        case 4: {
+            // this double is stored in 4 bytes, to avoid compilation warnings
+            // we need to copy it to a uint32_t before converting it
+            uint32_t tmp;
+            memcpy(&tmp, &ctx->out_value.uint_value,
+                   ctx->decoder.tlv.entries->length);
+            ctx->out_value.double_value = _anj_ntohf(tmp);
             break;
-        case 8:
-            ctx->out_value.double_value =
-                    _anj_ntohd(*(uint64_t *) &ctx->out_value.double_value);
+        }
+        case 8: {
+            ctx->out_value.double_value = _anj_ntohd(ctx->out_value.uint_value);
             break;
+        }
         default:
             return _ANJ_IO_ERR_FORMAT;
         }

@@ -9,6 +9,14 @@
 
 #include <anj/init.h>
 
+/**
+ * @file
+ * @brief Logging API for Anjay Lite.
+ *
+ * Provides macros for emitting log messages with compile-time filtering and
+ * configurable backends.
+ */
+
 #ifndef ANJ_LOG_LOG_H
 #    define ANJ_LOG_LOG_H
 
@@ -21,10 +29,13 @@ extern "C" {
 #    include <anj/compat/log_impl_decls.h> // IWYU pragma: export
 #    include <anj/utils.h>
 
+/** @cond */
 #    define ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
 #    include <anj_internal/log/log_filtering_utils.h>
 #    undef ANJ_INTERNAL_INCLUDE_LOG_FILTERING_UTILS
+/** @endcond */
 
+/** @cond */
 /**
  * Makes compiler emit warnings for provided format string and arguments
  * without any overhead for the resulting application, as whole expression
@@ -86,6 +97,7 @@ extern "C" {
 #    else // _ANJ_LOG_ENABLED
 #        define ANJ_LOG_IF_ALLOWED(Module, LogLevel, ...) ((void) 0)
 #    endif // _ANJ_LOG_ENABLED
+/** @endcond */
 
 /**
  * Logs a message.
@@ -98,28 +110,24 @@ extern "C" {
  * anj_log(my_module, L_DEBUG, "Hello %s, %d!", "world", 42);
  * @endcode
  *
- * NOTE: Only following format specifiers are allowed in the format string:
- * - <c>\%\%</c>, <c>\%s</c>, <c>\%f</c>,
- * - <c>\%d</c>, <c>\%ld</c>, <c>\%lld</c>, <c>\%zd</c>,
- * - <c>\%u</c>, <c>\%lu</c>, <c>\%llu</c>, <c>\%zu</c>.
- * Behavior if other format specifiers are provided is undefined.
- *
  * @param Module Name of the module that generates the message, given as a raw
  *               token.
  *
  * @param LogLevel Log level, specified as a name of @ref anj_log_level_t
- *                 (other than <c>L_MUTED</c>) with the leading
- *                 <c>ANJ_LOG_LEVEL_</c> omitted.
+ *                 (other than @c L_MUTED) with the leading
+ *                 @c ANJ_LOG_LEVEL_ omitted.
  */
 #    define anj_log(Module, LogLevel, ...)                          \
         ((void) (ANJ_LOG_IF_ALLOWED(Module, LogLevel, __VA_ARGS__), \
                  ANJ_LOG_COMPILE_TIME_CHECK(__VA_ARGS__)))
 
+/** @cond */
 #    ifdef ANJ_LOG_STRIP_CONSTANTS
 #        define ANJ_LOG_DISPOSABLE_IMPL(Arg) " "
 #    else // ANJ_LOG_STRIP_CONSTANTS
 #        define ANJ_LOG_DISPOSABLE_IMPL(Arg) Arg
 #    endif // ANJ_LOG_STRIP_CONSTANTS
+/** @endcond */
 
 /**
  * Replaces a string constant with <c>" "</c> if @ref ANJ_LOG_STRIP_CONSTANTS
@@ -130,7 +138,7 @@ extern "C" {
  * anj_log(my_module, L_DEBUG, ANJ_LOG_DISPOSABLE("The result is: ") "%d", 42);
  * @endcode
  *
- * NOTE: Provided string constants shall not contain any format specifiers.
+ * @note Provided string constants shall not contain any format specifiers.
  *
  * @param Arg A string constant to be potentially replaced with <c>" "</c>.
  */

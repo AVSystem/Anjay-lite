@@ -44,7 +44,7 @@ int _anj_dm_get_register_record(anj_t *anj,
                                 const char **out_version) {
     assert(anj && out_path && out_version);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
+    assert(dm->op_in_progress);
     assert(dm->op_count);
     assert(dm->operation == ANJ_OP_REGISTER || dm->operation == ANJ_OP_UPDATE);
 

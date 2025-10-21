@@ -14,4 +14,6 @@ Firmware Update Tutorial
    :titlesonly:
 
    FirmwareUpdateTutorial/FU-Introduction
-   FirmwareUpdateTutorial/FU-BasicImplementation
+   FirmwareUpdateTutorial/FU-PushBasicImplementation
+   FirmwareUpdateTutorial/FU-PullBasicImplementation
+   FirmwareUpdateTutorial/FU-PullWithCoapsImplementation

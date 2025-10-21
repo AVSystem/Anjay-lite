@@ -23,7 +23,7 @@ static anj_dm_res_t resources_defs[] = {
 {% if not "E" in res.operations %}
         .type = {{ res.type_enum }},
 {% endif %}
-        .operation = {{ res.kind_enum }},
+        .kind = {{ res.kind_enum }},
     },
 {% endfor %}
 };

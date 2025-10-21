@@ -18,7 +18,7 @@
 #include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "dm_core.h"
@@ -144,8 +144,7 @@ int _anj_dm_begin_bootstrap_discover_op(anj_t *anj,
     _anj_dm_data_model_t *dm = &anj->dm;
     if (base_path && anj_uri_path_has(base_path, ANJ_ID_IID)) {
         dm_log(L_ERROR, "Bootstrap discover can't target object instance");
-        dm->result = _ANJ_DM_ERR_INPUT_ARG;
-        return dm->result;
+        return _ANJ_DM_ERR_INPUT_ARG;
     }
     _anj_dm_disc_ctx_t *disc_ctx = &dm->op_ctx.disc_ctx;
 
@@ -173,7 +172,7 @@ int _anj_dm_get_bootstrap_discover_record(anj_t *anj,
                                           const char **out_uri) {
     assert(anj && out_path && out_version && out_ssid && out_uri);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
+    assert(dm->op_in_progress);
     assert(dm->op_count);
     assert(dm->operation == ANJ_OP_DM_DISCOVER && dm->bootstrap_operation);
 
@@ -239,9 +238,8 @@ int _anj_dm_begin_discover_op(anj_t *anj, const anj_uri_path_t *base_path) {
 
     dm->entity_ptrs.obj = _anj_dm_find_obj(dm, base_path->ids[ANJ_ID_OID]);
     if (!dm->entity_ptrs.obj) {
-        dm->result = ANJ_DM_ERR_NOT_FOUND;
         dm_log(L_ERROR, "Object not found");
-        return dm->result;
+        return ANJ_DM_ERR_NOT_FOUND;
     }
 
     const anj_dm_obj_t *obj = dm->entity_ptrs.obj;
@@ -265,7 +263,7 @@ int _anj_dm_begin_discover_op(anj_t *anj, const anj_uri_path_t *base_path) {
                 }
                 if (all_resources || base_path->ids[ANJ_ID_RID] == res->rid) {
                     dm->op_count++;
-                    if (_anj_dm_is_multi_instance_resource(res->operation)) {
+                    if (_anj_dm_is_multi_instance_resource(res->kind)) {
                         dm->op_count += _anj_dm_count_res_insts(res);
                     }
                 }
@@ -309,7 +307,7 @@ static void get_res_record(_anj_dm_data_model_t *dm,
     assert(disc_ctx->res_idx < inst->res_count);
     const anj_dm_res_t *res = &inst->resources[disc_ctx->res_idx];
     *out_path = ANJ_MAKE_RESOURCE_PATH(obj->oid, inst->iid, res->rid);
-    bool is_multi_instance = _anj_dm_is_multi_instance_resource(res->operation);
+    bool is_multi_instance = _anj_dm_is_multi_instance_resource(res->kind);
     uint16_t inst_count = 0;
     if (is_multi_instance) {
         inst_count = _anj_dm_count_res_insts(res);
@@ -350,7 +348,7 @@ int _anj_dm_get_discover_record(anj_t *anj,
                                 const uint16_t **out_dim) {
     assert(anj && out_path && out_version && out_dim);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
+    assert(dm->op_in_progress);
     assert(dm->op_count);
     assert(dm->operation == ANJ_OP_DM_DISCOVER && !dm->bootstrap_operation);
 

@@ -19,21 +19,9 @@
 #include "../../src/anj/coap/coap.h"
 #include "../../src/anj/exchange.h"
 
+#include "../mock/time_api_mock.h"
+
 #include <anj_unit_test.h>
-
-static uint64_t mock_time_value = 0;
-
-void set_mock_time(uint64_t time) {
-    mock_time_value = time;
-}
-
-uint64_t anj_time_now(void) {
-    return mock_time_value;
-}
-
-uint64_t anj_time_real_now(void) {
-    return mock_time_value;
-}
 
 typedef struct {
     // read_payload_handler
@@ -91,12 +79,13 @@ static void exchange_completion_handler(void *arg_ptr,
 // no need to initialize MID - it can be randomized, and in verify_payload()
 // we overwrite MID and token in serialized message
 #define TEST_INIT()                      \
+    mock_time_reset();                   \
     uint8_t payload[20];                 \
     _anj_coap_msg_t msg;                 \
     handlers_arg_t handlers_arg = { 0 }; \
     memset(&msg, 0, sizeof(msg));        \
     _anj_exchange_ctx_t ctx;             \
-    _anj_exchange_init(&ctx, 0);
+    _anj_exchange_init(&ctx);
 
 static void
 verify_payload(uint8_t *expected, size_t expected_len, _anj_coap_msg_t *msg) {
@@ -833,7 +822,8 @@ ANJ_UNIT_TEST(client_requests, register_operation) {
     msg.attr.register_attr.has_endpoint = true;
     msg.attr.register_attr.has_lifetime = true;
     msg.attr.register_attr.endpoint = "name";
-    msg.attr.register_attr.lifetime = 120;
+    msg.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
 
     ASSERT_EQ(_anj_exchange_new_client_request(&ctx, &msg, &handlers, payload,
                                                sizeof(payload)),
@@ -893,7 +883,8 @@ ANJ_UNIT_TEST(client_requests, register_with_cancel) {
     msg.attr.register_attr.has_endpoint = true;
     msg.attr.register_attr.has_lifetime = true;
     msg.attr.register_attr.endpoint = "name";
-    msg.attr.register_attr.lifetime = 120;
+    msg.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
 
     ASSERT_EQ(_anj_exchange_new_client_request(&ctx, &msg, &handlers, payload,
                                                sizeof(payload)),
@@ -911,8 +902,8 @@ ANJ_UNIT_TEST(client_requests, register_with_cancel) {
                                     &response),
               ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
-    ASSERT_EQ(handlers_arg.result, ANJ_COAP_CODE_BAD_REQUEST);
-    ASSERT_TRUE(handlers_arg.response == NULL);
+    ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_SERVER_RESPONSE);
+    ASSERT_TRUE(handlers_arg.response == &response);
 }
 
 static _anj_coap_msg_t process_register_response(_anj_exchange_ctx_t *ctx,
@@ -962,7 +953,8 @@ ANJ_UNIT_TEST(client_requests, register_operation_with_block) {
     msg.attr.register_attr.has_endpoint = true;
     msg.attr.register_attr.has_lifetime = true;
     msg.attr.register_attr.endpoint = "name";
-    msg.attr.register_attr.lifetime = 120;
+    msg.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
 
     ASSERT_EQ(_anj_exchange_new_client_request(&ctx, &msg, &handlers, payload,
                                                20),
@@ -1041,10 +1033,16 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_send_timeout) {
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION);
-    mock_time_value = ctx.send_confirmation_timeout_timestamp_ms + 1;
+
+    anj_time_duration_t delta =
+            anj_time_monotonic_diff(ctx.send_confirmation_timeout_timestamp,
+                                    anj_time_monotonic_now());
+    mock_time_advance(delta);
+    mock_time_tick(ANJ_TIME_UNIT_S);
+
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_FINISHED);
-    mock_time_value = 0;
+
     ASSERT_EQ(handlers_arg.complete_counter, 1);
     ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_TIMEOUT);
 }
@@ -1064,7 +1062,7 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_termination) {
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION);
-    _anj_exchange_terminate(&ctx);
+    _anj_exchange_terminate(&ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
     ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_TERMINATED);
 }
@@ -1086,7 +1084,12 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_2_retransmision) {
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
     for (int i = 0; i < 2; i++) {
-        mock_time_value = ctx.timeout_timestamp_ms + 1;
+        anj_time_duration_t delta =
+                anj_time_monotonic_diff(ctx.timeout_timestamp,
+                                        anj_time_monotonic_now());
+        mock_time_advance(delta);
+        mock_time_tick(ANJ_TIME_UNIT_S);
+
         ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
                   ANJ_EXCHANGE_STATE_MSG_TO_SEND);
         ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
@@ -1103,7 +1106,6 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_2_retransmision) {
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
                                     &response),
               ANJ_EXCHANGE_STATE_FINISHED);
-    mock_time_value = 0;
 }
 
 // Test: Update operation with retransmision and service unavailable interrupt.
@@ -1130,7 +1132,12 @@ ANJ_UNIT_TEST(
               ANJ_EXCHANGE_STATE_WAITING_MSG);
 
     // first retransmision
-    mock_time_value = ctx.timeout_timestamp_ms + 1;
+    anj_time_duration_t delta =
+            anj_time_monotonic_diff(ctx.timeout_timestamp,
+                                    anj_time_monotonic_now());
+    mock_time_advance(delta);
+    mock_time_tick(ANJ_TIME_UNIT_S);
+
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
@@ -1160,7 +1167,11 @@ ANJ_UNIT_TEST(
                                     &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
     // second retransmision
-    mock_time_value = ctx.timeout_timestamp_ms + 1;
+    delta = anj_time_monotonic_diff(ctx.timeout_timestamp,
+                                    anj_time_monotonic_now());
+    mock_time_advance(delta);
+    mock_time_tick(ANJ_TIME_UNIT_S);
+
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
@@ -1193,7 +1204,6 @@ ANJ_UNIT_TEST(
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
                                     &response),
               ANJ_EXCHANGE_STATE_FINISHED);
-    mock_time_value = 0;
 }
 
 // Test: Update operation with retransmision fail.
@@ -1219,7 +1229,12 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_retransmision_fail) {
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
     for (int i = 0; i < 4; i++) {
-        mock_time_value = ctx.timeout_timestamp_ms + 1;
+        anj_time_duration_t delta =
+                anj_time_monotonic_diff(ctx.timeout_timestamp,
+                                        anj_time_monotonic_now());
+        mock_time_advance(delta);
+        mock_time_tick(ANJ_TIME_UNIT_S);
+
         ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
                   ANJ_EXCHANGE_STATE_MSG_TO_SEND);
         ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
@@ -1235,10 +1250,14 @@ ANJ_UNIT_TEST(client_requests, update_operation_with_retransmision_fail) {
         ASSERT_EQ(req_size, final_req_size);
         ASSERT_EQ_BYTES_SIZED(req_buff, final_req_buff, req_size);
     }
-    mock_time_value = ctx.timeout_timestamp_ms + 1;
+    anj_time_duration_t delta =
+            anj_time_monotonic_diff(ctx.timeout_timestamp,
+                                    anj_time_monotonic_now());
+    mock_time_advance(delta);
+    mock_time_tick(ANJ_TIME_UNIT_S);
+
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_FINISHED);
-    mock_time_value = 0;
 }
 
 // Test: exchange API for non-confirmable notify should call
@@ -1449,28 +1468,30 @@ ANJ_UNIT_TEST(client_requests,
 
 ANJ_UNIT_TEST(client_requests, set_udp_tx_params) {
     _anj_exchange_ctx_t ctx;
-    _anj_exchange_init(&ctx, 0);
+    _anj_exchange_init(&ctx);
     anj_exchange_udp_tx_params_t default_params =
-            _ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT;
-    ASSERT_EQ(ctx.tx_params.ack_timeout_ms, default_params.ack_timeout_ms);
+            ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT;
+    ASSERT_TRUE(anj_time_duration_eq(ctx.tx_params.ack_timeout,
+                                     default_params.ack_timeout));
     ASSERT_EQ(ctx.tx_params.ack_random_factor,
               default_params.ack_random_factor);
     ASSERT_EQ(ctx.tx_params.max_retransmit, default_params.max_retransmit);
 
     anj_exchange_udp_tx_params_t test_params = {
         .ack_random_factor = 10,
-        .ack_timeout_ms = 1100,
+        .ack_timeout = anj_time_duration_new(1100, ANJ_TIME_UNIT_MS),
         .max_retransmit = 12
     };
     // random factor must be >= 1
     anj_exchange_udp_tx_params_t err_params = {
         .ack_random_factor = 0.1,
-        .ack_timeout_ms = 11111,
+        .ack_timeout = anj_time_duration_new(11111, ANJ_TIME_UNIT_MS),
         .max_retransmit = 111
     };
     ASSERT_OK(_anj_exchange_set_udp_tx_params(&ctx, &test_params));
     ASSERT_FAIL(_anj_exchange_set_udp_tx_params(&ctx, &err_params));
-    ASSERT_EQ(ctx.tx_params.ack_timeout_ms, test_params.ack_timeout_ms);
+    ASSERT_TRUE(anj_time_duration_eq(ctx.tx_params.ack_timeout,
+                                     test_params.ack_timeout));
     ASSERT_EQ(ctx.tx_params.ack_random_factor, test_params.ack_random_factor);
     ASSERT_EQ(ctx.tx_params.max_retransmit, test_params.max_retransmit);
 }
@@ -1500,7 +1521,8 @@ ANJ_UNIT_TEST(client_requests, register_with_block_number_mismatch) {
     msg.attr.register_attr.has_endpoint = true;
     msg.attr.register_attr.has_lifetime = true;
     msg.attr.register_attr.endpoint = "name";
-    msg.attr.register_attr.lifetime = 120;
+    msg.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
 
     ASSERT_EQ(_anj_exchange_new_client_request(&ctx, &msg, &handlers, payload,
                                                20),
@@ -1560,10 +1582,10 @@ ANJ_UNIT_TEST(client_requests, bootstrap_pack_request_write_payload_error) {
                                     &response),
               ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
-    _anj_exchange_terminate(&ctx);
+    _anj_exchange_terminate(&ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
 
-    ASSERT_EQ(handlers_arg.result, ANJ_COAP_CODE_NOT_ACCEPTABLE);
+    ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_REQUEST);
 }
 
 // Test: SEND operation with read_payload error, no message should be sent.
@@ -1581,7 +1603,7 @@ ANJ_UNIT_TEST(client_requests, send_read_payload_error) {
                                                sizeof(payload)),
               ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(handlers_arg.counter, 1);
-    ASSERT_EQ(handlers_arg.result, ANJ_COAP_CODE_BAD_REQUEST);
+    ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_REQUEST);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
 }
 

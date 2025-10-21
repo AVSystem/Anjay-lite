@@ -34,10 +34,12 @@
 #        define _ANJ_COAP_EXTENDED_LENGTH_UINT32 15U
 #    endif // ANJ_COAP_WITH_TCP
 
-#    define _ANJ_FIELD_GET(field, mask, shift) (((field) & (mask)) >> (shift))
-#    define _ANJ_FIELD_SET(field, mask, shift, value) \
-        ((field) = (uint8_t) (((field) & ~(mask))     \
-                              | (uint8_t) (((value) << (shift)) & (mask))))
+#    define _ANJ_FIELD_GET(field, mask, shift) \
+        ((uint8_t) ((((uint32_t) (field)) & ((uint32_t) (mask))) >> (shift)))
+#    define _ANJ_FIELD_SET(field, mask, shift, value)                      \
+        (field) = (uint8_t) ((((uint32_t) (field)) & ~((uint32_t) (mask))) \
+                             | ((((uint32_t) (value) << (shift))           \
+                                 & ((uint32_t) (mask)))))
 
 #    define _RET_IF_ERROR(Val) \
         if (Val) {             \
@@ -86,13 +88,13 @@ typedef struct {
 } anj_bytes_dispenser_t;
 
 static inline uint8_t _anj_code_get_class(uint8_t code) {
-    return (uint8_t) _ANJ_FIELD_GET(code, ANJ_COAP_CODE_CLASS_MASK,
-                                    ANJ_COAP_CODE_CLASS_SHIFT);
+    return (uint8_t) _ANJ_FIELD_GET(code, (uint8_t) ANJ_COAP_CODE_CLASS_MASK,
+                                    (uint8_t) ANJ_COAP_CODE_CLASS_SHIFT);
 }
 
 static inline uint8_t _anj_code_get_detail(uint8_t code) {
-    return (uint8_t) _ANJ_FIELD_GET(code, ANJ_COAP_CODE_DETAIL_MASK,
-                                    ANJ_COAP_CODE_DETAIL_SHIFT);
+    return (uint8_t) _ANJ_FIELD_GET(code, (uint8_t) ANJ_COAP_CODE_DETAIL_MASK,
+                                    (uint8_t) ANJ_COAP_CODE_DETAIL_SHIFT);
 }
 
 static inline bool _anj_coap_code_is_request(uint8_t code) {

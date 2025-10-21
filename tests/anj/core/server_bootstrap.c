@@ -26,7 +26,7 @@
 #include <anj_unit_test.h>
 
 #define TEST_INIT()                                        \
-    set_mock_time(0);                                      \
+    mock_time_reset();                                     \
     net_api_mock_t mock = { 0 };                           \
     net_api_mock_ctx_init(&mock);                          \
     mock.inner_mtu_value = 128;                            \
@@ -102,7 +102,7 @@ ANJ_UNIT_TEST(server_bootstrap,
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_BOOTSTRAPPING);
 
-    set_mock_time(11);
+    mock_time_advance(anj_time_duration_new(11, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_BOOTSTRAP_IN_PROGRESS);
@@ -302,7 +302,9 @@ ANJ_UNIT_TEST(server_bootstrap, mimic_bootstrap_exceeds_lifetime) {
     SEND_BOOTSTRAP_REQUEST();
 
     // Step 2. Absence of the following request from server exceeds lifetime
-    set_mock_time(anj.bootstrap_ctx.bootstrap_finish_timeout + 1);
+    mock_time_advance(
+            anj_time_duration_add(anj.bootstrap_ctx.bootstrap_lifetime,
+                                  anj_time_duration_new(1, ANJ_TIME_UNIT_S)));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_ERROR);
@@ -316,7 +318,7 @@ ANJ_UNIT_TEST(server_bootstrap,
     TEST_INIT();
     // reinit with additional configuration
     config.bootstrap_retry_count = 1;
-    config.bootstrap_retry_timeout = 5;
+    config.bootstrap_retry_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S);
     anj_core_init(&anj, &config);
     ADD_SECURITY_INSTANCE_AND_INSTALL_OBJECTS();
     anj_core_step(&anj);
@@ -331,8 +333,9 @@ ANJ_UNIT_TEST(server_bootstrap,
     SEND_BOOTSTRAP_REQUEST();
 
     // Step 2. Absence of the following request from server exceeds lifetime
-    uint64_t actual_time = anj.bootstrap_ctx.bootstrap_finish_timeout + 1;
-    set_mock_time(actual_time);
+    mock_time_advance(
+            anj_time_duration_add(anj.bootstrap_ctx.bootstrap_lifetime,
+                                  anj_time_duration_new(1, ANJ_TIME_UNIT_S)));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_WAITING);
@@ -340,7 +343,7 @@ ANJ_UNIT_TEST(server_bootstrap,
                           ANJ_CONN_STATUS_BOOTSTRAPPING);
     ANJ_UNIT_ASSERT_EQUAL(mock.state, ANJ_NET_SOCKET_STATE_CLOSED);
 
-    set_mock_time_advance(&actual_time, 6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     MIMIC_BOOTSTRAP();
 }
 
@@ -359,16 +362,16 @@ ANJ_UNIT_TEST(server_bootstrap, lifetime_check_from_last_request) {
     SEND_BOOTSTRAP_REQUEST();
 
     // Advance some time
-    uint64_t actual_time = 100;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(100, ANJ_TIME_UNIT_S));
 
     // Receive Security Object Write
     RECEIVE_SECURITY_OBJECT_WRITE();
 
     // Above Request from server should reset timeout so we can wait
-    // anj.bootstrap_ctx.bootstrap_finish_timeout seconds from now
-    set_mock_time_advance(&actual_time,
-                          anj.bootstrap_ctx.bootstrap_finish_timeout - 1);
+    // anj.bootstrap_ctx.bootstrap_lifetime seconds from now
+    mock_time_advance(
+            anj_time_duration_sub(anj.bootstrap_ctx.bootstrap_lifetime,
+                                  anj_time_duration_new(1, ANJ_TIME_UNIT_S)));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_BOOTSTRAP_IN_PROGRESS);
@@ -418,7 +421,7 @@ ANJ_UNIT_TEST(server_bootstrap, connection_failure_and_retry_failed) {
     TEST_INIT();
     // reinit with additional configuration
     config.bootstrap_retry_count = 1;
-    config.bootstrap_retry_timeout = 5;
+    config.bootstrap_retry_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S);
     anj_core_init(&anj, &config);
     ADD_SECURITY_INSTANCE_AND_INSTALL_OBJECTS();
     net_api_mock_force_connection_failure();
@@ -437,7 +440,7 @@ ANJ_UNIT_TEST(server_bootstrap, connection_failure_and_retry_failed) {
     ANJ_UNIT_ASSERT_EQUAL(mock.state, ANJ_NET_SOCKET_STATE_CLOSED);
 
     net_api_mock_force_connection_failure();
-    set_mock_time(6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_ERROR);
@@ -450,7 +453,7 @@ ANJ_UNIT_TEST(server_bootstrap, connection_failure_and_retry_success) {
     TEST_INIT();
     // reinit with additional configuration
     config.bootstrap_retry_count = 1;
-    config.bootstrap_retry_timeout = 5;
+    config.bootstrap_retry_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S);
     anj_core_init(&anj, &config);
     ADD_SECURITY_INSTANCE_AND_INSTALL_OBJECTS();
     net_api_mock_force_connection_failure();
@@ -468,7 +471,7 @@ ANJ_UNIT_TEST(server_bootstrap, connection_failure_and_retry_success) {
                           ANJ_CONN_STATUS_BOOTSTRAPPING);
     ANJ_UNIT_ASSERT_EQUAL(mock.state, ANJ_NET_SOCKET_STATE_CLOSED);
 
-    set_mock_time(6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_BOOTSTRAP_IN_PROGRESS);
@@ -493,7 +496,7 @@ ANJ_UNIT_TEST(server_bootstrap, send_failure_and_retry_failed) {
     TEST_INIT();
     // reinit with additional configuration
     config.bootstrap_retry_count = 1;
-    config.bootstrap_retry_timeout = 5;
+    config.bootstrap_retry_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S);
     anj_core_init(&anj, &config);
     ADD_SECURITY_INSTANCE_AND_INSTALL_OBJECTS();
     net_api_mock_force_send_failure();
@@ -512,7 +515,7 @@ ANJ_UNIT_TEST(server_bootstrap, send_failure_and_retry_failed) {
     ANJ_UNIT_ASSERT_EQUAL(mock.state, ANJ_NET_SOCKET_STATE_CLOSED);
 
     net_api_mock_force_send_failure();
-    set_mock_time(6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_ERROR);
@@ -525,7 +528,7 @@ ANJ_UNIT_TEST(server_bootstrap, send_failure_and_retry_success) {
     TEST_INIT();
     // reinit with additional configuration
     config.bootstrap_retry_count = 1;
-    config.bootstrap_retry_timeout = 5;
+    config.bootstrap_retry_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S);
     anj_core_init(&anj, &config);
     ADD_SECURITY_INSTANCE_AND_INSTALL_OBJECTS();
     net_api_mock_force_send_failure();
@@ -543,7 +546,7 @@ ANJ_UNIT_TEST(server_bootstrap, send_failure_and_retry_success) {
                           ANJ_CONN_STATUS_BOOTSTRAPPING);
     ANJ_UNIT_ASSERT_EQUAL(mock.state, ANJ_NET_SOCKET_STATE_CLOSED);
 
-    set_mock_time(6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.bootstrap.bootstrap_state,
                           _ANJ_SRV_BOOTSTRAP_STATE_BOOTSTRAP_IN_PROGRESS);

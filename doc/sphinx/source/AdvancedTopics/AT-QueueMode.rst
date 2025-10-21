@@ -23,26 +23,23 @@ This mode is set during registration with the LwM2M Server, using one of the
 parameters of the Register operation.
 
 .. note::
-    In LwM2M v1.0 Queue Mode is set by Binding resource from LwM2M Server
+    In LwM2M v1.0 Queue Mode is set by **Binding** resource in the LwM2M Server
     Object. Anjay Lite does not support it.
 
-The LwM2M Client becomes active when it needs to send one of the following
-operations:
+The LwM2M Client becomes active when it needs to send one of these operations:
 
-    - Update
-    - Send
-    - Notify
+- Update
+- Send
+- Notify
 
-.. note::
-    While some LwM2M specification diagrams suggest that an Update operation
-    must precede a Send or Notification, Anjay Lite skips this step, reducing
+.. important::
+    Some LwM2M specification diagrams suggest that an Update must precede
+    a Send or Notification. Anjay Lite skips this step, reducing
     unnecessary network traffic.
 
-.. note::
-    If you implement your own custom network compatibility layer it has to
-    support :doc:`reuse last port operation
-    <../PortingGuideForNonPOSIXPlatforms/NetworkingAPI/ReuseLastPort>` to make
-    Queue Mode work properly.
+.. tip::
+    If you implement your own custom network compatibility layer, considered
+    implementing the ``anj_net_queue_mode_rx_off_t`` API.
 
 .. note::
     Code related to this tutorial can be found under
@@ -52,14 +49,18 @@ operations:
 Enable Queue Mode
 -----------------
 
-To enable Queue Mode in Anjay Lite update the configuration structure:
+Update the configuration structure to enable Queue Mode:
+
+.. note::
+    ``queue_mode_timeout`` is set via Anjay Lite's Time API. For more details,
+    see :doc:`Time API <../PortingGuideForNonPOSIXPlatforms/TimeAPI>`.
 
 .. code-block:: c
 
     anj_configuration_t config = {
         .endpoint_name = argv[1],
         .queue_mode_enabled = true,
-        .queue_mode_timeout_ms = 5000
+        .queue_mode_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S),
     };
     if (anj_core_init(&anj, &config)) {
         log(L_ERROR, "Failed to initialize Anjay Lite");
@@ -68,9 +69,10 @@ To enable Queue Mode in Anjay Lite update the configuration structure:
 
 **How it works**
 
-    - ``queue_mode_enabled = true`` – Enables Queue Mode.
-    - ``queue_mode_timeout_ms = 5000`` – Specifies how long after last exchange
-      with the LwM2M Server Anjay Lite will switch to offline mode.
+    - ``queue_mode_enabled = true`` — Enables Queue Mode.
+    - ``queue_mode_timeout_ms = 5000`` — Specifies how long after last exchange
+      with the LwM2M Server Anjay Lite stays online before switching to offline
+      mode
 
 It is recommended not to modify ``queue_mode_timeout_ms``. It is set to a lower
 value here only to demonstrate faster transitions to offline mode. However,
@@ -80,9 +82,9 @@ reliability for energy savings.
 If not set manually, ``queue_mode_timeout_ms`` defaults to
 ``MAX_TRANSMIT_WAIT``, a value defined by the CoAP protocol. This parameter
 represents the maximum time a sender waits for an acknowledgment or reset of a
-confirmable CoAP message before giving up. Therefore, if we shorten this
-interval, retransmissions – and, in the case of a drastic reduction, even the
-original messages – sent by the LwM2M Server may not reach the LwM2M Client.
+confirmable CoAP message before giving up. Shortening the interval can cause
+retransmissions — or, if reduced drastically, even the original messages — sent
+by the LwM2M Server to never reach the LwM2M Client.
 
 For the default transmission parameters, ``MAX_TRANSMIT_WAIT`` is equal to 93
 seconds.
@@ -92,7 +94,7 @@ seconds.
     mode is to modify the transmission parameters via the ``udp_tx_params``
     field from the ``anj_configuration_t`` structure.
 
-Switch to power-saving Mode
+Switch to power-saving mode
 ---------------------------
 
 When Queue Mode is enabled, Anjay Lite automatically switches the client to an
@@ -116,7 +118,9 @@ server connection changes:
         (void) arg;
 
         if (conn_status == ANJ_CONN_STATUS_QUEUE_MODE) {
-            uint64_t time_ms = anj_core_next_step_time(anj);
+            anj_time_duration_t time = anj_core_next_step_time(anj);
+            uint64_t time_ms =
+                    (uint64_t) anj_time_duration_to_scalar(time, ANJ_TIME_UNIT_MS);
 
             // Simulate entering low power mode for period of time returned by
             // previous function
@@ -131,9 +135,9 @@ server connection changes:
 
 **How it works**
 
-    - ``ANJ_CONN_STATUS_QUEUE_MODE`` – indicates that the client has switched
+    - ``ANJ_CONN_STATUS_QUEUE_MODE`` — indicates that the client has switched
       to offline mode and will not receive any new messages.
-    - ``anj_core_next_step_time()`` – returns the number of milliseconds until
+    - ``anj_core_next_step_time()`` — returns the ``anj_time_duration_t`` until
       the next call to ``anj_core_step()`` is required. Use this value to
       determine how long the device can stay in power-saving mode.
 
@@ -144,7 +148,7 @@ server connection changes:
     ``anj_core_next_step_time`` may no longer be valid; in that case, call the
     function again and use the updated time value.
 
-After that update the configuration:
+Next, update the configuration:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-QueueMode/src/main.c
@@ -153,10 +157,29 @@ After that update the configuration:
     anj_configuration_t config = {
         .endpoint_name = argv[1],
         .queue_mode_enabled = true,
-        .queue_mode_timeout_ms = 5000,
+        .queue_mode_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S),
         .connection_status_cb = connection_status_callback
     };
     if (anj_core_init(&anj, &config)) {
         log(L_ERROR, "Failed to initialize Anjay Lite");
         return -1;
     }
+
+
+NAT awareness
+-------------
+
+In typical deployments, clients do not have publicly routable IP addresses and
+operate behind NAT devices.
+
+Most NATs create short-lived bindings that map a client's internal (IP, port) to
+an external (IP, port). Servers usually identify a peer by the 5-tuple (src
+IP, src port, dst IP, dst port, transport). If inactivity lasts longer than the
+NAT binding lifetime or if the client changes its local port, the NAT mapping
+may be lost.
+
+**Queue Mode implication:** if the NAT mapping is lost, the server can't match
+uplink operations (Update, Send, Notify) with any registered client.
+To enable long Queue Mode intervals, you need a mechanism that isn't tied to
+the 5-tuple (e.g., DTLS Connection ID or an equivalent transport/session
+identifier).

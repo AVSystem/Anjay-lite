@@ -9,22 +9,23 @@
 Network API
 ===========
 
-Reference implementations
--------------------------
+Overview
+--------
 
-Anjay Lite provides a reference implementation of its network API, designed to
-work with systems that support the BSD-style socket API. You can find the full
-implementation in `src/anj/compat/posix/anj_socket.c`. If your target platform
-does not support BSD-style sockets, you must implement a custom network
-compatibility layer that Anjay Lite can use.
+Anjay Lite provides a reference implementation of its network API, designed for
+systems that support the BSD-style socket API. You can find the full
+implementation in `src/anj/compat/posix/anj_socket.c`.
 
-To help with this process, Anjay Lite includes tutorial examples featuring minimal and compact implementations:
+If your target platform does not support BSD-style sockets, you'll need to
+implement a custom network compatibility layer for Anjay Lite.
+
+To help with this process, Anjay Lite includes a tutorial that demonstrates a
+minimal network implementation:
 
 .. toctree::
    :titlesonly:
 
    NetworkingAPI/MinimalSocketImplementation
-   NetworkingAPI/ReuseLastPort
 
 .. note::
    For practical guidance, see the :ref:`integrations` section, 
@@ -38,54 +39,43 @@ When building a custom networking layer, you must provide implementations for a 
 This tutorial assumes support for UDP connections, and therefore uses the ``anj_udp_*`` naming convention.
 
 .. note::
-   Currently Anjay Lite supports only UDP binding. We may add support for other
-   bindings in the future.
+   Anjay Lite currently supports only UDP and DTLS binding.
+   Support for additional bindings may be added later.
 
 If POSIX socket API is not available:
 
-- Use ``ANJ_WITH_SOCKET_POSIX_COMPAT=OFF`` when running CMake on Anjay Lite,
+- Use ``ANJ_WITH_SOCKET_POSIX_COMPAT=OFF`` when running CMake on Anjay Lite.
 - Implement the following mandatory functions:
 
-+----------------------------+-----------------------------------------------------------------------------------+
-| Function                   | Purpose                                                                           |
-+============================+===================================================================================+
-| ``anj_udp_create_ctx``     | Create and initialize a network context.                                          |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_connect``        | Connect the socket to a server address.                                           |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_send``           | Send data through the socket.                                                     |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_recv``           | Receive data from the socket.                                                     |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_shutdown``       | Shut down socket communication.                                                   |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_close``          | Close the socket.                                                                 |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_cleanup_ctx``    | Clean up and free the network context.                                            |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_get_inner_mtu``  | Returns the maximum size of a buffer that can be passed to ``anj_udp_send()``.    |
-+----------------------------+-----------------------------------------------------------------------------------+
-| ``anj_udp_get_state``      | Return the current state of the socket.                                           |
-+----------------------------+-----------------------------------------------------------------------------------+
++-------------------------------+---------------------------------------------------------------------------------------+
+| Function                      | Purpose                                                                               |
++===============================+=======================================================================================+
+| ``anj_udp_create_ctx``        | Create and initialize a network context.                                              |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_connect``           | Connect the socket to a server address.                                               |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_send``              | Send data through the socket.                                                         |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_recv``              | Receive data from the socket.                                                         |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_shutdown``          | Shut down socket communication.                                                       |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_close``             | Close the socket.                                                                     |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_cleanup_ctx``       | Clean up and free the network context.                                                |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_get_inner_mtu``     | Returns the maximum size of a buffer that can be passed to ``anj_udp_send()``.        |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_udp_get_state``         | Return the current socket state.                                                      |
++-------------------------------+---------------------------------------------------------------------------------------+
+| ``anj_net_queue_mode_rx_off`` | Used by Anjay Lite when entering Queue Mode. Can return ``ANJ_NET_OK`` if unused.     |
++-------------------------------+---------------------------------------------------------------------------------------+
 
-Optional functions
-------------------
-
-Implementing the following additional functions enables enhanced features:
-
-+-------------------------------+---------------------------------------------------------------------------------------------+
-| Function                      | Purpose                                                                                     |
-+===============================+=============================================================================================+
-| ``anj_udp_reuse_last_port``   | Required to support Queue Mode. If Queue Mode is not needed, implement a stub that returns  |
-|                               | ``ANJ_NET_ENOTSUP``.                                                                        |
-+-------------------------------+---------------------------------------------------------------------------------------------+
-| ``anj_udp_get_bytes_received``| Not used directly by Anjay Lite. Useful for gathering statistics on incoming traffic.       |
-+-------------------------------+---------------------------------------------------------------------------------------------+
-| ``anj_udp_get_bytes_sent``    | Not used directly by Anjay Lite. Useful for gathering statistics on outgoing traffic.       |
-+-------------------------------+---------------------------------------------------------------------------------------------+
-| ``anj_udp_get_system_socket`` | Not used by Anjay Lite. Can be used to suspend the device until a packet is received.       |
-+-------------------------------+---------------------------------------------------------------------------------------------+
+.. attention::
+    Some API functions are allowed to return ``ANJ_NET_EINPROGRESS``. Note that using this behaviour
+    may cause library to stuck in continues calling of the function, instead of proceeding with
+    fallback procedure.
 
 .. note::
-    For signatures and detailed description of listed functions, see
-    `include_public/anj/compat/net/anj_net_api.h`
+    For function signatures and detailed description of listed functions, see
+    ``include_public/anj/compat/net/anj_net_api.h``.

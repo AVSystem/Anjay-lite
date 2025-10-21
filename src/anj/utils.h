@@ -17,22 +17,8 @@
 #    include <stdint.h>
 
 #    include <anj/defs.h>
-#    include <anj/utils.h>
 
 #    include "coap/coap.h"
-
-/**
- * Returns a pseudo-random integer from range [0, UINT32_MAX].
- */
-uint32_t _anj_rand32_r(_anj_rand_seed_t *seed);
-
-/**
- * Returns a pseudo-random integer from range [0, UINT64_MAX].
- */
-static inline uint64_t _anj_rand64_r(_anj_rand_seed_t *seed) {
-    return (((uint64_t) _anj_rand32_r(seed)) << 32)
-           | ((uint64_t) _anj_rand32_r(seed));
-}
 
 /**
  * Check if path points to Security or OSCORE object.
@@ -152,5 +138,9 @@ bool _anj_double_convertible_to_uint64(double value);
 static inline bool _anj_is_power_of_2(size_t value) {
     return value > 0 && !(value & (value - 1));
 }
+
+char *_anj_coap_code_format(char (*buff)[5], uint32_t code);
+
+#    define COAP_CODE_FORMAT(Code) _anj_coap_code_format(&(char[5]){ "" }, Code)
 
 #endif // SRC_ANJ_UTILS_H

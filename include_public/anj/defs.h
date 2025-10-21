@@ -9,6 +9,14 @@
 
 #include <anj/init.h>
 
+/**
+ * @file
+ * @brief Core type and constant definitions for Anjay Lite.
+ *
+ * Defines LwM2M identifiers, CoAP codes, data types, and utility structures
+ * shared across the library.
+ */
+
 #ifndef ANJ_DEFS_H
 #    define ANJ_DEFS_H
 
@@ -18,14 +26,12 @@
 #    include <stdint.h>
 #    include <stdlib.h>
 
+#    include <anj/time.h>
+
 #    ifdef __cplusplus
 extern "C" {
 #    endif
 
-/**
- * Macros used for constructing/parsing CoAP codes.
- *
- */
 #    define ANJ_COAP_CODE_CLASS_MASK 0xE0
 #    define ANJ_COAP_CODE_CLASS_SHIFT 5
 #    define ANJ_COAP_CODE_DETAIL_MASK 0x1F
@@ -36,59 +42,61 @@ extern "C" {
          | (((detail) << ANJ_COAP_CODE_DETAIL_SHIFT)                       \
             & ANJ_COAP_CODE_DETAIL_MASK))
 
-/**
- * @anchor anj_coap_code_constants
- * @name anj_coap_code_constants
+/** @defgroup anj_coap_code_constants CoAP code constants
+ * CoAP code values as defined in RFC 7252, RFC 7959 and related extensions.
  *
- * CoAP code constants, as defined in RFC7252/RFC7959.
- *
- * For detailed description of their semantics, refer to appropriate RFCs.
- *
+ * @see RFC7252 (CoAP), RFC7959 (Blockwise), RFC8132 (FETCH/PATCH/iPATCH),
+ *      RFC8323 (CoAP over TCP/TLS, Signaling codes)
+ * @{
  */
+
 // clang-format off
+
 #define ANJ_COAP_CODE_EMPTY  ANJ_COAP_CODE(0, 0)
 
-#define ANJ_COAP_CODE_GET    ANJ_COAP_CODE(0, 1)
-#define ANJ_COAP_CODE_POST   ANJ_COAP_CODE(0, 2)
-#define ANJ_COAP_CODE_PUT    ANJ_COAP_CODE(0, 3)
-#define ANJ_COAP_CODE_DELETE ANJ_COAP_CODE(0, 4)
-/** https://tools.ietf.org/html/rfc8132#section-4 */
-#define ANJ_COAP_CODE_FETCH  ANJ_COAP_CODE(0, 5)
-#define ANJ_COAP_CODE_PATCH  ANJ_COAP_CODE(0, 6)
-#define ANJ_COAP_CODE_IPATCH ANJ_COAP_CODE(0, 7)
+#define ANJ_COAP_CODE_GET     ANJ_COAP_CODE(0, 1)
+#define ANJ_COAP_CODE_POST    ANJ_COAP_CODE(0, 2)
+#define ANJ_COAP_CODE_PUT     ANJ_COAP_CODE(0, 3)
+#define ANJ_COAP_CODE_DELETE  ANJ_COAP_CODE(0, 4)
+#define ANJ_COAP_CODE_FETCH   ANJ_COAP_CODE(0, 5)
+#define ANJ_COAP_CODE_PATCH   ANJ_COAP_CODE(0, 6)
+#define ANJ_COAP_CODE_IPATCH  ANJ_COAP_CODE(0, 7)
 
-#define ANJ_COAP_CODE_CREATED  ANJ_COAP_CODE(2, 1)
-#define ANJ_COAP_CODE_DELETED  ANJ_COAP_CODE(2, 2)
-#define ANJ_COAP_CODE_VALID    ANJ_COAP_CODE(2, 3)
-#define ANJ_COAP_CODE_CHANGED  ANJ_COAP_CODE(2, 4)
-#define ANJ_COAP_CODE_CONTENT  ANJ_COAP_CODE(2, 5)
-#define ANJ_COAP_CODE_CONTINUE ANJ_COAP_CODE(2, 31)
+#define ANJ_COAP_CODE_CREATED   ANJ_COAP_CODE(2, 1)
+#define ANJ_COAP_CODE_DELETED   ANJ_COAP_CODE(2, 2)
+#define ANJ_COAP_CODE_VALID     ANJ_COAP_CODE(2, 3)
+#define ANJ_COAP_CODE_CHANGED   ANJ_COAP_CODE(2, 4)
+#define ANJ_COAP_CODE_CONTENT   ANJ_COAP_CODE(2, 5)
+#define ANJ_COAP_CODE_CONTINUE  ANJ_COAP_CODE(2, 31)
 
-#define ANJ_COAP_CODE_BAD_REQUEST                ANJ_COAP_CODE(4, 0)
-#define ANJ_COAP_CODE_UNAUTHORIZED               ANJ_COAP_CODE(4, 1)
-#define ANJ_COAP_CODE_BAD_OPTION                 ANJ_COAP_CODE(4, 2)
-#define ANJ_COAP_CODE_FORBIDDEN                  ANJ_COAP_CODE(4, 3)
-#define ANJ_COAP_CODE_NOT_FOUND                  ANJ_COAP_CODE(4, 4)
-#define ANJ_COAP_CODE_METHOD_NOT_ALLOWED         ANJ_COAP_CODE(4, 5)
-#define ANJ_COAP_CODE_NOT_ACCEPTABLE             ANJ_COAP_CODE(4, 6)
-#define ANJ_COAP_CODE_REQUEST_ENTITY_INCOMPLETE  ANJ_COAP_CODE(4, 8)
-#define ANJ_COAP_CODE_PRECONDITION_FAILED        ANJ_COAP_CODE(4, 12)
-#define ANJ_COAP_CODE_REQUEST_ENTITY_TOO_LARGE   ANJ_COAP_CODE(4, 13)
-#define ANJ_COAP_CODE_UNSUPPORTED_CONTENT_FORMAT ANJ_COAP_CODE(4, 15)
+#define ANJ_COAP_CODE_BAD_REQUEST                 ANJ_COAP_CODE(4, 0)
+#define ANJ_COAP_CODE_UNAUTHORIZED                ANJ_COAP_CODE(4, 1)
+#define ANJ_COAP_CODE_BAD_OPTION                  ANJ_COAP_CODE(4, 2)
+#define ANJ_COAP_CODE_FORBIDDEN                   ANJ_COAP_CODE(4, 3)
+#define ANJ_COAP_CODE_NOT_FOUND                   ANJ_COAP_CODE(4, 4)
+#define ANJ_COAP_CODE_METHOD_NOT_ALLOWED          ANJ_COAP_CODE(4, 5)
+#define ANJ_COAP_CODE_NOT_ACCEPTABLE              ANJ_COAP_CODE(4, 6)
+#define ANJ_COAP_CODE_REQUEST_ENTITY_INCOMPLETE   ANJ_COAP_CODE(4, 8)
+#define ANJ_COAP_CODE_PRECONDITION_FAILED         ANJ_COAP_CODE(4, 12)
+#define ANJ_COAP_CODE_REQUEST_ENTITY_TOO_LARGE    ANJ_COAP_CODE(4, 13)
+#define ANJ_COAP_CODE_UNSUPPORTED_CONTENT_FORMAT  ANJ_COAP_CODE(4, 15)
 
-#define ANJ_COAP_CODE_INTERNAL_SERVER_ERROR  ANJ_COAP_CODE(5, 0)
-#define ANJ_COAP_CODE_NOT_IMPLEMENTED        ANJ_COAP_CODE(5, 1)
-#define ANJ_COAP_CODE_BAD_GATEWAY            ANJ_COAP_CODE(5, 2)
-#define ANJ_COAP_CODE_SERVICE_UNAVAILABLE    ANJ_COAP_CODE(5, 3)
-#define ANJ_COAP_CODE_GATEWAY_TIMEOUT        ANJ_COAP_CODE(5, 4)
-#define ANJ_COAP_CODE_PROXYING_NOT_SUPPORTED ANJ_COAP_CODE(5, 5)
+#define ANJ_COAP_CODE_INTERNAL_SERVER_ERROR   ANJ_COAP_CODE(5, 0)
+#define ANJ_COAP_CODE_NOT_IMPLEMENTED         ANJ_COAP_CODE(5, 1)
+#define ANJ_COAP_CODE_BAD_GATEWAY             ANJ_COAP_CODE(5, 2)
+#define ANJ_COAP_CODE_SERVICE_UNAVAILABLE     ANJ_COAP_CODE(5, 3)
+#define ANJ_COAP_CODE_GATEWAY_TIMEOUT         ANJ_COAP_CODE(5, 4)
+#define ANJ_COAP_CODE_PROXYING_NOT_SUPPORTED  ANJ_COAP_CODE(5, 5)
 
 #define ANJ_COAP_CODE_CSM      ANJ_COAP_CODE(7, 1)
 #define ANJ_COAP_CODE_PING     ANJ_COAP_CODE(7, 2)
 #define ANJ_COAP_CODE_PONG     ANJ_COAP_CODE(7, 3)
 #define ANJ_COAP_CODE_RELEASE  ANJ_COAP_CODE(7, 4)
 #define ANJ_COAP_CODE_ABORT    ANJ_COAP_CODE(7, 5)
+
 // clang-format on
+
+/**@} */
 
 #    define ANJ_OBJ_ID_SECURITY 0U
 #    define ANJ_OBJ_ID_SERVER 1U
@@ -108,9 +116,8 @@ extern "C" {
 #    define ANJ_ATTR_DOUBLE_NONE (NAN)
 
 /**
- * Can be returned by @ref anj_get_external_data_t to inform the library that
- * this callback should be invoked again; it is also used internally - do not
- * modify this value!
+ * Returned by @ref anj_get_external_data_t to inform that this callback should
+ * be invoked again.
  */
 #    define ANJ_IO_NEED_NEXT_CALL 4
 
@@ -126,33 +133,28 @@ typedef uint16_t anj_rid_t;
 /** Resource Instance ID */
 typedef uint16_t anj_riid_t;
 
-/**
- * Forward declaration of anj_struct, which represents an object containing all
- * statically allocated memory used by the Anjay Lite library.
- */
 typedef struct anj_struct anj_t;
 
 #    ifdef ANJ_WITH_COAP_DOWNLOADER
-/**
- * Forward declaration of anj_coap_downloader_struct, which represents an object
- * containing all statically allocated memory used by the Anjay Lite CoAP
- * downloader module.
- */
 typedef struct anj_coap_downloader_struct anj_coap_downloader_t;
 #    endif // ANJ_WITH_COAP_DOWNLOADER
 
 /**
- * LWM2M Server URI maximum size - as defined in LwM2M spec
+ * LwM2M Server URI maximum size (including null terminator).
+ *
+ * @see @lwm2m_core &sect;E.1
  */
-#    define ANJ_SERVER_URI_MAX_SIZE 255
+#    define ANJ_SERVER_URI_MAX_SIZE 256
 
 /**
- * Default value for the Disable Timeout resource in the Server Object
+ * Default value for the Disable Timeout Resource in the Server Object.
+ *
+ * @see @lwm2m_core &sect;E.2
  */
 #    define ANJ_DISABLE_TIMEOUT_DEFAULT_VALUE 86400
 
 /**
- * Default values for the communication retry mechanism resources.
+ * Default values for the communication retry mechanism Resources.
  */
 #    define ANJ_COMMUNICATION_RETRY_RES_DEFAULT \
         (anj_communication_retry_res_t) {       \
@@ -162,36 +164,76 @@ typedef struct anj_coap_downloader_struct anj_coap_downloader_t;
             .seq_retry_count = 1                \
         }
 
-/** Communication retry mechanism resources from Server Object */
+/**
+ * Default time to wait for the next block of the LwM2M Server request. Can be
+ * overridden in @ref anj_configuration_t::exchange_request_timeout.
+ */
+#    define ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT \
+        anj_time_duration_new(50, ANJ_TIME_UNIT_S)
+
+/**
+ * Default CoAP transmission parameters as specified in RFC 7252.
+ */
+#    define ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT                        \
+        (anj_exchange_udp_tx_params_t) {                              \
+            .ack_timeout = anj_time_duration_new(2, ANJ_TIME_UNIT_S), \
+            .ack_random_factor = 1.5,                                 \
+            .max_retransmit = 4                                       \
+        }
+
+/** Communication Retry mechanism resources from the Server Object (/1). */
 typedef struct {
-    /** Communication Retry Count: RID=17 */
+    /** Communication Retry Count Resource (/1/0/17) value. */
     uint16_t retry_count;
-    /** Communication Retry Timer: RID=18 */
+
+    /** Communication Retry Timer Resource (/1/0/18) value (in seconds). */
     uint32_t retry_timer;
-    /** Communication Sequence Delay Timer: RID=19 */
+
+    /** Communication Sequence Delay Timer Resource (/1/0/19) value (in
+     * seconds).
+     */
     uint32_t seq_delay_timer;
-    /** Communication Sequence Retry Count: RID=20 */
+
+    /** Communication Sequence Retry Count Resource (/1/0/20) value. */
     uint16_t seq_retry_count;
 } anj_communication_retry_res_t;
 
 /**
- * CoAP transmission params object.
+ * CoAP transmission parameters (RFC 7252).
  *
- * For LwM2M client requests, the timeout is random duration between
- * ack_timeout_ms and ack_timeout_ms * ack_random_factor. For default values it
- * is range from 2 to 3 seconds. Each retransmission doubles the timeout value.
+ * These parameters control the timing and retransmission behavior of
+ * confirmable CoAP messages sent over UDP.
+ *
+ * The initial retransmission timeout is chosen randomly between
+ * @ref ack_timeout and @ref ack_timeout × @ref ack_random_factor.
+ * With default values, this corresponds to a range of 2—3 seconds.
+ * After each retransmission, the timeout value is doubled.
+ *
+ * Retransmissions continue until either a response is received or
+ * @ref max_retransmit attempts have been made.
  */
 typedef struct {
-    /** RFC 7252: ACK_TIMEOUT */
-    uint64_t ack_timeout_ms;
-    /** RFC 7252: ACK_RANDOM_FACTOR */
+    /** Initial ACK_TIMEOUT value. */
+    anj_time_duration_t ack_timeout;
+
+    /** ACK_RANDOM_FACTOR multiplier applied to randomize the timeout. */
     double ack_random_factor;
-    /** RFC 7252: MAX_RETRANSMIT */
+
+    /** Maximum number of retransmissions before giving up. */
     uint16_t max_retransmit;
 } anj_exchange_udp_tx_params_t;
 
 /**
- * Enumeration of identifiers used to index the @ref anj_uri_path_t.ids
+ * Identifiers used to index elements of @ref anj_uri_path_t::ids.
+ *
+ * These correspond to components of an LwM2M data model path:
+ * - @ref ANJ_ID_OID  — Object ID
+ * - @ref ANJ_ID_IID  — Object Instance ID
+ * - @ref ANJ_ID_RID  — Resource ID
+ * - @ref ANJ_ID_RIID — Resource Instance ID
+ *
+ * @ref ANJ_URI_PATH_MAX_LENGTH gives the size of the array that can store
+ * all possible path components.
  */
 typedef enum {
     ANJ_ID_OID,
@@ -202,115 +244,121 @@ typedef enum {
 } anj_id_type_t;
 
 /**
- * A data type that represents a data model path.
+ * Representation of an LwM2M data model path.
  *
- * It may represent a root path, an Object path, an Object Instance path, a
- * Resource path, or a Resource Instance path.
+ * A path can point to any level of the data model hierarchy:
+ * - the root,
+ * - an Object,
+ * - an Object Instance,
+ * - a Resource,
+ * - or a Resource Instance.
  *
- * The <c>ids</c> array is designed to be safely and meaningfully indexed by
- * @ref anj_id_type_t values.
+ * The @ref ids array stores the identifiers for each level. It can be safely
+ * indexed using values from @ref anj_id_type_t. The @ref uri_len field
+ * indicates how many components of the path are in use.
  */
 typedef struct {
     uint16_t ids[ANJ_URI_PATH_MAX_LENGTH];
     size_t uri_len;
 } anj_uri_path_t;
 
-/** defines entry type */
+/** @defgroup anj_data_types LwM2M data types
+ * Data type identifiers used in the Anjay Lite data model.
+ *
+ * These values correspond to the types defined in @lwm2m_core &sect;C. They are
+ * primarily used when parsing or encoding request/response payloads.
+ *
+ * Each constant indicates which field of @ref anj_res_value_t is used to
+ * hold the value.
+ * @{
+ */
+
+/**
+ * LwM2M data type identifier. As this type is a bitmask, see @ref
+ * anj_data_types for possible combinations.
+ */
 typedef uint16_t anj_data_type_t;
 
 /**
- * Null data type. It will be returned by the input context in the following
- * situations:
+ * Null data type.
  *
- * - when parsing a Composite-Read request payload
- * - when parsing a SenML-ETCH JSON/CBOR payload for a Write-Composite operation
- *   and an entry without a value, requesting a removal of a specific Resource
- *   Instance, is encountered
- * - when parsing a LwM2M CBOR or SenML-ETCH JSON/CBOR payload for a
- *   Write-Composite operation and an entry with NULL value, requesting a
- *   removal of a specific Resource Instance, is encountered
- * - when parsing a TLV or LwM2M CBOR payload and an aggregate (e.g. Object
- *   Instance or a multi-instance Resource) with zero nested elements is
- *   encountered
+ * Indicates absence of a value. It is reported in the following cases:
+ * - Parsing a Composite-Read request payload.
+ * - Parsing a SenML-ETCH JSON/CBOR Write-Composite payload that contains
+ *   an entry without a value (removal of a Resource Instance).
+ * - Parsing a LwM2M CBOR or SenML-ETCH JSON/CBOR Write-Composite payload
+ *   that contains an explicit NULL value (removal of a Resource Instance).
+ * - Parsing a TLV or LwM2M CBOR payload where an aggregate (Object Instance
+ *   or Multiple Instance Resource) contains zero nested elements.
  *
- * @ref anj_res_value_t is not used for null data.
+ * @note For this type, @ref anj_res_value_t is not used.
  */
 #    define ANJ_DATA_TYPE_NULL ((anj_data_type_t) 0)
 
 /**
- * "Opaque" data type, as defined in Appendix C of the LwM2M spec.
+ * Opaque data type.
  *
- * The <c>bytes_or_string</c> field of @ref anj_res_value_t is used to pass the
- * actual data.
+ * The @ref anj_res_value_t::bytes_or_string field holds the raw bytes.
  */
 #    define ANJ_DATA_TYPE_BYTES ((anj_data_type_t) (1 << 0))
 
 /**
- * "String" data type, as defined in Appendix C of the LwM2M spec.
+ * String data type.
  *
- * May also be used to represent the "Corelnk" type, as those two are
- * indistinguishable on the wire.
+ * The @ref anj_res_value_t::bytes_or_string field holds the string.
  *
- * The <c>bytes_or_string</c> field of @ref anj_res_value_t is used to pass the
- * actual data.
+ * @note May also be used to represent the "Corelnk" type, as both appear
+ *       identical on the wire.
  */
 #    define ANJ_DATA_TYPE_STRING ((anj_data_type_t) (1 << 1))
 
 /**
- * "Integer" data type, as defined in Appendix C of the LwM2M spec.
+ * Integer data type.
  *
- * The <c>int_value</c> field of @ref anj_res_value_t is used to pass the
- * actual data.
+ * The @ref anj_res_value_t::int_value field holds the number.
  */
 #    define ANJ_DATA_TYPE_INT ((anj_data_type_t) (1 << 2))
 
 /**
- * "Float" data type, as defined in Appendix C of the LwM2M spec.
+ * Floating-point data type.
  *
- * The <c>double_value</c> field of @ref anj_res_value_t is used to pass the
- * actual data.
+ * The @ref anj_res_value_t::double_value field holds the number.
  */
 #    define ANJ_DATA_TYPE_DOUBLE ((anj_data_type_t) (1 << 3))
 
 /**
- * "Boolean" data type, as defined in Appendix C of the LwM2M spec.
+ * Boolean data type.
  *
- * The <c>bool_value</c> field of @ref anj_res_value_t is used to pass the
- * actual data.
+ * The @ref anj_res_value_t::bool_value field holds the value.
  */
 #    define ANJ_DATA_TYPE_BOOL ((anj_data_type_t) (1 << 4))
 
 /**
- * "Objlnk" data type, as defined in Appendix C of the LwM2M spec.
+ * Object Link (Objlnk) data type.
  *
- * The <c>objlnk</c> field of @ref anj_res_value_t is used to pass the actual
- * data.
+ * The @ref anj_res_value_t::objlnk field holds the value.
  */
 #    define ANJ_DATA_TYPE_OBJLNK ((anj_data_type_t) (1 << 5))
 
 /**
- * "Unsigned Integer" data type, as defined in Appendix C of the LwM2M spec.
+ * Unsigned Integer data type.
  *
- * The <c>uint_value</c> field of @ref anj_res_value_t is used to pass the
- * actual data.
+ * The @ref anj_res_value_t::uint_value field holds the number.
  */
 #    define ANJ_DATA_TYPE_UINT ((anj_data_type_t) (1 << 6))
 
 /**
- * "Time" data type, as defined in Appendix C of the LwM2M spec.
+ * Time data type.
  *
- * The <c>time_value</c> field of @ref anj_res_value_t is used to pass the
- * actual data.
+ * The @ref anj_res_value_t::time_value field holds the value.
  */
 #    define ANJ_DATA_TYPE_TIME ((anj_data_type_t) (1 << 7))
 
 /**
- * When a bit mask of data types is applicable, this constant can be used to
- * specify all supported data types.
+ * Bitmask representing all supported data types.
  *
- * Note that it does <strong>NOT</strong> include @ref
- * ANJ_DATA_TYPE_FLAG_EXTERNAL, and that @ref ANJ_DATA_TYPE_NULL, having
- * a numeric value of 0, does not participate in bit masks.
+ * @note Does not include @ref ANJ_DATA_TYPE_FLAG_EXTERNAL.
+ * @note @ref ANJ_DATA_TYPE_NULL is not a part of the bitmask.
  */
 #    define ANJ_DATA_TYPE_ANY                                           \
         ((anj_data_type_t) (ANJ_DATA_TYPE_BYTES | ANJ_DATA_TYPE_STRING  \
@@ -319,78 +367,76 @@ typedef uint16_t anj_data_type_t;
                             | ANJ_DATA_TYPE_UINT | ANJ_DATA_TYPE_TIME))
 
 #    ifdef ANJ_WITH_EXTERNAL_DATA
+
 /**
- * A flag that can be OR-ed with either @ref ANJ_DATA_TYPE_BYTES or
- * @ref ANJ_DATA_TYPE_STRING to indicate that the data is provided
- * via an external callback. Valid only for output contexts.
+ * Flag indicating that data is supplied via an external callback.
  *
- * When this flag is set, the @p external_data field of
- * @ref anj_res_value_t must be used to provide the actual data.
+ * May be OR-ed with @ref ANJ_DATA_TYPE_BYTES or @ref ANJ_DATA_TYPE_STRING.
+ * Valid only for output contexts.
  *
- * This mechanism is intended for scenarios where:
- * - the data is not directly available in memory (e.g., must be read from
- *   external storage),
- * - the total size of the data is not known in advance — the @p external_data
- *   callback interface does not require specifying the complete length
- *   beforehand.
+ * When this flag is set, the @ref anj_res_value_t::external_data field
+ * must be used to provide the data.
  *
- * @note When encoding content using CBOR-based Content-Formats (such as LwM2M
- * CBOR or SenML CBOR), data is automatically encoded as an Indefinite-Length
- * String, split into chunks of up to 23 bytes.
+ * Typical use cases:
+ * - Data is not directly available in memory and must be streamed
+ *   (e.g., from external storage).
+ * - Data size is unknown in advance; the external data callback
+ *   interface does not require providing the total length beforehand.
+ *
+ * @note When encoding CBOR-based formats (LwM2M CBOR, SenML CBOR), data is
+ *       encoded as an Indefinite-Length String, split into chunks of up to
+ *       23 bytes.
  */
 #        define ANJ_DATA_TYPE_FLAG_EXTERNAL ((anj_data_type_t) (1 << 15))
 
 /**
- * "Opaque" data type, as defined in Appendix C of the LwM2M specification,
- * provided via an external callback. Valid only for output contexts.
+ * Opaque data type supplied via external callback.
  *
- * The @p external_data field of @ref anj_res_value_t is used to supply the
- * data.
+ * The @ref anj_res_value_t::external_data field provides the data. Valid only
+ * for output contexts.
  */
 #        define ANJ_DATA_TYPE_EXTERNAL_BYTES        \
             ((anj_data_type_t) (ANJ_DATA_TYPE_BYTES \
                                 | ANJ_DATA_TYPE_FLAG_EXTERNAL))
 
 /**
- * "String" data type, as defined in Appendix C of the LwM2M specification,
- * provided via an external callback. Valid only for output contexts.
+ * String data type supplied via external callback.
  *
- * The @p external_data field of @ref anj_res_value_t is used to supply the
- * data.
+ * The @ref anj_res_value_t::external_data field provides the data. Valid only
+ * for output contexts.
  */
 #        define ANJ_DATA_TYPE_EXTERNAL_STRING        \
             ((anj_data_type_t) (ANJ_DATA_TYPE_STRING \
                                 | ANJ_DATA_TYPE_FLAG_EXTERNAL))
 
+/** @} */
+
 /**
- * A handler used to retrieve string or binary data from an external source.
+ * Callback to read a chunk of external data.
  *
- * This function is called when the resource's data type is set to
+ * Called by the library when encoding a resource whose type is
  * @ref ANJ_DATA_TYPE_EXTERNAL_BYTES or @ref ANJ_DATA_TYPE_EXTERNAL_STRING.
- * It may be called multiple times to retrieve subsequent data chunks.
+ * It may be invoked multiple times until the entire resource value
+ * has been streamed.
  *
- * @note If this function returns @ref ANJ_IO_NEED_NEXT_CALL, the entire buffer
- *       is considered filled. In that case, the value of @p inout_size must
- *       remains unchanged.
+ * The library guarantees sequential calls with monotonically increasing
+ * @p offset and no overlaps.
  *
- * @note The @p offset parameter indicates the absolute position (in bytes)
- *       from the beginning of the resource data. The implementation must ensure
- *       that the copied data chunk corresponds to this offset, i.e., write
- *       exactly @p *inout_size bytes from position @p offset. The library
- *       guarantees sequential calls with increasing offsets and no overlaps.
- *
- * @param        buffer       Pointer to the buffer where data should be copied.
- * @param[inout] inout_size   On input: size of the @p buffer.
- *                            On output: number of bytes actually written.
- * @param        offset       Offset (in bytes) from the beginning of the data.
- * @param        user_args    User-defined context pointer provided by the
- *                            application.
+ * @param buffer      Output buffer to be filled with data.
+ * @param[in,out] inout_size
+ *                    - On input: size of @p buffer in bytes.
+ *                    - On output: number of bytes actually written.
+ * @param offset      Absolute offset (in bytes) from the beginning of
+ *                    the resource value.
+ * @param user_args   Application-defined pointer passed unchanged to
+ *                    every callback.
  *
  * @return
- * - 0 on success,
- * - a negative value if an error occurred,
- * - or @ref ANJ_IO_NEED_NEXT_CALL if the function should be invoked again
- *   to continue reading the remaining data.
+ * - 0 if the end of the resource was reached (all data provided),
+ * - a negative value on error,
+ * - @ref ANJ_IO_NEED_NEXT_CALL if more data remains.
+ *   In this case, the implementation must have filled the entire buffer
+ *   (i.e., left @p inout_size unchanged).
  */
 typedef int anj_get_external_data_t(void *buffer,
                                     size_t *inout_size,
@@ -398,203 +444,178 @@ typedef int anj_get_external_data_t(void *buffer,
                                     void *user_args);
 
 /**
- * This callback is invoked before any invocation of the @ref
- * anj_get_external_data_t callback. It should be used to initialize the
- * external data source.
+ * Callback to initialize the external data source.
  *
- * @param        user_args    User-defined context pointer provided by the
- *                            application.
+ * Invoked once before the first call to @ref anj_get_external_data_t.
+ * Can be used to open files, initialize peripherals, or allocate state.
  *
- * @note If this callback returns an error, the @ref anj_close_external_data_t
- * callback will not be invoked.
+ * @param user_args  Application-defined pointer.
  *
  * @return
  * - 0 on success,
- * - a negative value if an error occurred
+ * - a negative value if initialization failed (in which case
+ *   @ref anj_close_external_data_t will not be called).
  */
 typedef int anj_open_external_data_t(void *user_args);
 
 /**
- * This callback will be called when the @ref anj_get_external_data_t callback
- * returns a value different than @ref ANJ_IO_NEED_NEXT_CALL or when an error
- * occurs while reading external data; such errors can originate either inside
- * the library itself or during communication with the server - for example,
- * if a timeout occurs or the server terminates the transfer.
+ * Callback to clean up the external data source.
  *
- * @param        user_args    User-defined context pointer provided by the
- *                            application.
+ * Invoked after reading completes (successfully or with error),
+ * unless @ref anj_open_external_data_t failed.
+ * Can be used to close file descriptors, release memory, or reset state.
+ *
+ * @param user_args  Application-defined pointer.
  */
 typedef void anj_close_external_data_t(void *user_args);
 #    endif // ANJ_WITH_EXTERNAL_DATA
 
 /**
- * Represents a (possibly partial) string or opaque value.
+ * Representation of a string or opaque value (full or partial).
+ *
+ * Used when the resource type is @ref ANJ_DATA_TYPE_BYTES or
+ * @ref ANJ_DATA_TYPE_STRING.
  */
 typedef struct {
     /**
      * Pointer to the data buffer.
      *
-     * In output contexts (e.g., responding to a Read), this points to the data
-     * that will be sent to the LwM2M server.
-     * In input contexts (e.g., handling a Write), this points to the data
-     * received from the server.
+     * - In output contexts, this points to the data to be sent to the server.
+     * - In input contexts, this points to the data received from the server.
      */
     const void *data;
 
     /**
-     * Offset (in bytes) from the beginning of the full resource value that
-     * the current @p data chunk represents.
+     * Absolute offset (in bytes) from the beginning of the resource value
+     * represented by this chunk.
      *
-     * - In output contexts, this must always be set to 0.
-     * - In input contexts, this value may be non-zero when parsing a large
-     *   resource split across multiple incoming packets.
+     * - In output contexts, this must always be 0.
+     * - In input contexts, this may be non-zero when the value is received
+     *   in multiple fragments (e.g., blockwise transfer).
      */
     size_t offset;
 
     /**
-     * Length (in bytes) of valid data available at @p data.
+     * Length (in bytes) of valid data at @p data.
      *
      * - In output contexts, if both @p chunk_length and @p full_length_hint
-     *   are set to 0 and @p data is non-NULL, then the buffer is assumed to
-     *   contain a null-terminated string, and its length will be determined
-     *   using @p strlen().
+     *   are 0 and @p data is non-NULL, the buffer is assumed to contain a
+     *   null-terminated string. The length will then be determined using
+     *   @c strlen().
      */
     size_t chunk_length;
 
     /**
-     * Full size (in bytes) of the entire resource, if known.
+     * Full size (in bytes) of the complete resource value, if known.
      *
-     * - If all of @p offset, @p chunk_length and @p full_length_hint are 0,
-     *   this is treated as a zero-length resource.
+     * - If @p offset, @p chunk_length and @p full_length_hint are all 0,
+     *   the resource is treated as empty.
      * - In output contexts, this must be either 0 or equal to @p chunk_length.
-     *   Any other value will be considered an error.
-     * - In input contexts, this will remain 0 when receiving content formats
-     *   that do not include length metadata (e.g., Plain Text).
-     *   Once the last chunk is received, the field will be set to
-     *   @p offset + @p chunk_length to indicate completion.
+     *   Any other value is considered invalid.
+     * - In input contexts, this is 0 when receiving formats without length
+     *   metadata (e.g., Plain Text). When the final fragment is received,
+     *   it will be set to @p offset + @p chunk_length.
      */
     size_t full_length_hint;
 } anj_bytes_or_string_value_t;
 
 /**
- * Object Link value.
+ * Object Link (Objlnk) value.
  */
 typedef struct {
+    /** Object ID. */
     anj_oid_t oid;
+
+    /** Object Instance ID. */
     anj_iid_t iid;
 } anj_objlnk_value_t;
 
 /**
- * Stores a complete or partial value of a data model entry, check "Data Types"
- * appendix in LwM2M specification for more information.
+ * Union type holding the value of a resource, in one of the supported
+ * LwM2M data types (see @lwm2m_core &sect;C).
+ *
+ * The active field depends on the resource's @ref anj_data_type_t.
  */
 typedef union {
-    /**
-     * Chunk of information valid for when the underlying data type is
-     * @ref ANJ_DATA_TYPE_BYTES or @ref ANJ_DATA_TYPE_STRING.
-     */
+    /** String or Opaque value (see @ref ANJ_DATA_TYPE_BYTES, @ref
+     * ANJ_DATA_TYPE_STRING). */
     anj_bytes_or_string_value_t bytes_or_string;
 
 #    ifdef ANJ_WITH_EXTERNAL_DATA
     /**
-     * Configuration for resources that use an external data callback.
+     * Configuration for resources that use external data streaming
+     * (see @ref ANJ_DATA_TYPE_EXTERNAL_BYTES, @ref
+     * ANJ_DATA_TYPE_EXTERNAL_STRING).
      *
-     * This should only be set for output contexts, and only when the resource's
-     * data type is set to either @ref ANJ_DATA_TYPE_EXTERNAL_BYTES or
-     * @ref ANJ_DATA_TYPE_EXTERNAL_STRING.
+     * These fields are only valid in output contexts.
      */
     struct {
-        /**
-         * Callback function used to retrieve a chunk of data during encoding.
-         *
-         * This function may be called multiple times to stream the resource's
-         * content in parts.
-         *
-         * @note This callback is mandatory.
-         */
+        /** Mandatory callback to stream chunks of data during encoding. */
         anj_get_external_data_t *get_external_data;
 
-        /**
-         * Callback function used to prepare external data source.
-         *
-         * @note This callback is NOT mandatory.
+        /** Optional callback to initialize the external source before reading.
          */
         anj_open_external_data_t *open_external_data;
 
-        /**
-         * Callback function called after all data has been read or when an
-         * error occurs.
-         *
-         * @note This callback is NOT mandatory.
-         */
+        /** Optional callback to finalize/clean up after reading is done or on
+         * error. */
         anj_close_external_data_t *close_external_data;
 
-        /**
-         * Opaque pointer that will be passed to @p get_external_data on every
-         * call.
-         *
-         * Can be used by the application to provide additional context or
-         * state.
-         */
+        /** Application-defined pointer, passed unchanged to all callbacks. */
         void *user_args;
     } external_data;
 #    endif // ANJ_WITH_EXTERNAL_DATA
 
-    /**
-     * Integer value, valid when the underlying data type is
-     * @ref ANJ_DATA_TYPE_INT.
-     */
+    /** Integer value (see @ref ANJ_DATA_TYPE_INT). */
     int64_t int_value;
 
-    /**
-     * Unsigned Integer value, valid when the underlying data type is
-     * @ref ANJ_DATA_TYPE_UINT.
-     */
+    /** Unsigned integer value (see @ref ANJ_DATA_TYPE_UINT). */
     uint64_t uint_value;
 
-    /**
-     * Double-precision floating-point value, valid when the underlying data
-     * type is @ref ANJ_DATA_TYPE_DOUBLE.
-     */
+    /** Floating-point value (see @ref ANJ_DATA_TYPE_DOUBLE). */
     double double_value;
 
-    /**
-     * Boolean value, valid when the underlying data type is
-     * @ref ANJ_DATA_TYPE_BOOL.
-     */
+    /** Boolean value (see @ref ANJ_DATA_TYPE_BOOL). */
     bool bool_value;
 
-    /**
-     * Objlnk value, valid when the underlying data type is
-     * @ref ANJ_DATA_TYPE_OBJLNK.
-     */
+    /** Object Link value (see @ref ANJ_DATA_TYPE_OBJLNK). */
     anj_objlnk_value_t objlnk;
 
-    /**
-     * Time value, expressed as a UNIX timestamp, valid when the underlying data
-     * type is @ref ANJ_DATA_TYPE_TIME.
-     */
+    /** Time value as a UNIX timestamp (see @ref ANJ_DATA_TYPE_TIME). */
     int64_t time_value;
 } anj_res_value_t;
 
 /**
- * Data structure used to represent an entry produced by the data model.
+ * Data structure representing a single entry produced by the data model.
  */
 typedef struct anj_io_out_entry_struct {
-    /** defines entry type */
+    /** Data type of this entry (see @ref anj_data_type_t). */
     anj_data_type_t type;
-    /** entry value */
+
+    /** Value of the entry (see @ref anj_res_value_t). */
     anj_res_value_t value;
-    /** resource path */
+
+    /** Path of the affected Resource (see @ref anj_uri_path_t). */
     anj_uri_path_t path;
+
     /**
-     * Entry timestamp, only meaningful for Send and Notify operations.
+     * Optional timestamp associated with this entry.
      *
-     * Is ignored if set to NAN.
+     * This field is only used in Send and Notify operations, and only when
+     * the message is encoded using a SenML-based content format
+     * (SenML JSON or SenML CBOR).
      *
-     * This can be the actual Unix time in seconds if it is greater than or
-     * equal to 2**28s [RFC8428], or a negative value if the time is relative to
-     * the current time.
+     * - If set to NaN (recommended default), no timestamp is included in
+     *   the payload.
+     * - If set to a non-NaN value:
+     *   - A non-negative value represents an absolute Unix timestamp in
+     *     seconds. For interoperability, values >= 2^28 seconds (per RFC8428)
+     *     are interpreted as absolute time.
+     *   - A negative value represents a relative time offset (in seconds)
+     *     from the current time.
+     *
+     * For all other LwM2M operations and for non-SenML content formats,
+     * this field is ignored.
      */
     double timestamp;
 } anj_io_out_entry_t;

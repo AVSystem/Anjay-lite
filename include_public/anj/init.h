@@ -7,10 +7,25 @@
  * See the attached LICENSE file for details.
  */
 
+/**
+ * @file
+ * @brief Global configuration validation header for Anjay Lite.
+ *
+ * This header is automatically included by all other public Anjay Lite headers.
+ * Its main role is to validate build-time configuration macros and enforce
+ * consistency between enabled features.
+ *
+ * End users normally do not need to include this header directly. However, it
+ * may be included explicitly if the application code needs to make decisions
+ * based on the Anjay Lite configuration.
+ */
+
 #ifndef ANJ_INIT_H
 #define ANJ_INIT_H
 
 #include <anj/anj_config.h> // IWYU pragma: export
+
+/** @cond */
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +46,10 @@ extern "C" {
 #if defined(ANJ_WITH_CACHE) && !defined(ANJ_COAP_WITH_UDP)
 #    error "Responses caching only makes sense for UDP"
 #endif // defined(ANJ_WITH_CACHE) && !defined(ANJ_COAP_WITH_UDP)
+
+#if defined(ANJ_WITH_CACHE) && ANJ_CACHE_ENTRIES_NUMBER <= 0
+#    error "if response caching is enabled, number of cached entries has to be greater than 0"
+#endif // defined(ANJ_WITH_CACHE) && ANJ_CACHE_ENTRIES_NUMBER <= 0
 
 #if defined(ANJ_WITH_LWM2M_CBOR) && !defined(ANJ_WITH_LWM2M12)
 #    error "ANJ_WITH_LWM2M_CBOR requires ANJ_WITH_LWM2M12 enabled"
@@ -164,8 +183,38 @@ extern "C" {
            // <= 0
 #endif     // defined(_ANJ_LOG_ENABLED) && !defined(ANJ_LOG_ALT_IMPL_HEADER)
 
+#if !defined(ANJ_WITH_SECURITY)
+#    ifdef ANJ_WITH_CERTIFICATES
+#        error "ANJ_WITH_CERTIFICATES requires secure network transport to be enabled"
+#    endif // ANJ_WITH_CERTIFICATES
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+#        error "ANJ_WITH_EXTERNAL_CRYPTO_STORAGE requires secure network transport to be enabled"
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+#endif     // !defined(ANJ_WITH_SECURITY)
+
+#ifdef ANJ_WITH_MBEDTLS
+
+#    define ANJ_UINT32_MAX 4294967295U
+
+#    if ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN < 0
+#        error "Wrong max length for psk identity"
+#    endif
+
+#    if ANJ_MBEDTLS_HS_INITIAL_TIMEOUT_VALUE_MS < 0                     \
+            || ANJ_MBEDTLS_HS_INITIAL_TIMEOUT_VALUE_MS > ANJ_UINT32_MAX \
+            || ANJ_MBEDTLS_HS_MAXIMUM_TIMEOUT_VALUE_MS < 0              \
+            || ANJ_MBEDTLS_HS_MAXIMUM_TIMEOUT_VALUE_MS > ANJ_UINT32_MAX
+#        error "Wrong handshake timeout values"
+#    endif
+
+#    undef ANJ_UINT32_MAX
+
+#endif // ANJ_WITH_MBEDTLS
+
 #ifdef __cplusplus
 }
 #endif
+
+/** @endcond */
 
 #endif // ANJ_INIT_H

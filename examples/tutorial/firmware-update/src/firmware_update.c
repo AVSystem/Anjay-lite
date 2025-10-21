@@ -19,7 +19,7 @@
 
 #include <anj/defs.h>
 #include <anj/dm/fw_update.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #include "firmware_update.h"
 

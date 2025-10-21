@@ -27,8 +27,8 @@ The LwM2M Server can observe changes in resources using the Observe operation. W
 .. snippet-source:: include_public/anj/core.h
 
     void anj_core_data_model_changed(anj_t *anj,
-                                     const anj_uri_path_t *path,
-                                     anj_core_change_type_t change_type);
+                                    const anj_uri_path_t *path,
+                                    anj_core_change_type_t change_type);
 
 
 Call this function with the correct ``change_type`` based on what changed:

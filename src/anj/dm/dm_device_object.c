@@ -17,7 +17,7 @@
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
 #include <anj/dm/device_object.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "dm_core.h"
@@ -50,46 +50,49 @@ enum {
 ANJ_STATIC_ASSERT(_RID_LAST == ANJ_DM_DEVICE_RESOURCES_COUNT,
                   device_resources_count_mismatch);
 
-static const anj_riid_t RES_INST[ANJ_DM_DEVICE_ERR_CODE_RES_INST_MAX_COUNT] = {
-    0
-};
+/*
+ * HACK: error handling is not supported so in order to comply with the
+ * definition of the object only one instance of Error Code resource is
+ * defined with the value set to 0 which means "no errors".
+ */
+static const anj_riid_t RES_INST[] = { 0 };
 
 static const anj_dm_res_t RES[ANJ_DM_DEVICE_RESOURCES_COUNT] = {
     [RID_MANUFACTURER_IDX] = {
         .rid = RID_MANUFACTURER,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_MODEL_NUMBER_IDX] = {
         .rid = RID_MODEL_NUMBER,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_SERIAL_NUMBER_IDX] = {
         .rid = RID_SERIAL_NUMBER,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_FIRMWARE_VERSION_IDX] = {
         .rid = RID_FIRMWARE_VERSION,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_REBOOT_IDX] = {
         .rid = RID_REBOOT,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     },
     [RID_ERROR_CODE_IDX] = {
         .rid = RID_ERROR_CODE,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_RM,
-        .max_inst_count = ANJ_DM_DEVICE_ERR_CODE_RES_INST_MAX_COUNT,
+        .kind = ANJ_DM_RES_RM,
+        .max_inst_count = ANJ_ARRAY_SIZE(RES_INST),
         .insts = RES_INST
     },
     [RID_BINDING_MODES_IDX] = {
         .rid = RID_BINDING_MODES,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     }
 };
 
@@ -113,7 +116,7 @@ static int res_execute(anj_t *anj,
             dm_log(L_ERROR, "Reboot callback not set");
             return ANJ_DM_ERR_NOT_FOUND;
         }
-        device_obj->reboot_cb(device_obj->reboot_handler_arg, anj);
+        device_obj->reboot_cb(device_obj->reboot_cb_arg, anj);
         return 0;
     }
     default:
@@ -170,7 +173,7 @@ static const anj_dm_handlers_t HANDLERS = {
 
 int anj_dm_device_obj_install(anj_t *anj,
                               anj_dm_device_obj_t *device_obj,
-                              anj_dm_device_object_init_t *obj_init) {
+                              const anj_dm_device_object_init_t *obj_init) {
     assert(anj && device_obj && obj_init);
 
     memset(device_obj, 0, sizeof(*device_obj));
@@ -193,7 +196,7 @@ int anj_dm_device_obj_install(anj_t *anj,
 
     if (obj_init->reboot_cb) {
         device_obj->reboot_cb = obj_init->reboot_cb;
-        device_obj->reboot_handler_arg = obj_init->reboot_handler_arg;
+        device_obj->reboot_cb_arg = obj_init->reboot_cb_arg;
     }
     int res = anj_dm_add_obj(anj, &device_obj->obj);
     if (!res) {

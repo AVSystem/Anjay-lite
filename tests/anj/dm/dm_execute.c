@@ -61,11 +61,11 @@ static anj_dm_handlers_t handlers = {
 static anj_dm_res_t res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     },
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_W,
+        .kind = ANJ_DM_RES_W,
         .type = ANJ_DATA_TYPE_INT
     }
 };
@@ -104,7 +104,7 @@ ANJ_UNIT_TEST(_anj_dm_execute, base) {
     ANJ_UNIT_ASSERT_TRUE(call_execute_arg == test_arg);
     ANJ_UNIT_ASSERT_EQUAL(call_execute_arg_len, sizeof(test_arg));
 
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_execute, 1);
 }
 
@@ -120,23 +120,22 @@ ANJ_UNIT_TEST(_anj_dm_execute, error_calls) {
                                     false,
                                     &ANJ_MAKE_RESOURCE_PATH(1, 1, 1)),
             ANJ_DM_ERR_METHOD_NOT_ALLOWED);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj),
-                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_dm_operation_begin(&anj,
                                     ANJ_OP_DM_EXECUTE,
                                     false,
                                     &ANJ_MAKE_RESOURCE_PATH(1, 2, 1)),
             ANJ_DM_ERR_NOT_FOUND);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_NOT_FOUND);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_dm_operation_begin(&anj,
                                     ANJ_OP_DM_EXECUTE,
                                     false,
                                     &ANJ_MAKE_RESOURCE_PATH(2, 2, 1)),
             ANJ_DM_ERR_NOT_FOUND);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_NOT_FOUND);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(1, 1, 0)));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 }

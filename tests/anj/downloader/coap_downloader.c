@@ -53,7 +53,7 @@ static void coap_downloader_callback(void *arg,
 }
 
 #define TEST_INIT()                                               \
-    set_mock_time(0);                                             \
+    mock_time_reset();                                            \
     net_api_mock_t mock = { 0 };                                  \
     net_api_mock_ctx_init(&mock);                                 \
     mock.inner_mtu_value = 100;                                   \
@@ -70,13 +70,14 @@ static void coap_downloader_callback(void *arg,
 
 #define BASE_URI "coap://test_uri.com:5683/a/bc/def"
 #define BASE_URI_2 "coap://uri_turi.com:333/a/bc/def"
+#define BASE_URI_3 "coaps://test_uri.com:5683/a/bc/def"
 
-#define START_DOWNLOAD(uri)                                        \
-    g_callback_counter = 0;                                        \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_coap_downloader_start(&ctx, uri)); \
-    anj_coap_downloader_step(&ctx);                                \
-    ANJ_UNIT_ASSERT_EQUAL(g_set_connection_status,                 \
-                          ANJ_COAP_DOWNLOADER_STATUS_STARTING);    \
+#define START_DOWNLOAD(uri)                                              \
+    g_callback_counter = 0;                                              \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_coap_downloader_start(&ctx, uri, NULL)); \
+    anj_coap_downloader_step(&ctx);                                      \
+    ANJ_UNIT_ASSERT_EQUAL(g_set_connection_status,                       \
+                          ANJ_COAP_DOWNLOADER_STATUS_STARTING);          \
     ANJ_UNIT_ASSERT_EQUAL(g_callback_counter, 1);
 
 // token and message id are copied from request stored in ctx.exchange_ctx
@@ -91,18 +92,18 @@ static void coap_downloader_callback(void *arg,
     mock.bytes_to_recv = sizeof(Response) - 1; \
     mock.data_to_recv = (uint8_t *) Response
 
-#define HANDLE_REQUEST(Request, Response)                        \
-    mock.bytes_to_send = 500;                                    \
-    g_callback_counter = 0;                                      \
-    anj_coap_downloader_step(&ctx);                              \
-    COPY_TOKEN_AND_MSG_ID(Request, 8);                           \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(Request) - 1, mock.bytes_sent); \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(                           \
-            mock.send_data_buffer, Request, mock.bytes_sent);    \
-    ADD_RESPONSE(Response);                                      \
-    mock.bytes_to_send = 0;                                      \
-    anj_coap_downloader_step(&ctx);                              \
-    ANJ_UNIT_ASSERT_EQUAL(g_set_connection_status,               \
+#define HANDLE_REQUEST(Request, Response)                             \
+    mock.bytes_to_send = 500;                                         \
+    g_callback_counter = 0;                                           \
+    anj_coap_downloader_step(&ctx);                                   \
+    COPY_TOKEN_AND_MSG_ID(Request, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(Request) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, Request, \
+                                      mock.bytes_sent);               \
+    ADD_RESPONSE(Response);                                           \
+    mock.bytes_to_send = 0;                                           \
+    anj_coap_downloader_step(&ctx);                                   \
+    ANJ_UNIT_ASSERT_EQUAL(g_set_connection_status,                    \
                           ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING);
 
 static char response_1[] = "\x68"         // header v 0x01, Ack, tkl 8
@@ -266,7 +267,7 @@ ANJ_UNIT_TEST(coap_downloader, second_start_fails) {
     TEST_INIT();
     START_DOWNLOAD(BASE_URI);
     HANDLE_REQUEST(request_1, response_1);
-    ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(&ctx, BASE_URI),
+    ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(&ctx, BASE_URI, NULL),
                           ANJ_COAP_DOWNLOADER_ERR_IN_PROGRESS);
     HANDLE_REQUEST(request_2, response_2);
     HANDLE_REQUEST(request_3, response_3);
@@ -277,31 +278,48 @@ ANJ_UNIT_TEST(coap_downloader, invalid_uri) {
     TEST_INIT();
     // invalid prefix
     ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(
-                                  &ctx, "coapss://test_uri.com:5683/a/bc/def"),
+                                  &ctx, "coapss://test_uri.com:5683/a/bc/def",
+                                  NULL),
                           ANJ_COAP_DOWNLOADER_ERR_INVALID_URI);
     // empty host
-    ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(&ctx,
-                                                    "coap://:5683/a/bc/def"),
-                          ANJ_COAP_DOWNLOADER_ERR_INVALID_URI);
+    ANJ_UNIT_ASSERT_EQUAL(
+            anj_coap_downloader_start(&ctx, "coap://:5683/a/bc/def", NULL),
+            ANJ_COAP_DOWNLOADER_ERR_INVALID_URI);
     // invalid port
-    ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(
-                                  &ctx, "coap://test_uri.com:abcd/a/bc/def"),
-                          ANJ_COAP_DOWNLOADER_ERR_INVALID_URI);
+    ANJ_UNIT_ASSERT_EQUAL(
+            anj_coap_downloader_start(&ctx, "coap://test_uri.com:abcd/a/bc/def",
+                                      NULL),
+            ANJ_COAP_DOWNLOADER_ERR_INVALID_URI);
     // missing path
-    ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(&ctx, ""),
+    ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(&ctx, "", NULL),
                           ANJ_COAP_DOWNLOADER_ERR_INVALID_URI);
-    ANJ_UNIT_ASSERT_SUCCESS(anj_coap_downloader_start(&ctx, BASE_URI));
+    // missing net_config while coaps uri
+    ANJ_UNIT_ASSERT_EQUAL(anj_coap_downloader_start(&ctx, BASE_URI_3, NULL),
+                          ANJ_COAP_DOWNLOADER_ERR_INVALID_CONFIGURATION);
+    ANJ_UNIT_ASSERT_SUCCESS(anj_coap_downloader_start(&ctx, BASE_URI, NULL));
 }
 
-ANJ_UNIT_TEST(coap_downloader, basic_download_with_net_again) {
+ANJ_UNIT_TEST(coap_downloader, basic_download_with_net_again_inprogress) {
     TEST_INIT();
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
-    mock.call_result[ANJ_NET_FUN_CLEANUP] = ANJ_NET_EAGAIN;
+    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EINPROGRESS;
+    mock.call_result[ANJ_NET_FUN_CLEANUP] = ANJ_NET_EINPROGRESS;
     START_DOWNLOAD(BASE_URI);
-    // one additional step to handle EAGAIN
+    // one additional step to handle ANJ_NET_EINPROGRESS
     mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
     anj_coap_downloader_step(&ctx);
-    HANDLE_REQUEST(request_1, response_1);
+    //    HANDLE_REQUEST(request_1, response_1);
+    mock.bytes_to_send = 500;
+    g_callback_counter = 0;
+    anj_coap_downloader_step(&ctx);
+    COPY_TOKEN_AND_MSG_ID(request_1, 8);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(request_1) - 1, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, request_1,
+                                      mock.bytes_sent);
+    ADD_RESPONSE(response_1);
+    mock.bytes_to_send = 0;
+    anj_coap_downloader_step(&ctx);
+    ANJ_UNIT_ASSERT_EQUAL(g_set_connection_status,
+                          ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING);
     HANDLE_REQUEST(request_2, response_2);
     HANDLE_REQUEST(request_3, response_3);
     g_callback_counter = 0;
@@ -452,9 +470,10 @@ ANJ_UNIT_TEST(coap_downloader, reset_response) {
     // simulate reset response - there is no token so there are more code here
     mock.bytes_to_send = 500;
     anj_coap_downloader_step(&ctx);
+    COPY_TOKEN_AND_MSG_ID(request_2, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(request_2) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, request_2, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, request_2,
+                                      mock.bytes_sent);
     reset_response[2] =
             ctx.exchange_ctx.base_msg.coap_binding_data.udp.message_id >> 8;
     reset_response[3] =
@@ -510,8 +529,8 @@ ANJ_UNIT_TEST(coap_downloader, retransmission) {
     anj_coap_downloader_step(&ctx);
     COPY_TOKEN_AND_MSG_ID(request_3, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(request_3) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, request_3, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, request_3,
+                                      mock.bytes_sent);
 
     // nothing yet happened
     mock.bytes_sent = 0;
@@ -523,7 +542,7 @@ ANJ_UNIT_TEST(coap_downloader, retransmission) {
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
 
     // now we should retransmit request_3
-    set_mock_time(3);
+    mock_time_advance(anj_time_duration_new(3, ANJ_TIME_UNIT_S));
     HANDLE_REQUEST(request_3, response_3);
     FINAL_CHECK();
 }
@@ -549,14 +568,14 @@ ANJ_UNIT_TEST(coap_downloader, too_many_paths_error) {
 }
 
 #define TEST_INIT_NO_RETRANSMISSION()                             \
-    set_mock_time(0);                                             \
+    mock_time_reset();                                            \
     net_api_mock_t mock = { 0 };                                  \
     net_api_mock_ctx_init(&mock);                                 \
     mock.inner_mtu_value = 100;                                   \
     anj_coap_downloader_t ctx;                                    \
     anj_exchange_udp_tx_params_t udp_tx_params = {                \
         .max_retransmit = 0,                                      \
-        .ack_timeout_ms = 1000,                                   \
+        .ack_timeout = anj_time_duration_new(1, ANJ_TIME_UNIT_S), \
         .ack_random_factor = 2.0,                                 \
     };                                                            \
     anj_coap_downloader_configuration_t config = {                \
@@ -577,12 +596,12 @@ ANJ_UNIT_TEST(coap_downloader, exchange_timeout) {
     anj_coap_downloader_step(&ctx);
     COPY_TOKEN_AND_MSG_ID(request_1, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(request_1) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, request_1, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, request_1,
+                                      mock.bytes_sent);
     anj_coap_downloader_step(&ctx);
 
     // timeout the exchange
-    set_mock_time(2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     anj_coap_downloader_step(&ctx); // timeout here
     anj_coap_downloader_step(&ctx); // finishing here
     anj_coap_downloader_step(&ctx); // failed here
@@ -607,14 +626,14 @@ ANJ_UNIT_TEST(coap_downloader, msg_buffer_too_small) {
     anj_coap_downloader_step(&ctx);
     COPY_TOKEN_AND_MSG_ID(request_1, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(request_1) - 1, mock.bytes_sent);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
-            mock.send_data_buffer, request_1, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, request_1,
+                                      mock.bytes_sent);
     ADD_RESPONSE(response_1);
     mock.bytes_to_send = 0;
     anj_coap_downloader_step(&ctx);
 
     // timeout the exchange
-    set_mock_time(2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     anj_coap_downloader_step(&ctx); // timeout here
     anj_coap_downloader_step(&ctx); // finishing here
     anj_coap_downloader_step(&ctx); // failed here

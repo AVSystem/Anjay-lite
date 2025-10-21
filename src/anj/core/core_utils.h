@@ -17,7 +17,7 @@
 
 #    include <anj/compat/net/anj_net_api.h>
 #    include <anj/defs.h>
-#    include <anj/log/log.h>
+#    include <anj/log.h>
 
 #    define SERVER_OBJ_LIFETIME_RID 1
 #    define SERVER_OBJ_DEFAULT_PMIN_RID 2
@@ -32,13 +32,17 @@
 #    define SERVER_OBJ_MUTE_SEND_RID 23
 #    define SERVER_OBJ_DEFAULT_NOTIFICATION_MODE_RID 26
 #    define SECURITY_OBJ_SERVER_URI_RID 0
+#    define SECURITY_OBJ_SERVER_SECURITY_MODE_RID 2
+#    define SECURITY_OBJ_PUBLIC_KEY_OR_IDENTITY_RID 3
+#    define SECURITY_OBJ_SERVER_PUBLIC_KEY_RID 4
+#    define SECURITY_OBJ_SECRET_KEY_RID 5
 #    define SECURITY_OBJ_CLIENT_HOLD_OFF_TIME_RID 11
 
 #    define log(...) anj_log(server, __VA_ARGS__)
 
-#    define ANJ_CORE_LOG_COAP_ERROR(Error)                               \
-        log(L_ERROR,                                                     \
-            "CoAP decoding/ecoding error: %d, check coap.h for details", \
+#    define ANJ_CORE_LOG_COAP_ERROR(Error)                                \
+        log(L_ERROR,                                                      \
+            "CoAP decoding/encoding error: %d, check coap.h for details", \
             Error)
 
 typedef struct {
@@ -47,7 +51,7 @@ typedef struct {
     uint8_t host_len;
     const char *port;
     uint8_t port_len;
-} _anj_uri_components_t;
+} _anj_core_utils_uri_components_t;
 
 /**
  * Possible URIs from CoAP specification: Appendix B. URI Examples
@@ -63,13 +67,21 @@ typedef struct {
  * If port is not specified, default port is 5683 for coap and 5684 for coaps is
  * used.
  */
-int _anj_parse_uri_components(const char *uri,
-                              bool is_bootstrap,
-                              _anj_uri_components_t *out_uri_components);
+int _anj_core_utils_parse_uri_components(
+        const char *uri,
+        bool is_bootstrap,
+        _anj_core_utils_uri_components_t *out_uri_components);
 
-int _anj_server_get_resolved_server_uri(anj_t *anj);
+int _anj_core_utils_server_get_resolved_server_uri(anj_t *anj);
+#    ifdef ANJ_WITH_SECURITY
+int _anj_core_utils_get_security_info(
+        anj_t *anj,
+        bool bootstrap_credentials,
+        anj_net_security_info_t *out_security_info);
+#    endif // ANJ_WITH_SECURITY
 #    ifndef NDEBUG
-int _anj_validate_security_resource_types(anj_t *anj);
+int _anj_core_utils_validate_server_resource_types(anj_t *anj);
+int _anj_core_utils_validate_security_resource_types(anj_t *anj);
 #    endif // NDEBUG
 
 #endif // ANJ_SRC_CORE_CORE_UTILS_H

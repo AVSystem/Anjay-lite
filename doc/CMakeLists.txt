@@ -21,7 +21,7 @@ set(SNIPPET_SOURCE_MD5FILE ${SPHINX_DIR})
 file(MAKE_DIRECTORY ${repo_root}/doc/build)
 
 if(EXISTS "${SPHINX_SOURCE}/conf.py.in")
-    set(DOC_VERSION "1.0.0-beta.2")
+    set(DOC_VERSION "1.0.0")
 
     configure_file(${SPHINX_SOURCE}/conf.py.in
                    ${SPHINX_DIR}/conf.py
@@ -59,10 +59,10 @@ if(EXISTS "${repo_root}/Doxyfile")
 
     # configure anj_config.h with default options...
     configure_file("${CMAKE_SOURCE_DIR}/include_public/anj/anj_config.h.in"
-                   "${repo_root}/doc/build/anj_config.h")
+                   "${repo_root}/doc/build/anj/anj_config.h")
     # ... and manually enable every option so it's visible in doxygen
     execute_process(
-        COMMAND sed -i "s@/\\* *#undef \\(.*\\)\\*/@#define \\1@" ${repo_root}/doc/build/anj_config.h
+        COMMAND sed -i "s@/\\* *#undef \\(.*\\)\\*/@#define \\1@" ${repo_root}/doc/build/anj/anj_config.h
     )
 
     file(WRITE "${CMAKE_BINARY_DIR}/check_doxygen_css.cmake"

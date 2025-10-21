@@ -18,7 +18,8 @@
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #ifdef ANJ_WITH_LWM2M_SEND
@@ -32,6 +33,10 @@
 #ifdef ANJ_WITH_OBSERVE
 #    include "../observe/observe.h"
 #endif // ANJ_WITH_OBSERVE
+
+#ifdef ANJ_WITH_SECURITY
+#    include <anj/compat/crypto/storage.h>
+#endif // ANJ_WITH_SECURITY
 
 #include "../dm/dm_io.h"
 #include "../exchange.h"
@@ -68,16 +73,30 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config) {
         log(L_ERROR, "Endpoint name not provided");
         return -1;
     }
+#ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    int result = anj_crypto_storage_init(&anj->crypto_ctx);
+    if (result) {
+        log(L_ERROR, "Failed to initialize Crypto module %d", result);
+        return result;
+    }
+#endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
     if (config->net_socket_cfg) {
-        anj->net_socket_cfg = *config->net_socket_cfg;
+        anj->net_socket_cfg.raw_socket_config = *config->net_socket_cfg;
     }
+#ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    anj->net_socket_cfg.secure_socket_config.crypto_ctx = anj->crypto_ctx;
+#endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
     anj->endpoint_name = config->endpoint_name;
     anj->queue_mode_enabled = config->queue_mode_enabled;
 
     _anj_dm_initialize(anj);
 
-    _anj_exchange_init(&anj->exchange_ctx, (unsigned int) anj_time_real_now());
+    if (_anj_exchange_init(&anj->exchange_ctx)) {
+        log(L_ERROR, "Exchange module initialization failed");
+        return -1;
+    }
 #ifdef ANJ_WITH_CACHE
     _anj_exchange_setup_cache(&anj->exchange_ctx, &anj->exchange_cache);
 #endif // ANJ_WITH_CACHE
@@ -85,27 +104,38 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config) {
         _anj_exchange_set_udp_tx_params(&anj->exchange_ctx,
                                         config->udp_tx_params);
     }
-    if (config->exchange_request_timeout_ms != 0) {
+    if (!anj_time_duration_eq(config->exchange_request_timeout,
+                              ANJ_TIME_DURATION_ZERO)) {
         _anj_exchange_set_server_request_timeout(
-                &anj->exchange_ctx, config->exchange_request_timeout_ms);
+                &anj->exchange_ctx, config->exchange_request_timeout);
     }
 
     if (config->queue_mode_enabled) {
-        anj->queue_mode_timeout_ms =
-                (config->queue_mode_timeout_ms == 0)
+        anj->queue_mode_timeout =
+                (anj_time_duration_eq(config->queue_mode_timeout,
+                                      ANJ_TIME_DURATION_ZERO))
                         ? _anj_server_calculate_max_transmit_wait(
                                   &anj->exchange_ctx.tx_params)
-                        : config->queue_mode_timeout_ms;
+                        : config->queue_mode_timeout;
     }
 
     _anj_register_ctx_init(anj);
 #ifdef ANJ_WITH_BOOTSTRAP
-    uint32_t bootstrap_timeout = config->bootstrap_timeout
-                                         ? config->bootstrap_timeout
-                                         : _ANJ_CORE_BOOTSTRAP_DEFAULT_TIMEOUT;
-    _anj_bootstrap_ctx_init(anj, anj->endpoint_name, bootstrap_timeout);
+    anj_time_duration_t bootstrap_process_lifetime;
+    if (anj_time_duration_eq(config->bootstrap_timeout,
+                             ANJ_TIME_DURATION_ZERO)) {
+        bootstrap_process_lifetime =
+                anj_time_duration_new(_ANJ_CORE_BOOTSTRAP_DEFAULT_TIMEOUT,
+                                      ANJ_TIME_UNIT_S);
+    } else {
+        bootstrap_process_lifetime = config->bootstrap_timeout;
+    }
+
+    _anj_bootstrap_ctx_init(anj, anj->endpoint_name,
+                            bootstrap_process_lifetime);
     anj->bootstrap_retry_count = config->bootstrap_retry_count;
     anj->bootstrap_retry_timeout = config->bootstrap_retry_timeout;
+
 #endif // ANJ_WITH_BOOTSTRAP
 #ifdef ANJ_WITH_OBSERVE
     _anj_observe_init(anj);
@@ -130,7 +160,8 @@ void anj_core_server_obj_disable_executed(anj_t *anj, uint32_t timeout) {
     log(L_INFO, "Disable resource executed");
     anj->server_state.disable_triggered = true;
     anj->server_state.enable_time =
-            anj_time_real_now() + (uint64_t) (timeout * 1000);
+            anj_time_real_add(anj_time_real_now(),
+                              anj_time_duration_new(timeout, ANJ_TIME_UNIT_S));
 }
 
 void anj_core_server_obj_registration_update_trigger_executed(anj_t *anj) {
@@ -184,9 +215,10 @@ void _anj_core_data_model_changed_with_ssid(anj_t *anj,
     // check if Server object resources were changed
     if (change_type == ANJ_CORE_CHANGE_TYPE_VALUE_CHANGED
             && path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_SERVER) {
-        int64_t last_lifetime = anj->server_instance.lifetime;
+        anj_time_duration_t last_lifetime = anj->server_instance.lifetime;
         _anj_reg_session_refresh_registration_related_resources(anj);
-        if (last_lifetime != anj->server_instance.lifetime) {
+        if (!anj_time_duration_eq(last_lifetime,
+                                  anj->server_instance.lifetime)) {
             anj->server_state.details.registered.update_with_lifetime = true;
         }
     }
@@ -202,11 +234,6 @@ void anj_core_data_model_changed(anj_t *anj,
                                  anj_core_change_type_t change_type) {
     assert(anj && path);
     _anj_core_data_model_changed_with_ssid(anj, path, change_type, 0);
-}
-
-bool anj_core_ongoing_operation(anj_t *anj) {
-    assert(anj);
-    return _anj_exchange_ongoing_exchange(&anj->exchange_ctx);
 }
 
 static _anj_core_next_action_t anj_core_step_internal(anj_t *anj) {
@@ -307,7 +334,7 @@ void anj_core_step(anj_t *anj) {
             // the connection before changing the state. We always perform
             // connection cleanup here.
             int res = _anj_server_close(&anj->connection_ctx, true);
-            if (anj_net_is_again(res)) {
+            if (anj_net_is_inprogress(res)) {
                 return;
             }
             // Regardless of the result of _anj_server_close, we proceed with
@@ -338,45 +365,61 @@ void anj_core_step(anj_t *anj) {
     }
 }
 
-uint64_t anj_core_next_step_time(anj_t *anj) {
+anj_time_duration_t anj_core_next_step_time(anj_t *anj) {
     assert(anj);
-    uint64_t current_time = anj_time_real_now();
+    anj_time_real_t current_time = anj_time_real_now();
     if (anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED) {
-        uint64_t enable_time =
-                ANJ_MAX(anj->server_state.enable_time_user_triggered,
-                        anj->server_state.enable_time);
-        if (enable_time > current_time) {
-            return enable_time - current_time;
+        anj_time_real_t enable_time;
+        if (anj_time_real_gt(anj->server_state.enable_time_user_triggered,
+                             anj->server_state.enable_time)) {
+            enable_time = anj->server_state.enable_time_user_triggered;
+        } else {
+            enable_time = anj->server_state.enable_time;
+        }
+
+        if (anj_time_real_gt(enable_time, current_time)) {
+            return anj_time_real_diff(enable_time, current_time);
         }
     } else if (anj->server_state.conn_status == ANJ_CONN_STATUS_QUEUE_MODE) {
-        uint64_t time_to_next_update =
+        anj_time_real_t next_update_time =
                 anj->server_state.details.registered.next_update_time;
-        if (time_to_next_update > current_time) {
-            time_to_next_update = time_to_next_update - current_time;
+        assert(anj_time_real_is_valid(next_update_time));
+        anj_time_duration_t time_to_next_update;
+        if (!anj_time_real_lt(next_update_time, current_time)) {
+            time_to_next_update =
+                    anj_time_real_diff(next_update_time, current_time);
         } else {
-            time_to_next_update = 0;
+            time_to_next_update = ANJ_TIME_DURATION_ZERO;
         }
 #ifdef ANJ_WITH_OBSERVE
-        uint64_t time_to_next_notification = 0;
+        anj_time_duration_t time_to_next_notification = ANJ_TIME_DURATION_ZERO;
+
         if (!anj_observe_time_to_next_notification(
                     anj, &anj->server_instance.observe_state,
                     &time_to_next_notification)) {
-            return ANJ_MIN(time_to_next_update, time_to_next_notification);
+            if (!anj_time_duration_is_valid(time_to_next_notification)) {
+                return time_to_next_update;
+            } else {
+                return anj_time_duration_lt(time_to_next_update,
+                                            time_to_next_notification)
+                               ? time_to_next_update
+                               : time_to_next_notification;
+            }
         }
 #endif // ANJ_WITH_OBSERVE
         return time_to_next_update;
     }
-    return 0;
+    return ANJ_TIME_DURATION_ZERO;
 }
 
-void anj_core_disable_server(anj_t *anj, uint64_t timeout_ms) {
+void anj_core_disable_server(anj_t *anj, anj_time_duration_t timeout) {
     assert(anj);
     log(L_INFO, "Disable called");
-    if (timeout_ms == ANJ_TIME_UNDEFINED) {
-        anj->server_state.enable_time_user_triggered = ANJ_TIME_UNDEFINED;
+    if (!anj_time_duration_is_valid(timeout)) {
+        anj->server_state.enable_time_user_triggered = ANJ_TIME_REAL_INVALID;
     } else {
         anj->server_state.enable_time_user_triggered =
-                anj_time_real_now() + timeout_ms;
+                anj_time_real_add(anj_time_real_now(), timeout);
     }
 
     if (anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED
@@ -384,7 +427,7 @@ void anj_core_disable_server(anj_t *anj, uint64_t timeout_ms) {
         log(L_DEBUG, "Already in progress");
         return;
     }
-    _anj_exchange_terminate(&anj->exchange_ctx);
+    _anj_exchange_terminate(&anj->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     anj->server_state.disable_triggered = true;
 }
 
@@ -397,7 +440,7 @@ void anj_core_request_bootstrap(anj_t *anj) {
         log(L_DEBUG, "Already in progress");
         return;
     }
-    _anj_exchange_terminate(&anj->exchange_ctx);
+    _anj_exchange_terminate(&anj->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     anj->server_state.bootstrap_request_triggered = true;
 }
 
@@ -408,7 +451,7 @@ void anj_core_restart(anj_t *anj) {
         log(L_DEBUG, "Already in progress");
         return;
     }
-    _anj_exchange_terminate(&anj->exchange_ctx);
+    _anj_exchange_terminate(&anj->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     anj->server_state.restart_triggered = true;
 }
 
@@ -417,16 +460,21 @@ int anj_core_shutdown(anj_t *anj) {
     // called again, so we do not track if the shutdown process was already
     // initiated.
     assert(anj);
-    _anj_exchange_terminate(&anj->exchange_ctx);
+    _anj_exchange_terminate(&anj->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
 #ifdef ANJ_WITH_LWM2M_SEND
     // abort all queued send request to call finish callbacks
     anj_send_abort(anj, ANJ_SEND_ID_ALL);
 #endif // ANJ_WITH_LWM2M_SEND
 
     int res = _anj_server_close(&anj->connection_ctx, true);
-    if (anj_net_is_again(res)) {
+    if (anj_net_is_inprogress(res)) {
         return res;
     }
+
+#ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    anj_crypto_storage_deinit(anj->crypto_ctx);
+#endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
     // clear anjay, not necessarily needed, but let's prevent accidental misuse
     memset(anj, 0, sizeof(*anj));
     anj->server_state.conn_status = ANJ_CONN_STATUS_INVALID;

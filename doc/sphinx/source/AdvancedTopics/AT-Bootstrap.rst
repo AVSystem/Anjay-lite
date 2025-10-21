@@ -10,7 +10,7 @@ Bootstrap
 =========
 
 Overview
-^^^^^^^^
+--------
 
 The LwM2M Protocol Specification defines the Bootstrap Interface, whose primary
 role is to provision LwM2M-enabled devices with the necessary configuration and
@@ -19,6 +19,7 @@ credentials required to establish a connection with the LwM2M Server.
 The most common use case of this interface, and the one covered in this example,
 involves delivering the LwM2M Server Object Instance together with appropriate
 security credentials. However, the bootstrap process is far more versatile.
+
 **LwM2M Bootstrap Server**
 
 A LwM2M Bootstrap Server is a special entity in the LwM2M architecture, as it is
@@ -38,14 +39,14 @@ Object instance (with matching SSID).
 
 - ``Bootstrap-Discover``: Identifies the Security Object instance ID for the Bootstrap Server.
 
-- Bootstrap-Write: Updates server URI or credentials.
+- ``Bootstrap-Write``: Updates server URI or credentials.
 
 Bootstrap Interface support is enabled with ``ANJ_WITH_BOOTSTRAP`` configuration
 flag.
 
 
 Add a Bootstrap Account in Anjay Lite
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------
 
 To inform Anjay Lite that a Security Instance is a Bootstrap Account, use
 ``Bootstrap Server`` Resource in Security Object instance by setting
@@ -100,8 +101,8 @@ a **Bootstrap-Finish** to provision the device.
     project repository.
 
 
-Configure Bootstrap
-^^^^^^^^^^^^^^^^^^^
+Configure bootstrap
+-------------------
 
 **Bootstrap Procedure in Anjay Lite**
 
@@ -147,59 +148,8 @@ handlers in objects implementation. If The LwM2M Bootstrap Server performs, for 
 a Bootstrap Write, it will be handled in the `anj_dm_obj_struct::handlers`.
 
 
-Error Handling
-^^^^^^^^^^^^^^
-
-If the bootstrap process fails, the client transitions into the ``ANJ_BOOTSTRAP_FAILED`` state.
-To properly handle this situation, define a callback function to detect when this state is reached.
-
-.. highlight:: c
-.. snippet-source:: examples/tutorial/AT-Bootstrap/src/main.c
-
-    static void connection_status_callback(void *arg,
-                                           anj_t *anj,
-                                           anj_conn_status_t conn_status) {
-        (void) arg;
-
-        if (conn_status == ANJ_CONN_STATUS_FAILURE) {
-            log(L_ERROR, "Bootstrap failed");
-            anj_dm_bootstrap_cleanup(anj);
-            anj_core_restart(anj);
-        }
-    }
-
-**How it works**
-
-    - ``ANJ_CONN_STATUS_FAILURE`` - indicates that the client has switched
-      to failure mode.
-    - ``anj_core_restart()`` - restarts the Anjay Lite core. This step is
-      necessary to reinitialize the client and prepare it for a new
-      bootstrap attempt.
-
-.. note::
-
-    Calling ``anj_dm_bootstrap_cleanup()`` in case of transition to ``ANJ_CONN_STATUS_FAILURE`` is
-    optional, but it is recommended to ensure that the data model is in a clean state.
-
-After that update the configuration:
-
-.. highlight:: c
-.. snippet-source:: examples/tutorial/AT-Bootstrap/src/main.c
-    :emphasize-lines: 5
-
-    anj_configuration_t config = {
-        .endpoint_name = argv[1],
-        .connection_status_cb = connection_status_callback,
-    };
-    if (anj_core_init(&anj, &config)) {
-        log(L_ERROR, "Failed to initialize Anjay Lite");
-        return -1;
-    }
-
-
-
 Coiote LwM2M Server
-^^^^^^^^^^^^^^^^^^^
+-------------------
 
 To Bootstrap your device using AVSystem Coiote LwM2M Server, refer to
 `Add device via the Bootstrap server guide <https://eu.iot.avsystem.cloud/doc/user/getting-started/add-devices/#add-device-via-the-bootstrap-server>`_ 

@@ -20,7 +20,7 @@
 #include <anj/dm/device_object.h>
 #include <anj/dm/security_object.h>
 #include <anj/dm/server_object.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #define FILE_PATH "./libanj.a"
 #define log(...) anj_log(example_log, __VA_ARGS__)
@@ -167,7 +167,7 @@ static int install_binary_app_data_container_object(anj_t *anj) {
     // Definition of resource
     static const anj_dm_res_t res = {
         .rid = 0,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .type = ANJ_DATA_TYPE_EXTERNAL_BYTES,
         .insts = insts,
         .max_inst_count = 1

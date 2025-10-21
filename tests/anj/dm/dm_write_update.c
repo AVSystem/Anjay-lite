@@ -33,7 +33,7 @@ static bool inst_transaction_end_return_eror;
 static bool res_write_operation_return_eror;
 static bool res_create_operation_return_eror;
 static const anj_res_value_t *call_value;
-static int call_result;
+static anj_dm_transaction_result_t call_result;
 
 static char string_buffer[20] = { 0 };
 static size_t buffer_size = 20;
@@ -94,7 +94,9 @@ static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result) {
     (void) anj;
     (void) obj;
     call_counter_end++;
@@ -138,12 +140,12 @@ static anj_dm_handlers_t handlers = {
     anj_dm_res_t res_0[] = {                             \
         {                                                \
             .rid = 0,                                    \
-            .operation = ANJ_DM_RES_RW,                  \
+            .kind = ANJ_DM_RES_RW,                       \
             .type = ANJ_DATA_TYPE_INT,                   \
         },                                               \
         {                                                \
             .rid = 6,                                    \
-            .operation = ANJ_DM_RES_W,                   \
+            .kind = ANJ_DM_RES_W,                        \
             .type = ANJ_DATA_TYPE_INT                    \
         }                                                \
     };                                                   \
@@ -161,48 +163,48 @@ static anj_dm_handlers_t handlers = {
     anj_dm_res_t res_1[] = {                             \
         {                                                \
             .rid = 0,                                    \
-            .operation = ANJ_DM_RES_RW,                  \
+            .kind = ANJ_DM_RES_RW,                       \
             .type = ANJ_DATA_TYPE_INT,                   \
         },                                               \
         {                                                \
             .rid = 1,                                    \
-            .operation = ANJ_DM_RES_RW,                  \
+            .kind = ANJ_DM_RES_RW,                       \
             .type = ANJ_DATA_TYPE_INT,                   \
         },                                               \
         {                                                \
             .rid = 2,                                    \
-            .operation = ANJ_DM_RES_RW,                  \
+            .kind = ANJ_DM_RES_RW,                       \
             .type = ANJ_DATA_TYPE_DOUBLE                 \
         },                                               \
         {                                                \
             .rid = 3,                                    \
-            .operation = ANJ_DM_RES_RM,                  \
+            .kind = ANJ_DM_RES_RM,                       \
             .type = ANJ_DATA_TYPE_INT,                   \
             .max_inst_count = 9,                         \
             .insts = rid_3_inst                          \
         },                                               \
         {                                                \
             .rid = 4,                                    \
-            .operation = ANJ_DM_RES_RWM,                 \
+            .kind = ANJ_DM_RES_RWM,                      \
             .type = ANJ_DATA_TYPE_INT,                   \
             .max_inst_count = 9,                         \
             .insts = res_insts,                          \
         },                                               \
         {                                                \
             .rid = 5,                                    \
-            .operation = ANJ_DM_RES_RWM,                 \
+            .kind = ANJ_DM_RES_RWM,                      \
             .type = ANJ_DATA_TYPE_INT,                   \
             .max_inst_count = 2,                         \
             .insts = res_insts_5,                        \
         },                                               \
         {                                                \
             .rid = 6,                                    \
-            .operation = ANJ_DM_RES_W,                   \
+            .kind = ANJ_DM_RES_W,                        \
             .type = ANJ_DATA_TYPE_INT                    \
         },                                               \
         {                                                \
             .rid = 7,                                    \
-            .operation = ANJ_DM_RES_RW,                  \
+            .kind = ANJ_DM_RES_RW,                       \
             .type = ANJ_DATA_TYPE_STRING                 \
         }                                                \
     };                                                   \
@@ -251,7 +253,8 @@ ANJ_UNIT_TEST(dm_write_update, write_handler) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
@@ -261,7 +264,7 @@ ANJ_UNIT_TEST(dm_write_update, write_handler) {
     ANJ_UNIT_ASSERT_EQUAL(call_riid, ANJ_ID_INVALID);
     ANJ_UNIT_ASSERT_EQUAL(call_iid, 1);
     ANJ_UNIT_ASSERT_TRUE(call_value == &record.value);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_write_update, write_string_in_chunk) {
@@ -296,14 +299,15 @@ ANJ_UNIT_TEST(dm_write_update, write_string_in_chunk) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_1));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_2));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_3));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 3);
     ANJ_UNIT_ASSERT_SUCCESS(strcmp(string_buffer, "123ABCDEF"));
-    ANJ_UNIT_ASSERT_EQUAL(call_result, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_write_update, multi_res_write) {
@@ -327,7 +331,8 @@ ANJ_UNIT_TEST(dm_write_update, multi_res_write) {
 
     record.path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 3);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(call_rid, 4);
     ANJ_UNIT_ASSERT_EQUAL(call_riid, 3);
     ANJ_UNIT_ASSERT_EQUAL(call_iid, 1);
@@ -337,7 +342,7 @@ ANJ_UNIT_TEST(dm_write_update, multi_res_write) {
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 2);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(res_1[4].insts[0], 1);
     ANJ_UNIT_ASSERT_EQUAL(res_1[4].insts[1], 3);
     ANJ_UNIT_ASSERT_EQUAL(res_1[4].insts[2], ANJ_ID_INVALID);
@@ -375,7 +380,8 @@ ANJ_UNIT_TEST(dm_write_update, multi_res_write_create) {
 
     record.path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 8);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(res_1[4].insts[0], 0);
     ANJ_UNIT_ASSERT_EQUAL(res_1[4].insts[1], 1);
     ANJ_UNIT_ASSERT_EQUAL(res_1[4].insts[2], 2);
@@ -387,7 +393,7 @@ ANJ_UNIT_TEST(dm_write_update, multi_res_write_create) {
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 3);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, 0);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_write_update, error_type) {
@@ -402,18 +408,18 @@ ANJ_UNIT_TEST(dm_write_update, error_type) {
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_BAD_REQUEST);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_BAD_REQUEST);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_BAD_REQUEST);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_FAILURE);
 }
 
 ANJ_UNIT_TEST(dm_write_update, error_no_writable) {
     TEST_INIT(anj, obj);
-    res_1[0].operation = ANJ_DM_RES_R;
+    res_1[0].kind = ANJ_DM_RES_R;
     anj_io_out_entry_t record = {
         .type = ANJ_DATA_TYPE_INT,
         .path = ANJ_MAKE_RESOURCE_PATH(1, 1, 0)
@@ -423,14 +429,13 @@ ANJ_UNIT_TEST(dm_write_update, error_no_writable) {
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj),
-                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_FAILURE);
 }
 
 ANJ_UNIT_TEST(dm_write_update, error_path) {
@@ -444,13 +449,13 @@ ANJ_UNIT_TEST(dm_write_update, error_path) {
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_NOT_FOUND);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_NOT_FOUND);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_NOT_FOUND);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_FAILURE);
 }
 
 ANJ_UNIT_TEST(dm_write_update, error_path_multi_instance) {
@@ -464,14 +469,13 @@ ANJ_UNIT_TEST(dm_write_update, error_path_multi_instance) {
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj),
-                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_FAILURE);
 }
 
 ANJ_UNIT_TEST(dm_write_update, error_unauthorized) {
@@ -482,7 +486,7 @@ ANJ_UNIT_TEST(dm_write_update, error_unauthorized) {
             _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
                                     &path),
             ANJ_DM_ERR_UNAUTHORIZED);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_UNAUTHORIZED);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 }
 
 ANJ_UNIT_TEST(dm_write_update, handler_error) {
@@ -497,14 +501,14 @@ ANJ_UNIT_TEST(dm_write_update, handler_error) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record), -1);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), -1);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 1);
     ANJ_UNIT_ASSERT_TRUE(call_value == &record.value);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, -1);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_FAILURE);
     res_write_operation_return_eror = false;
 }
 
@@ -520,13 +524,13 @@ ANJ_UNIT_TEST(dm_write_update, handler_error_2) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record), -2);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), -2);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 0);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, -2);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_FAILURE);
     res_create_operation_return_eror = false;
 }
 
@@ -562,12 +566,12 @@ ANJ_UNIT_TEST(dm_write_update, string_in_chunk_error) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_2));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record_3),
                           ANJ_DM_ERR_INTERNAL);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_INTERNAL);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_validate, 0);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_res_write, 3);
-    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_ERR_INTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_FAILURE);
     buffer_size = 20;
 }

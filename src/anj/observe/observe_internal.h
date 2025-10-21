@@ -15,7 +15,7 @@
 #    include <string.h>
 
 #    include <anj/defs.h>
-#    include <anj/log/log.h>
+#    include <anj/log.h>
 
 #    include "../coap/coap.h"
 #    include "observe.h"
@@ -77,7 +77,7 @@ void _anj_observe_verify_effective_attributes(
         _anj_observe_observation_t *observation);
 
 void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
-                                    uint64_t timestamp,
+                                    anj_time_real_t timestamp,
                                     bool confirmable);
 
 #    endif // ANJ_WITH_OBSERVE

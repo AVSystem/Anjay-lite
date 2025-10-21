@@ -27,6 +27,8 @@ set(ANJ_WITH_COAP_DOWNLOADER ON)
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
+target_compile_options(anj PRIVATE -Wall -Wextra -Werror)
+
 file(GLOB coap_tests_sources "*.c")
 
 add_executable(coap_tests ${coap_tests_sources})

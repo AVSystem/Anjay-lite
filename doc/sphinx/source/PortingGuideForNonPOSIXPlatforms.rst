@@ -6,12 +6,12 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Porting guide for non-POSIX platforms
+Porting Guide for non-POSIX Platforms
 =====================================
 
-By default, Anjay Lite makes use of POSIX-specific interfaces for retrieving time
-and handling network traffic. If no such interfaces are provided by the
-toolchain, the user needs to provide custom implementations.
+By default, Anjay Lite makes use of POSIX-specific interfaces for retrieving
+time and handling network traffic.
+If your toolchain doesn't provide these interfaces, you need to implement custom replacements.
 
 The documents below provide additional information about the specific functions
 that need to be implemented.

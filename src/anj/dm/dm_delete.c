@@ -17,7 +17,7 @@
 #include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "../core/core.h"
@@ -36,7 +36,7 @@ static int delete_instance(anj_t *anj) {
         dm_log(L_ERROR, "inst_delete failed");
         return ret;
     }
-    dm_log(L_DEBUG, "Instance %" PRIu16 " deleted", deleted_iid);
+    dm_log(L_DEBUG, "Deleted /%" PRIu16 "/%" PRIu16, obj->oid, deleted_iid);
 
     if (!dm->bootstrap_operation) {
         _anj_core_data_model_changed_with_ssid(
@@ -83,6 +83,7 @@ static bool is_oscore_bootstrap_instance(anj_t *anj) {
 }
 #endif // ANJ_WITH_OSCORE
 
+#ifdef ANJ_WITH_BOOTSTRAP
 static bool is_bootstrap_instance(anj_t *anj) {
     _anj_dm_data_model_t *dm = &anj->dm;
     if (dm->entity_ptrs.obj->oid == ANJ_OBJ_ID_SECURITY) {
@@ -98,15 +99,14 @@ static bool is_bootstrap_instance(anj_t *anj) {
         }
         return value.bool_value;
     }
-#ifdef ANJ_WITH_OSCORE
+#    ifdef ANJ_WITH_OSCORE
     if (dm->entity_ptrs.obj->oid == ANJ_OBJ_ID_OSCORE) {
         return is_oscore_bootstrap_instance(anj);
     }
-#endif // ANJ_WITH_OSCORE
+#    endif // ANJ_WITH_OSCORE
     return false;
 }
 
-#ifdef ANJ_WITH_BOOTSTRAP
 static int process_bootstrap_delete_op(anj_t *anj,
                                        const anj_uri_path_t *base_path) {
     assert(!anj_uri_path_has(base_path, ANJ_ID_RID));
@@ -166,6 +166,7 @@ static int process_bootstrap_delete_op(anj_t *anj,
 
 int _anj_dm_process_delete_op(anj_t *anj, const anj_uri_path_t *base_path) {
     _anj_dm_data_model_t *dm = &anj->dm;
+    int result = 0;
     assert(dm->bootstrap_operation || anj_uri_path_is(base_path, ANJ_ID_IID)
            || anj_uri_path_is(base_path, ANJ_ID_RIID));
 
@@ -173,28 +174,26 @@ int _anj_dm_process_delete_op(anj_t *anj, const anj_uri_path_t *base_path) {
 
     if (dm->bootstrap_operation) {
 #ifdef ANJ_WITH_BOOTSTRAP
-        dm->result = process_bootstrap_delete_op(anj, base_path);
+        result = process_bootstrap_delete_op(anj, base_path);
 #else  // ANJ_WITH_BOOTSTRAP
         ANJ_UNREACHABLE("Bootstrap operation not supported");
 #endif // ANJ_WITH_BOOTSTRAP
-        return dm->result;
+        return result;
     }
     const anj_dm_obj_t *obj;
-    dm->result = _anj_dm_get_obj_ptr_ensure_transaction_begin(
+    result = _anj_dm_get_obj_ptr_ensure_transaction_begin(
             anj, base_path->ids[ANJ_ID_OID], &obj);
-    if (dm->result) {
-        return dm->result;
+    if (result) {
+        return result;
     }
-    dm->result = _anj_dm_get_obj_ptrs(obj, base_path, &dm->entity_ptrs);
-    if (dm->result) {
-        return dm->result;
+    result = _anj_dm_get_obj_ptrs(obj, base_path, &dm->entity_ptrs);
+    if (result) {
+        return result;
     }
 
-    dm->result = anj_uri_path_is(base_path, ANJ_ID_IID)
-                         ? delete_instance(anj)
-                         : _anj_dm_delete_res_instance(anj);
-
-    return dm->result;
+    return anj_uri_path_is(base_path, ANJ_ID_IID)
+                   ? delete_instance(anj)
+                   : _anj_dm_delete_res_instance(anj);
 }
 
 int _anj_dm_delete_res_instance(anj_t *anj) {

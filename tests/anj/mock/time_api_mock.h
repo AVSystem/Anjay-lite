@@ -12,9 +12,14 @@
 
 #include <stdint.h>
 
-// set time value in seconds
-void set_mock_time(uint64_t time);
+#include <anj/time.h>
 
-void set_mock_time_advance(uint64_t *inout_actual_time, uint64_t delta);
+void mock_time_advance(anj_time_duration_t delta);
+void mock_time_advance_monotonic(anj_time_duration_t delta);
+void mock_time_advance_real(anj_time_duration_t delta);
+void mock_time_tick(anj_time_unit_t unit);
+anj_time_monotonic_t anj_time_monotonic_now(void);
+anj_time_real_t anj_time_real_now(void);
+void mock_time_reset(void);
 
 #endif /* TIME_API_MOCK_H */

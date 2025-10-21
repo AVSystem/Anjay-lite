@@ -118,42 +118,42 @@ static const anj_dm_res_t RES[ANJ_DM_FW_UPDATE_RESOURCES_COUNT] = {
     [PACKAGE_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_PACKAGE,
         .type = ANJ_DATA_TYPE_BYTES,
-        .operation = ANJ_DM_RES_W
+        .kind = ANJ_DM_RES_W
     },
     [PACKAGE_URI_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_PACKAGE_URI,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [UPDATE_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_UPDATE,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     },
     [STATE_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_STATE,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [UPDATE_RESULT_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [PKG_NAME_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_PKG_NAME,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [PKG_VER_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_PKG_VERSION,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
 #    ifdef ANJ_FOTA_WITH_PULL_METHOD
     [SUPPORTED_PROTOCOLS_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_UPDATE_PROTOCOL_SUPPORT,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .max_inst_count = ANJ_ARRAY_SIZE(SUPPORTED_PROTOCOLS_INST),
         .insts = SUPPORTED_PROTOCOLS_INST
     },
@@ -161,7 +161,7 @@ static const anj_dm_res_t RES[ANJ_DM_FW_UPDATE_RESOURCES_COUNT] = {
     [DELIVERY_METHOD_RES_IDX] = {
         .rid = ANJ_DM_FW_UPDATE_RID_UPDATE_DELIVERY_METHOD,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     }
 };
 
@@ -389,21 +389,23 @@ static int res_read(anj_t *anj,
         break;
     }
     case ANJ_DM_FW_UPDATE_RID_PKG_NAME: {
-        if (!entity->repr.user_handlers->get_name) {
-            out_value->bytes_or_string.data = NULL;
-        } else {
+        if (entity->repr.state == ANJ_DM_FW_UPDATE_STATE_DOWNLOADED
+                && entity->repr.user_handlers->get_name) {
             out_value->bytes_or_string.data =
                     entity->repr.user_handlers->get_name(entity->repr.user_ptr);
+        } else {
+            out_value->bytes_or_string.data = NULL;
         }
         break;
     }
     case ANJ_DM_FW_UPDATE_RID_PKG_VERSION: {
-        if (!entity->repr.user_handlers->get_version) {
-            out_value->bytes_or_string.data = NULL;
-        } else {
+        if (entity->repr.state == ANJ_DM_FW_UPDATE_STATE_DOWNLOADED
+                && entity->repr.user_handlers->get_version) {
             out_value->bytes_or_string.data =
                     entity->repr.user_handlers->get_version(
                             entity->repr.user_ptr);
+        } else {
+            out_value->bytes_or_string.data = NULL;
         }
         break;
     }
@@ -471,7 +473,6 @@ int anj_dm_fw_update_object_install(anj_t *anj,
         return -1;
     }
     memset(entity_ctx, 0, sizeof(*entity_ctx));
-    anj_dm_fw_update_repr_t *repr = &entity_ctx->repr;
 
 #    ifdef ANJ_FOTA_WITH_PUSH_METHOD
     if (!handlers->package_write_start_handler
@@ -479,7 +480,7 @@ int anj_dm_fw_update_object_install(anj_t *anj,
             || !handlers->package_write_finish_handler) {
         return -1;
     }
-    repr->write_start_called = false;
+    entity_ctx->repr.write_start_called = false;
 #    endif // ANJ_FOTA_WITH_PUSH_METHOD
 
 #    ifdef ANJ_FOTA_WITH_PULL_METHOD
@@ -488,8 +489,8 @@ int anj_dm_fw_update_object_install(anj_t *anj,
     }
 #    endif // ANJ_FOTA_WITH_PULL_METHOD
 
-    repr->user_ptr = user_ptr;
-    repr->user_handlers = handlers;
+    entity_ctx->repr.user_ptr = user_ptr;
+    entity_ctx->repr.user_handlers = handlers;
 
     entity_ctx->obj = (anj_dm_obj_t) {
         .oid = ANJ_OBJ_ID_FIRMWARE_UPDATE,

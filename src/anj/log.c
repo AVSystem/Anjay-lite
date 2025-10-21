@@ -9,15 +9,14 @@
 
 #include <anj/init.h>
 
+#include <assert.h>
+#include <stdarg.h>
+#include <stdio.h>
+
+#include <anj/compat/log_impl_decls.h>
+#include <anj/utils.h>
+
 #ifdef _ANJ_LOG_USES_BUILTIN_HANDLER_IMPL
-
-#    include <assert.h>
-#    include <stdarg.h>
-#    include <stdbool.h>
-#    include <stdio.h>
-
-#    include <anj/compat/log_impl_decls.h>
-#    include <anj/utils.h>
 
 /**
  * TODO: add support for alternative implementations of the formatter, including
@@ -36,56 +35,6 @@ formatter_variadic(char *buffer, size_t size, const char *format, ...) {
     va_end(args);
     return len;
 }
-
-#    ifdef ANJ_LOG_DEBUG_FORMAT_CONSTRAINTS_CHECK
-static void debug_format_constraints_check(const char *format) {
-    static const char *valid_specifiers[] = { "%",  "s",   "f",  "d",
-                                              "ld", "lld", "zd", "u",
-                                              "lu", "llu", "zu" };
-
-    while (*format) {
-        char maybe_percent_char = *format;
-        format++;
-        if (maybe_percent_char != '%') {
-            continue;
-        }
-
-        bool specifier_found = false;
-        for (size_t i = 0; i < ANJ_ARRAY_SIZE(valid_specifiers); i++) {
-            const char *format_specifier_ptr = format;
-            const char *valid_specifier = valid_specifiers[i];
-
-            while (*format_specifier_ptr && *valid_specifier) {
-                if (*format_specifier_ptr != *valid_specifier) {
-                    break;
-                }
-                format_specifier_ptr++;
-                valid_specifier++;
-            }
-
-            // if we were comparing a specifier found if format and we've
-            // reached the end of one of allowed specifiers, this is certainly a
-            // full match
-            if (!*valid_specifier) {
-                specifier_found = true;
-
-                // skip the specifier in format string
-                format = format_specifier_ptr;
-                break;
-            }
-        }
-
-        if (!specifier_found) {
-            ANJ_UNREACHABLE("Invalid format specifier found");
-            return;
-        }
-    }
-}
-#    else  // ANJ_LOG_DEBUG_FORMAT_CONSTRAINTS_CHECK
-static inline void debug_format_constraints_check(const char *format) {
-    (void) format;
-}
-#    endif // ANJ_LOG_DEBUG_FORMAT_CONSTRAINTS_CHECK
 
 static inline int actual_formatter_str_len(size_t buffer_size,
                                            int formatter_retval) {
@@ -113,7 +62,6 @@ void anj_log_handler_impl_full(anj_log_level_t level,
                                int line,
                                const char *format,
                                ...) {
-    debug_format_constraints_check(format);
     char buffer[ANJ_LOG_FORMATTER_BUF_SIZE];
 
     int header_len =

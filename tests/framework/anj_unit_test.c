@@ -147,9 +147,10 @@ void _anj_unit_test_fail_printf(const char *file,
     va_end(ap);
 }
 
-void anj_unit_abort__(const char *msg, const char *file, int line) {
+int anj_unit_abort__(const char *msg, const char *file, int line) {
     _anj_unit_test_fail_printf(file, line, msg);
     abort();
+    return -1;
 }
 
 static void print_char(uint8_t value, bool bold) {

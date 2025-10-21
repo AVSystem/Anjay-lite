@@ -9,6 +9,15 @@
 
 #include <anj/init.h>
 
+/**
+ * @file
+ * @brief Default implementation of the LwM2M Firmware Update Object (/5).
+ *
+ * Declares states, results, and handler callbacks for firmware update support.
+ * Supports both Push (Package) and Pull (Package URI) delivery modes depending
+ * on compile-time configuration.
+ */
+
 #ifndef ANJ_DM_FW_UPDATE_H
 #    define ANJ_DM_FW_UPDATE_H
 
@@ -24,32 +33,33 @@ extern "C" {
 
 #    ifdef ANJ_WITH_DEFAULT_FOTA_OBJ
 
-#        define ANJ_DM_FW_UPDATE_URI_MAX_LEN 255
-
-/*
- * Numeric values of the Firmware Update Protocol Support resource. See LwM2M
- * specification for details.
+/**
+ * Numeric values of the Firmware Update Protocol Support Resource (/5/0/8).
+ *
+ * @note See @lwm2m_core &sect;E.6 for details.
  */
 typedef enum {
     ANJ_DM_FW_UPDATE_STATE_IDLE = 0,
-    ANJ_DM_FW_UPDATE_STATE_DOWNLOADING,
-    ANJ_DM_FW_UPDATE_STATE_DOWNLOADED,
-    ANJ_DM_FW_UPDATE_STATE_UPDATING
+    ANJ_DM_FW_UPDATE_STATE_DOWNLOADING = 1,
+    ANJ_DM_FW_UPDATE_STATE_DOWNLOADED = 2,
+    ANJ_DM_FW_UPDATE_STATE_UPDATING = 3
 } anj_dm_fw_update_state_t;
 
 /**
- * Numeric values of the Firmware Update Result resource. See LwM2M
- * specification for details.
+ * Numeric values of the Update Result resource
  *
- * IMPORTANT NOTE: The values of this enum are incorporated error codes defined
- * in the LwM2M documentation, but actual code logic introduces a variation in
- * the interpretation of the success code ANJ_DM_FW_UPDATE_RESULT_SUCCESS.
- * While the LwM2M documentation specifies it as an overall success code, in
- * this implementation, it is used in other contexts, mainly to signalize
- * success at every stage of the process. User should be mindful of this
- * distinction and adhere to the return code descriptions provided for each
- * function in this file.
+ * @note See @lwm2m_core &sect;E.6 for details.
  *
+ * @warning The values of this enum are incorporated error codes defined
+ *          in the LwM2M documentation, but actual code logic introduces a
+ *          variation in the interpretation of the success code @ref
+ *          ANJ_DM_FW_UPDATE_RESULT_SUCCESS. While the LwM2M documentation
+ *          specifies it as a success code for the overall firmware update
+ *          process (when paired with State Resource set to \em Idle), in this
+ *          implementation, it is used in other contexts, mainly to signalize
+ *          success at individual stages of the process. User should be mindful
+ *          of this distinction and adhere to the return code descriptions
+ *          provided for each function in this file.
  */
 typedef enum {
     ANJ_DM_FW_UPDATE_RESULT_INITIAL = 0,
@@ -61,135 +71,137 @@ typedef enum {
     ANJ_DM_FW_UPDATE_RESULT_UNSUPPORTED_PACKAGE_TYPE = 6,
     ANJ_DM_FW_UPDATE_RESULT_INVALID_URI = 7,
     ANJ_DM_FW_UPDATE_RESULT_FAILED = 8,
-    ANJ_DM_FW_UPDATE_RESULT_UNSUPPORTED_PROTOCOL = 9,
+    ANJ_DM_FW_UPDATE_RESULT_UNSUPPORTED_PROTOCOL = 9
 } anj_dm_fw_update_result_t;
 
 /**
- * Initates the Push-mode download of FW package. The library calls this
- * function when an LwM2M Server performs a Write on Package resource and is
- * immediately followed with series of
- * @ref anj_dm_fw_update_package_write_t callback calls that pass the actual
- * binary data of the downloaded image if it returns @ref
- * ANJ_DM_FW_UPDATE_RESULT_SUCCESS.
+ * Initates the Push-mode download of a firmware package. The library calls this
+ * function when a LwM2M Server performs a Write on Package Resource.
  *
- * @note This handler has to be implemented if ANJ_FOTA_WITH_PUSH_METHOD is
- * enabled
+ * If this callback returns @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS, it will be
+ * followed by a series of calls to @ref anj_dm_fw_update_package_write_t that
+ * pass the actual firmware package.
  *
- * @param user_ptr Opaque pointer to user data, as passed to
- *                 @ref anj_dm_fw_update_object_install in
- *                 <c>entity_ctx->repr.user_ptr</c>
+ * @warning This handler must be implemented if @ref ANJ_FOTA_WITH_PUSH_METHOD
+ *          is enabled.
  *
- * @returns The callback shall return @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if
- *          successful or an appropriate reason for the write failure:
- *          @ref ANJ_DM_FW_UPDATE_RESULT_NOT_ENOUGH_SPACE
- *          @ref ANJ_DM_FW_UPDATE_RESULT_OUT_OF_MEMORY
- *          @ref ANJ_DM_FW_UPDATE_RESULT_CONNECTION_LOST
+ * @param user_ptr Opaque pointer to user data, as passed to @ref
+ *                 anj_dm_fw_update_object_install.
+ *
+ * @return The callback should return:
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if the download process can be
+ *           initiated,
+ *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
+ *           reason of failure.
  */
 typedef anj_dm_fw_update_result_t
 anj_dm_fw_update_package_write_start_t(void *user_ptr);
 
 /**
- * Passes the binary data written by an LwM2M Server to the Package resource
- * in chunks as they come in a block transfer. If it returns a value other than
- * @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS , it is set as Result resource and
- * subsequent chunks coming from the server are rejected.
+ * Passes parts of firmware package written by a LwM2M Server to the Package
+ * Resource. This method is called for each chunk of data, in order.
  *
- * @note This handler has to be implemented if ANJ_FOTA_WITH_PUSH_METHOD is
- * enabled
+ * If this callback returns a value other than @ref
+ * ANJ_DM_FW_UPDATE_RESULT_SUCCESS, the download process will be aborted.
  *
- * @param user_ptr  Opaque pointer to user data, as passed to
- *                  @ref anj_dm_fw_update_object_install in
- *                  <c>entity_ctx->repr.user_ptr</c>
- * @param data      Pointer to the data chunk
- * @param data_size Size of the data chunk
+ * @warning This handler must be implemented if @ref ANJ_FOTA_WITH_PUSH_METHOD
+ *          is enabled.
  *
- * @returns The callback shall return @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if
- *          successful or an appropriate reason for the write failure:
- *          @ref ANJ_DM_FW_UPDATE_RESULT_NOT_ENOUGH_SPACE
- *          @ref ANJ_DM_FW_UPDATE_RESULT_OUT_OF_MEMORY
- *          @ref ANJ_DM_FW_UPDATE_RESULT_CONNECTION_LOST
+ * @param user_ptr  Opaque pointer to user data, as passed to @ref
+ *                  anj_dm_fw_update_object_install.
+ * @param data      Pointer to the data chunk.
+ * @param data_size Size of the data chunk.
+ *
+ * @return The callback should return:
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if part of firmware package
+ *           has been successfully processed,
+ *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
+ *           reason of failure.
  */
 typedef anj_dm_fw_update_result_t anj_dm_fw_update_package_write_t(
         void *user_ptr, const void *data, size_t data_size);
 
 /**
- * Finitializes the operation of writing FW package chunks.
- * The library informs the application that the last call of @ref
- * anj_dm_fw_update_package_write_t was the final one. If this function returns
- * 0, FOTA State Machine goes to Downloaded state and waits for LwM2M Server to
- * execute Update resource.
+ * Finalizes the process of writing firmware package chunks. This method is
+ * called once, after the last chunk of data hsa been passed to @ref
+ * anj_dm_fw_update_package_write_t.
  *
- * @note This handler has to be implemented if ANJ_FOTA_WITH_PUSH_METHOD is
- * enabled
+ * If this callback returns @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS, the State
+ * Resource will be set to \em Downloaded and the library will wait for the
+ * execution of Update Resource by the LwM2M Server to proceed with the actual
+ * firmware update.
  *
- * @param user_ptr Opaque pointer to user data, as passed to
- *                 @ref anj_dm_fw_update_object_install in
- *                 <c>entity_ctx->repr.user_ptr</c>
+ * @warning This handler must be implemented if @ref ANJ_FOTA_WITH_PUSH_METHOD
+ *          is enabled.
  *
- * @returns The callback shall return @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if
- *          successful or an appropriate reason for the write failure:
- *          @ref ANJ_DM_FW_UPDATE_RESULT_NOT_ENOUGH_SPACE
- *          @ref ANJ_DM_FW_UPDATE_RESULT_OUT_OF_MEMORY
- *          @ref ANJ_DM_FW_UPDATE_RESULT_CONNECTION_LOST
- *          @ref ANJ_DM_FW_UPDATE_RESULT_INTEGRITY_FAILURE
+ * @param user_ptr Opaque pointer to user data, as passed to @ref
+ *                 anj_dm_fw_update_object_install.
+ *
+ * @return The callback should return:
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if the download process has
+ *           been successfully finalized,
+ *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
+ *           reason of failure.
  */
 typedef anj_dm_fw_update_result_t
 anj_dm_fw_update_package_write_finish_t(void *user_ptr);
 
 /**
- * Informs the application that an LwM2M Server initiated FOTA in Pull mode by
- * writing Package URI Resource. If this function return 0, library goes into
- * Downloading state and waits for
- * @ref anj_dm_fw_update_object_set_download_result call.
+ * Initiates the Pull-mode download of a firmware package by providing the URI
+ * written by a LwM2M Server to the Package URI Resource.
  *
- * Download abort with a '\0' write to Package URI is handled internally and
- * other callback, @ref anj_dm_fw_update_reset_t is called then.
+ * User code should start the download of the firmware package from the given
+ * URI. If this callback returns @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS, the State
+ * Resource will be set to \em Downloading and the library will wait for the
+ * call to @ref anj_dm_fw_update_object_set_download_result to proceed.
  *
- * @note This handler has to be implemented if ANJ_FOTA_WITH_PULL_METHOD is
- * enabled
+ * @warning This handler must be implemented if @ref ANJ_FOTA_WITH_PULL_METHOD
+ *          is enabled.
  *
- * @param user_ptr Opaque pointer to user data, as passed to
- *                 @ref anj_dm_fw_update_object_install in
- *                 <c>entity_ctx->repr.user_ptr</c>
- * @param uri Null-terminated string containing the URI of FW package
+ * @param user_ptr Opaque pointer to user data, as passed to @ref
+ *                 anj_dm_fw_update_object_install.
+ * @param uri      Null-terminated string containing the URI to the firmware
+ *                 package.
  *
- * @returns The callback shall return @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if
- *          successful or an appropriate reason for the write failure:
- *          @ref ANJ_DM_FW_UPDATE_RESULT_UNSUPPORTED_PACKAGE_TYPE
- *          @ref ANJ_DM_FW_UPDATE_RESULT_INVALID_URI
- *          @ref ANJ_DM_FW_UPDATE_RESULT_UNSUPPORTED_PROTOCOL
+ * @return The callback should return:
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if the download process can be
+ *           initiated,
+ *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
+ *           reason of failure.
  */
 typedef anj_dm_fw_update_result_t anj_dm_fw_update_uri_write_t(void *user_ptr,
                                                                const char *uri);
 
 /**
- * Schedules performing the actual upgrade with previously downloaded package.
+ * Schedules the actual upgrade with previously downloaded package.
  *
- * Will be called at request of the server, after a package has been downloaded.
- * Since performing an upgrade can be a relatively long operation and this
- * handler is called directly from the LwM2M Request processing context, it is
- * recommended that it schedules the update and returns so that the library can
- * send an appropriate response to this request on time.
+ * Will be called at request of the server, after a package has been downloaded
+ * (by executing Update Resource when State Resource is \em Downloaded).
  *
- * Most users will want to implement firmware update in a way that involves a
- * reboot. In such case, it is expected that this callback will do either one of
- * the following:
+ * User code should initiate the actual upgrade process. If this callback
+ * returns @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS, the State Resource will be set
+ * to \em Updating. The library will wait for the call to @ref
+ * anj_dm_fw_update_object_set_update_result to set the State Resource back to
+ * \em Idle and set the Result Resource accordingly, to notify the server about
+ * the outcome of the upgrade.
  *
- * - perform firmware upgrade, terminate outermost event loop and return,
- *   call reboot
- * - perform the firmware upgrade internally and then reboot, it means that
- *   the return will never happen (although the library won't be able to send
- *   the acknowledgement to execution of Update resource)
+ * @warning Most users will want to implement firmware update in a way that
+ *          involves a reboot. In such case, it is expected that this callback
+ *          will only schedule the upgrade and return, while the upgrade process
+ *          and reboot will be performed later. In such case, the user must
+ *          ensure that @ref anj_dm_fw_update_object_set_update_result is called
+ *          **IMMEDIATELY AFTER** installing the Firmware Update Object.
  *
- * Regardless of the method, the Update result should be set with a call to
- * @ref anj_dm_fw_update_object_set_update_result
+ * @warning The Execute operation is a Confirmable CoAP request, so the LwM2M
+ *          server expects an acknowledgement. Additionally, the Server might
+ *          track State and Update Result Resources. It's recommended to delay
+ *          the reboot until the response and Notifications are sent by the
+ *          client.
  *
- * @param user_ptr Opaque pointer to user data, as passed to
- *                 @ref anj_dm_fw_update_object_install in
- *                 <c>entity_ctx->repr.user_ptr</c>
+ * @param user_ptr Opaque pointer to user data, as passed to @ref
+ *                 anj_dm_fw_update_object_install.
  *
- * @returns 0 for success, non-zero for an internal failure (Result resource
- * will be set to ANJ_DM_FW_UPDATE_RESULT_FAILED).
+ * @return 0 on success, a non-zero value in case of an error.
  */
 typedef int anj_dm_fw_update_update_start_t(void *user_ptr);
 
@@ -197,24 +209,23 @@ typedef int anj_dm_fw_update_update_start_t(void *user_ptr);
  * Returns the name of downloaded firmware package.
  *
  * The name will be exposed in the data model as the PkgName Resource. If this
- * callback returns <c>NULL</c> or is not implemented at all (with the
- * corresponding field set to <c>NULL</c>), PkgName Resource will contain an
- * empty string
+ * callback returns @c NULL or is not implemented at all (with the corresponding
+ * field set to @c NULL), PkgName Resource will contain an empty string.
  *
  * It only makes sense for this handler to return non-<c>NULL</c> values if
  * there is a valid package already downloaded. The library will not call this
- * handler in any state other than <em>Downloaded</em>.
+ * handler in any state other than \em Downloaded.
  *
- * The library will not attempt to deallocate the returned pointer. User code
- * must assure that the pointer will remain valid.
+ * The library expects that the returned pointer will remain valid until the
+ * next call to this handler, or until the State Resource changes to a value
+ * other than \em Downloaded.
  *
- * @param user_ptr Opaque pointer to user data, as passed to
- *                 @ref anj_dm_fw_update_object_install in
- *                 <c>entity_ctx->repr.user_ptr</c>
+ * @param user_ptr Opaque pointer to user data, as passed to @ref
+ *                 anj_dm_fw_update_object_install.
  *
- * @returns The callback shall return a pointer to a null-terminated string
- *          containing the package name, or <c>NULL</c> if it is not currently
- *          available.
+ * @return The callback shall return a pointer to a null-terminated string
+ *         containing the package name, or @c NULL if it is not currently
+ *         available.
  */
 typedef const char *anj_dm_fw_update_get_name_t(void *user_ptr);
 
@@ -222,135 +233,115 @@ typedef const char *anj_dm_fw_update_get_name_t(void *user_ptr);
  * Returns the version of downloaded firmware package.
  *
  * The version will be exposed in the data model as the PkgVersion Resource. If
- * this callback returns <c>NULL</c> or is not implemented at all (with the
- * corresponding field set to <c>NULL</c>), PkgVersion Resource will contain an
- * empty string
+ * this callback returns @c NULL or is not implemented at all (with the
+ * corresponding field set to @c NULL), PkgVersion Resource will contain an
+ * empty string.
  *
  * It only makes sense for this handler to return non-<c>NULL</c> values if
  * there is a valid package already downloaded. The library will not call this
- * handler in any state other than <em>Downloaded</em>.
+ * handler in any state other than \em Downloaded.
  *
- * The library will not attempt to deallocate the returned pointer. User code
- * must assure that the pointer will remain valid.
+ * The library expects that the returned pointer will remain valid until the
+ * next call to this handler, or until the State Resource changes to a value
+ * other than \em Downloaded.
  *
- * @param user_ptr Opaque pointer to user data, as passed to
- *                 @ref anj_dm_fw_update_object_install in
- *                 <c>entity_ctx->repr.user_ptr</c>
+ * @param user_ptr Opaque pointer to user data, as passed to @ref
+ *                 anj_dm_fw_update_object_install.
  *
- * @returns The callback shall return a pointer to a null-terminated string
- *          containing the package version, or <c>NULL</c> if it is not
- *          currently available.
+ * @return The callback shall return a pointer to a null-terminated string
+ *         containing the package version, or @c NULL if it is not currently
+ *         available.
  */
 typedef const char *anj_dm_fw_update_get_version_t(void *user_ptr);
 
 /**
- * Resets the firmware update state and performs any applicable cleanup of
- * temporary storage, including aborting any ongoing FW package download.
+ * Aborts any ongoing firmware package download process, either at the request
+ * of the server (by writing an empty value to Package or Package URI
+ * Resources), or after a failed download (indicated by returning an error value
+ * by other callbacks involved in download process).
  *
- * Will be called at request of the server, or after a failed download. Note
- * that it may be called without previously calling
- * @ref anj_dm_fw_update_package_write_finish_t, so it shall also close the
- * currently open download stream, if any.
+ * The user should ensure that any temporary resources used during the
+ * download are released, and that any ongoing download is aborted.
  *
- * @param user_ptr Opaque pointer to user data, as passed to
- *                 @ref anj_dm_fw_update_object_install in
- *                 <c>entity_ctx->repr.user_ptr</c>
+ * @warning Note, that this function may be called without previously calling
+ *          @ref anj_dm_fw_update_package_write_finish_t, so it shall also close
+ *          the currently open download stream and free any temporary resources.
+ *
+ * @param user_ptr Opaque pointer to user data, as passed to @ref
+ *                 anj_dm_fw_update_object_install.
  */
 typedef void anj_dm_fw_update_reset_t(void *user_ptr);
 
 /**
- * Collection of user‑provided callbacks used by the Firmware Update object.
+ * Collection of user‑provided callbacks used by the Firmware Update Object.
+ *
+ * @warning The user must ensure that this structure remains valid for the
+ *          entire lifetime of @ref anj_t object or until the Object is removed
+ *          using @ref anj_dm_remove_obj.
  */
 typedef struct {
-    /** Initiates Push‑mode download of the FW package
-     * @ref anj_dm_fw_update_package_write_start_t */
+    /** Initiates Push‑mode download of the firmware package. */
     anj_dm_fw_update_package_write_start_t *package_write_start_handler;
 
-    /** Writes a chunk of the FW package during Push‑mode download
-     * @ref anj_dm_fw_update_package_write_t */
+    /** Writes a chunk of the firmware package during Push‑mode download. */
     anj_dm_fw_update_package_write_t *package_write_handler;
 
-    /** Finalizes the Push‑mode download operation
-     * @ref anj_dm_fw_update_package_write_finish_t */
+    /** Finalizes the Push‑mode download operation. */
     anj_dm_fw_update_package_write_finish_t *package_write_finish_handler;
 
-    /** Handles Write to Package URI (starts Pull‑mode download)
-     * @ref anj_dm_fw_update_uri_write_t */
+    /** Handles Write to Package URI (starts Pull‑mode download). */
     anj_dm_fw_update_uri_write_t *uri_write_handler;
 
-    /** Schedules execution of the actual firmware upgrade
-     * @ref anj_dm_fw_update_update_start_t */
+    /** Schedules execution of the actual firmware upgrade. */
     anj_dm_fw_update_update_start_t *update_start_handler;
 
-    /** Returns the name of the downloaded firmware package
-     * @ref anj_dm_fw_update_get_name_t */
+    /** Returns the name of the downloaded firmware package. */
     anj_dm_fw_update_get_name_t *get_name;
 
-    /** Returns the version of the downloaded firmware package
-     * @ref anj_dm_fw_update_get_version_t */
+    /** Returns the version of the downloaded firmware package. */
     anj_dm_fw_update_get_version_t *get_version;
 
-    /** Resets Firmware Update state and cleans up temporary resources
-     * @ref anj_dm_fw_update_reset_t */
+    /** Aborts firmware download process and cleans up temporary resources. */
     anj_dm_fw_update_reset_t *reset_handler;
 } anj_dm_fw_update_handlers_t;
 
-/*
- * Representation of a FW Update Object that holds values of its resources and
- * its internal state.
- */
-typedef struct {
-    /* /5/0/3 State Resouce value holder */
-    int8_t state;
-    /* /5/0/5 Result Resource value holder */
-    int8_t result;
-    /* Set of user provided callback handlers */
-    anj_dm_fw_update_handlers_t *user_handlers;
-    /* Opaque user pointer passed back with each call of @ref user_handlers
-     * callbacks. Can be used to e.g. determine the the context or distiguish FW
-     * Update Object entities in a multiple LwM2M Clients system */
-    void *user_ptr;
-#        if defined(ANJ_FOTA_WITH_PULL_METHOD)
-    /* /5/0/1 Package URI Resource value holder */
-    char uri[ANJ_DM_FW_UPDATE_URI_MAX_LEN + 1];
-#        endif // defined (ANJ_FOTA_WITH_PULL_METHOD)
-#        if defined(ANJ_FOTA_WITH_PUSH_METHOD)
-    bool write_start_called;
-#        endif // defined (ANJ_FOTA_WITH_PUSH_METHOD)
-} anj_dm_fw_update_repr_t;
-
-/*
- * Complex structure of a whole FW Update Object entity context that holds the
- * object and its instance that are linked to Static Data Model as well as the
- * object representation.
+/**
+ * Internal state of Firmware Update Object.
  *
- * User is expected to instantiate a structure of this type, initialize
- * only the @ref repr field and not modify it directly throughout the LwM2M
- * Client life.
+ * @warning The user must ensure that this structure remains valid for the
+ *          entire lifetime of @ref anj_t object or until the Object is removed
+ *          using @ref anj_dm_remove_obj.
+ *
+ * @anj_internal_fields_do_not_use
  */
 typedef struct {
     anj_dm_obj_t obj;
     anj_dm_obj_inst_t inst;
-    anj_dm_fw_update_repr_t repr;
+    struct {
+        int8_t state;
+        int8_t result;
+        anj_dm_fw_update_handlers_t *user_handlers;
+        void *user_ptr;
+#        if defined(ANJ_FOTA_WITH_PULL_METHOD)
+        char uri[256];
+#        endif // defined (ANJ_FOTA_WITH_PULL_METHOD)
+#        if defined(ANJ_FOTA_WITH_PUSH_METHOD)
+        bool write_start_called;
+#        endif // defined (ANJ_FOTA_WITH_PUSH_METHOD)
+    } repr;
 } anj_dm_fw_update_entity_ctx_t;
 
 /**
- * Installs the Firmware Update Object in an DM.
+ * Installs Firmware Update Object in data model.
  *
- * @param anj        Anjay object to operate on.
- * @param entity_ctx Objects entity context that shall be alocated by
- *                   the user. Please refer to @ref
- * anj_dm_fw_update_entity_ctx_t documentation for more details.
+ * @param anj        Anjay object.
+ * @param entity_ctx Pointer to a variable that will hold the state of the
+ *                   Object.
  * @param handlers   Pointer to a set of handler functions that handle
- *                   the platform-specific part of firmware update
- *                   process. Note: Contents of the structure are NOT
- *                   copied, so it needs to remain valid for the
- *                   lifetime of the object.
+ *                   platform-specific parts of firmware update process.
+ * @param user_ptr   Opaque pointer that will be passed to all callbacks.
  *
- * @param user_ptr   Opaque user pointer that will be copied to
- *                   <c>entity_ctx->repr.user_ptr</c>
- *
- * @return 0 in case of success, negative value in case of error
+ * @return 0 on success, a non-zero value in case of an error.
  */
 int anj_dm_fw_update_object_install(anj_t *anj,
                                     anj_dm_fw_update_entity_ctx_t *entity_ctx,
@@ -358,21 +349,20 @@ int anj_dm_fw_update_object_install(anj_t *anj,
                                     void *user_ptr);
 
 /**
- * Sets the result of FW update triggered with /5/0/2 execution and reports to
- * the observation module about it.
+ * Sets the result of upgrade process.
  *
- * This function sets /5/0/5 Result to the value passed through argument and
- * /5/0/3 State to IDLE. If FW upgrade is performed with reboot, this function
- * should be called right after installing FW Update object.
+ * For details on the expected usage of this function see description of @ref
+ * anj_dm_fw_update_update_start_t callback.
  *
- * @param anj        Anjay object to operate on.
- * @param entity_ctx Objects entity context initilized previously with @ref
- *                   anj_dm_fw_update_object_install.
- * @param result     Result of the FW update. To comply with LwM2M specification
- *                   should be one of the following:
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_INTEGRITY_FAILURE
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_FAILED
+ * @warning This function MUST NOT be called in states other than @ref
+ *          ANJ_DM_FW_UPDATE_STATE_IDLE or @ref ANJ_DM_FW_UPDATE_STATE_UPDATING.
+ *          Calling this function in other states is an undefined behavior.
+ *
+ * @param anj        Anjay object.
+ * @param entity_ctx Firmware Update Object state.
+ * @param result     Result of the upgrade process. If the process is
+ *                   successful, the value must be set to @ref
+ *                   ANJ_DM_FW_UPDATE_RESULT_SUCCESS.
  */
 void anj_dm_fw_update_object_set_update_result(
         anj_t *anj,
@@ -380,25 +370,21 @@ void anj_dm_fw_update_object_set_update_result(
         anj_dm_fw_update_result_t result);
 
 /**
- * Sets the result of FW download in FOTA with PULL method and reports to the
- * observation module about it.
+ * Sets the result of firmware download process in Pull mode.
  *
- * @param anj        Anjay object to operate on.
- * @param entity_ctx Objects entity context initilized previously with @ref
- *                   anj_dm_fw_update_object_install.
- * @param result     Result of the downloading. To comply with LwM2M
- *                   specification should be one of the following:
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_NOT_ENOUGH_SPACE
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_OUT_OF_MEMORY
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_CONNECTION_LOST
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_INTEGRITY_FAILURE
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_UNSUPPORTED_PACKAGE_TYPE
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_INVALID_URI
- *                   @ref ANJ_DM_FW_UPDATE_RESULT_UNSUPPORTED_PROTOCOL
+ * For details on the expected usage of this function see description of @ref
+ * anj_dm_fw_update_uri_write_t callback.
  *
- * @return 0 in case of success, negative value in case of calling the function
- *         in other state than @ref ANJ_DM_FW_UPDATE_STATE_DOWNLOADING.
+ * @warning Calling this function in states other than @ref
+ *          ANJ_DM_FW_UPDATE_STATE_DOWNLOADING is an error.
+ *
+ * @param anj        Anjay object.
+ * @param entity_ctx Firmware Update Object state.
+ * @param result     Result of the download process. If the process is
+ *                   successful, the value must be set to @ref
+ *                   ANJ_DM_FW_UPDATE_RESULT_SUCCESS.
+ *
+ * @return 0 on success, a non-zero value in case of an error.
  */
 int anj_dm_fw_update_object_set_download_result(
         anj_t *anj,

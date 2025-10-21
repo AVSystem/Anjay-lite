@@ -163,12 +163,13 @@ int _anj_dm_observe_build_msg(anj_t *anj,
                               bool composite);
 
 /**
- * Informs the data model that operation has been ended with error. Data model
+ * Informs the data model that operation has been ended. Data model
  * should end the operation on its side.
  *
  * @param anj          Anjay object to operate on.
+ * @param result       Result of the operation.
  */
-void _anj_dm_observe_terminate_operation(anj_t *anj);
+void _anj_dm_observe_finalize_operation(anj_t *anj, int result);
 
 /**
  * Called by the bootstrap API during Bootstrap-Finish handling, checks if there

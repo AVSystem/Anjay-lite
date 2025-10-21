@@ -10,6 +10,7 @@
 #include <anj/init.h>
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <string.h>
 
@@ -18,7 +19,8 @@
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #include "../coap/coap.h"
@@ -36,13 +38,11 @@
 static int bootstrap_op_read_data_model(anj_t *anj) {
     if (_anj_dm_get_security_obj_instance_iid(anj, _ANJ_SSID_BOOTSTRAP,
                                               &anj->security_instance.iid)) {
-        log(L_ERROR,
-            "Could not get LwM2M Security Object instance for Bootstrap "
-            "Server");
+        log(L_ERROR, "No Bootstrap Account");
         return -1;
     }
 
-    assert(!_anj_validate_security_resource_types(anj));
+    assert(!_anj_core_utils_validate_security_resource_types(anj));
 
     anj_res_value_t res_val;
     const anj_uri_path_t path =
@@ -53,8 +53,20 @@ static int bootstrap_op_read_data_model(anj_t *anj) {
             || res_val.int_value > UINT32_MAX) {
         return -1;
     }
-    anj->security_instance.client_hold_off_time = (uint32_t) res_val.int_value;
-    return _anj_server_get_resolved_server_uri(anj);
+    anj->security_instance.client_hold_off_time =
+            anj_time_duration_new(res_val.int_value, ANJ_TIME_UNIT_S);
+    if (_anj_core_utils_server_get_resolved_server_uri(anj)
+#    ifdef ANJ_WITH_SECURITY
+            || (anj->security_instance.type == ANJ_NET_BINDING_DTLS
+                && _anj_core_utils_get_security_info(
+                           anj, true,
+                           &anj->net_socket_cfg.secure_socket_config.security))
+#    endif // ANJ_WITH_SECURITY
+    ) {
+        return -1;
+    }
+
+    return 0;
 }
 
 int _anj_server_bootstrap_is_needed(anj_t *anj, bool *out_is_needed) {
@@ -81,11 +93,12 @@ int _anj_server_bootstrap_start_bootstrap_operation(anj_t *anj) {
     }
     // if last bootstrap session was aborted, we need to reset the state
     _anj_bootstrap_reset(anj);
-    if (anj->security_instance.client_hold_off_time > 0) {
+    if (anj_time_duration_gt(anj->security_instance.client_hold_off_time,
+                             ANJ_TIME_DURATION_ZERO)) {
         anj->server_state.details.bootstrap.bootstrap_timeout =
-                anj_time_real_now()
-                + anj->security_instance.client_hold_off_time
-                          * 1000; // *1000 to convert to ms
+                anj_time_monotonic_add(
+                        anj_time_monotonic_now(),
+                        anj->security_instance.client_hold_off_time);
         anj->server_state.details.bootstrap.bootstrap_state =
                 _ANJ_SRV_BOOTSTRAP_STATE_WAITING;
         return 0;
@@ -170,6 +183,9 @@ static _anj_core_next_action_t handle_bootstrap_process(anj_t *anj) {
         size_t msg_size;
         result = _anj_server_receive(&anj->connection_ctx, anj->in_buffer,
                                      &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
+        if (anj_net_is_inprogress(result)) {
+            return _ANJ_CORE_NEXT_ACTION_LEAVE;
+        }
         if (anj_net_is_ok(result)) {
             // new message received, if decode fails or not recognized -
             // drop
@@ -210,13 +226,18 @@ static _anj_core_next_action_t handle_bootstrap_process(anj_t *anj) {
 
 static void calculate_communication_retry_timeout(anj_t *anj) {
     anj->server_state.details.bootstrap.bootstrap_retry_attempt++;
-    uint64_t delay =
-            anj->bootstrap_retry_timeout
-            * (1ULL
-               << (anj->server_state.details.bootstrap.bootstrap_retry_attempt
-                   - 1));
+    anj_time_duration_t delay = anj_time_duration_mul(
+            anj->bootstrap_retry_timeout,
+            1 << (anj->server_state.details.bootstrap.bootstrap_retry_attempt
+                  - 1));
     anj->server_state.details.bootstrap.bootstrap_timeout =
-            anj_time_real_now() + delay * 1000; // *1000 to convert to ms
+            anj_time_monotonic_add(anj_time_monotonic_now(), delay);
+
+    log(L_INFO,
+        "Bootstrap retry no. %" PRIu16 " will start with %s"
+        "s delay",
+        anj->server_state.details.bootstrap.bootstrap_retry_attempt,
+        ANJ_TIME_DURATION_AS_STRING(delay, ANJ_TIME_UNIT_S));
 }
 
 _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
@@ -227,9 +248,8 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
                                          anj->security_instance.type,
                                          &anj->net_socket_cfg,
                                          anj->security_instance.server_uri,
-                                         anj->security_instance.port,
-                                         false);
-        if (anj_net_is_again(result)) {
+                                         anj->security_instance.port);
+        if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         if (!anj_net_is_ok(result)) {
@@ -255,7 +275,7 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
     }
     case _ANJ_SRV_BOOTSTRAP_STATE_BOOTSTRAP_IN_PROGRESS: {
         int result = _anj_server_handle_request(anj);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         if (result) {
@@ -268,7 +288,7 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
     }
     case _ANJ_SRV_BOOTSTRAP_STATE_FINISHED: {
         int result = _anj_server_close(&anj->connection_ctx, true);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         if (result) {
@@ -285,21 +305,24 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         memset(&msg, 0, sizeof(msg));
         int result = _anj_bootstrap_process(anj, &msg, &exchange_handlers);
         assert(result == _ANJ_BOOTSTRAP_ERR_NETWORK);
+        (void) result;
         anj->server_state.details.bootstrap.bootstrap_state =
                 _ANJ_SRV_BOOTSTRAP_STATE_DISCONNECT_AND_RETRY;
     }
     // fall through
     case _ANJ_SRV_BOOTSTRAP_STATE_DISCONNECT_AND_RETRY: {
         int result = _anj_server_close(&anj->connection_ctx, true);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         if (result) {
             log(L_ERROR, "Closing connection failed");
         }
-        _anj_exchange_terminate(&anj->exchange_ctx);
         anj->server_state.details.bootstrap.bootstrap_state =
                 _ANJ_SRV_BOOTSTRAP_STATE_RETRY;
+        // terminate any ongoing exchange before retrying
+        _anj_exchange_terminate(&anj->exchange_ctx,
+                                _ANJ_EXCHANGE_ERROR_TERMINATED);
     }
     // fall through
     case _ANJ_SRV_BOOTSTRAP_STATE_RETRY: {
@@ -318,8 +341,9 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         return _ANJ_CORE_NEXT_ACTION_LEAVE;
     }
     case _ANJ_SRV_BOOTSTRAP_STATE_WAITING: {
-        if (anj->server_state.details.bootstrap.bootstrap_timeout
-                < anj_time_real_now()) {
+        if (anj_time_monotonic_leq(
+                    anj->server_state.details.bootstrap.bootstrap_timeout,
+                    anj_time_monotonic_now())) {
             anj->server_state.details.bootstrap.bootstrap_state =
                     _ANJ_SRV_BOOTSTRAP_STATE_CONNECTION_IN_PROGRESS;
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
@@ -327,13 +351,13 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         return _ANJ_CORE_NEXT_ACTION_LEAVE;
     }
     case _ANJ_SRV_BOOTSTRAP_STATE_ERROR: {
-        log(L_ERROR, "Bootstrap process failed. Entering error state. No more "
-                     "retries scheduled.");
+        log(L_ERROR, "Bootstrap process failed, no more retries scheduled");
         *out_status = ANJ_CONN_STATUS_FAILURE;
         return _ANJ_CORE_NEXT_ACTION_LEAVE;
     }
     default:
         ANJ_UNREACHABLE();
+        return _ANJ_CORE_NEXT_ACTION_LEAVE;
     }
 }
 

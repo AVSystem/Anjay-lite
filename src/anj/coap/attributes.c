@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include <anj/defs.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #include "attributes.h"
@@ -161,9 +162,10 @@ int anj_attr_register_prepare(anj_coap_options_t *opts,
     int res = add_str_attr(opts, "ep", attr->endpoint, attr->has_endpoint);
     _RET_IF_ERROR(res);
     if (attr->has_lifetime) {
-        char lifetime_buff[ANJ_U32_STR_MAX_LEN + 1] = { 0 };
-        anj_uint32_to_string_value(lifetime_buff, attr->lifetime);
-        res = add_str_attr(opts, "lt", lifetime_buff, attr->has_lifetime);
+        res = add_str_attr(opts, "lt",
+                           ANJ_TIME_DURATION_AS_STRING(attr->lifetime,
+                                                       ANJ_TIME_UNIT_S),
+                           attr->has_lifetime);
         _RET_IF_ERROR(res);
     }
     res = add_str_attr(opts, "lwm2m", attr->lwm2m_ver, attr->has_lwm2m_ver);

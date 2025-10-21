@@ -19,10 +19,14 @@
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
 #include <anj/dm/server_object.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "dm_core.h"
+
+#ifdef ANJ_WITH_PERSISTENCE
+#    include <anj/persistence.h>
+#endif // ANJ_WITH_PERSISTENCE
 
 #ifdef ANJ_WITH_DEFAULT_SERVER_OBJ
 
@@ -81,88 +85,88 @@ static const anj_dm_res_t RES[ANJ_DM_SERVER_RESOURCES_COUNT] = {
     [SSID_IDX] = {
         .rid = ANJ_DM_SERVER_RID_SSID,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [LIFETIME_IDX] = {
         .rid = ANJ_DM_SERVER_RID_LIFETIME,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [DEFAULT_MIN_PERIOD_IDX] = {
         .rid = ANJ_DM_SERVER_RID_DEFAULT_MIN_PERIOD,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [DEFAULT_MAX_PERIOD_IDX] = {
         .rid = ANJ_DM_SERVER_RID_DEFAULT_MAX_PERIOD,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [DISABLE_IDX] = {
         .rid = ANJ_DM_SERVER_RID_DISABLE,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     },
     [DISABLE_TIMEOUT_IDX] = {
         .rid = ANJ_DM_SERVER_RID_DISABLE_TIMEOUT,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [NOTIFICATION_STORING_WHEN_DISABLED_OR_OFFLINE_IDX] = {
         .rid = ANJ_DM_SERVER_RID_NOTIFICATION_STORING_WHEN_DISABLED_OR_OFFLINE,
         .type = ANJ_DATA_TYPE_BOOL,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [BINDING_IDX] = {
         .rid = ANJ_DM_SERVER_RID_BINDING,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [REGISTRATION_UPDATE_TRIGGER_IDX] = {
         .rid = ANJ_DM_SERVER_RID_REGISTRATION_UPDATE_TRIGGER,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     },
     [BOOTSTRAP_REQUEST_TRIGGER_IDX] = {
         .rid = ANJ_DM_SERVER_RID_BOOTSTRAP_REQUEST_TRIGGER,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     },
     [BOOTSTRAP_ON_REGISTRATION_FAILURE_IDX] = {
         .rid = ANJ_DM_SERVER_RID_BOOTSTRAP_ON_REGISTRATION_FAILURE,
         .type = ANJ_DATA_TYPE_BOOL,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [COMMUNICATION_RETRY_COUNT_IDX] = {
         .rid = ANJ_DM_SERVER_RID_COMMUNICATION_RETRY_COUNT,
         .type = ANJ_DATA_TYPE_UINT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [COMMUNICATION_RETRY_TIMER_IDX] = {
         .rid = ANJ_DM_SERVER_RID_COMMUNICATION_RETRY_TIMER,
         .type = ANJ_DATA_TYPE_UINT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [COMMUNICATION_SEQUENCE_DELAY_TIMER_IDX] = {
         .rid = ANJ_DM_SERVER_RID_COMMUNICATION_SEQUENCE_DELAY_TIMER,
         .type = ANJ_DATA_TYPE_UINT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [COMMUNICATION_SEQUENCE_RETRY_COUNT_IDX] = {
         .rid = ANJ_DM_SERVER_RID_COMMUNICATION_SEQUENCE_RETRY_COUNT,
         .type = ANJ_DATA_TYPE_UINT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [MUTE_SEND_IDX] = {
         .rid = ANJ_DM_SERVER_RID_MUTE_SEND,
         .type = ANJ_DATA_TYPE_BOOL,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     },
     [DEFAULT_NOTIFICATION_MODE_IDX] = {
         .rid = ANJ_DM_SERVER_RID_DEFAULT_NOTIFICATION_MODE,
         .type = ANJ_DATA_TYPE_INT,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     }
 };
 
-static void initialize_instance(anj_server_instance_t *inst) {
+static void initialize_instance(anj_dm_server_instance_t *inst) {
     assert(inst);
     memset(inst, 0, sizeof(*inst));
     inst->bootstrap_on_registration_failure = true;
@@ -186,7 +190,7 @@ static int is_valid_binding_mode(const char *binding_mode) {
     return 0;
 }
 
-static int validate_instance(anj_server_instance_t *inst) {
+static int validate_instance(anj_dm_server_instance_t *inst) {
     if (!inst) {
         return -1;
     }
@@ -216,7 +220,7 @@ static int res_execute(anj_t *anj,
     case ANJ_DM_SERVER_RID_DISABLE: {
         anj_dm_server_obj_t *ctx =
                 ANJ_CONTAINER_OF(obj, anj_dm_server_obj_t, obj);
-        anj_server_instance_t *inst = &ctx->server_instance;
+        anj_dm_server_instance_t *inst = &ctx->server_instance;
         anj_core_server_obj_disable_executed(anj, inst->disable_timeout);
         break;
     }
@@ -244,7 +248,7 @@ static int res_write(anj_t *anj,
     (void) riid;
 
     anj_dm_server_obj_t *ctx = ANJ_CONTAINER_OF(obj, anj_dm_server_obj_t, obj);
-    anj_server_instance_t *serv_inst = &ctx->server_instance;
+    anj_dm_server_instance_t *serv_inst = &ctx->server_instance;
 
     switch (rid) {
     case ANJ_DM_SERVER_RID_SSID:
@@ -339,7 +343,7 @@ static int res_read(anj_t *anj,
     (void) iid;
 
     anj_dm_server_obj_t *ctx = ANJ_CONTAINER_OF(obj, anj_dm_server_obj_t, obj);
-    anj_server_instance_t *serv_inst = &ctx->server_instance;
+    anj_dm_server_instance_t *serv_inst = &ctx->server_instance;
 
     switch (rid) {
     case ANJ_DM_SERVER_RID_SSID:
@@ -440,10 +444,12 @@ static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result) {
     (void) anj;
     anj_dm_server_obj_t *ctx = ANJ_CONTAINER_OF(obj, anj_dm_server_obj_t, obj);
-    if (result) {
+    if (result == ANJ_DM_TRANSACTION_FAILURE) {
         // restore cached data
         memcpy(&ctx->server_instance, &ctx->cache_server_instance,
                sizeof(ctx->server_instance));
@@ -495,7 +501,7 @@ int anj_dm_server_obj_add_instance(
         return -1;
     }
 
-    anj_server_instance_t *serv_inst = &server_obj_ctx->server_instance;
+    anj_dm_server_instance_t *serv_inst = &server_obj_ctx->server_instance;
     if (strlen(instance->binding) > sizeof(serv_inst->binding) - 1) {
         dm_log(L_ERROR, "Binding string too long");
         return -1;
@@ -539,5 +545,69 @@ int anj_dm_server_obj_install(anj_t *anj, anj_dm_server_obj_t *server_obj_ctx) {
     }
     return res;
 }
+
+#    ifdef ANJ_WITH_PERSISTENCE
+
+static const uint8_t g_persistence_header[] = { 'S', 'E', 'R',
+                                                0x01 }; // version
+
+static int instance_persistence(anj_dm_server_obj_t *server_obj_ctx,
+                                const anj_persistence_context_t *ctx) {
+    anj_dm_server_instance_t *inst = &server_obj_ctx->server_instance;
+    if (anj_persistence_u16(ctx, &server_obj_ctx->inst.iid)
+            || anj_persistence_u16(ctx, &inst->ssid)
+            || anj_persistence_u32(ctx, &inst->lifetime)
+            || anj_persistence_u32(ctx, &inst->default_min_period)
+            || anj_persistence_u32(ctx, &inst->default_max_period)
+            || anj_persistence_u32(ctx, &inst->disable_timeout)
+            || anj_persistence_u8(ctx, &inst->default_notification_mode)
+            || anj_persistence_u16(ctx, &inst->comm_retry_res.retry_count)
+            || anj_persistence_u32(ctx, &inst->comm_retry_res.retry_timer)
+            || anj_persistence_u32(ctx, &inst->comm_retry_res.seq_delay_timer)
+            || anj_persistence_u16(ctx, &inst->comm_retry_res.seq_retry_count)
+            || anj_persistence_bool(ctx,
+                                    &inst->bootstrap_on_registration_failure)
+            || anj_persistence_bytes(ctx, inst->binding, sizeof(inst->binding))
+            || anj_persistence_bool(ctx, &inst->mute_send)
+            || anj_persistence_bool(ctx, &inst->notification_storing)) {
+        return -1;
+    }
+    return 0;
+}
+
+int anj_dm_server_obj_store(anj_dm_server_obj_t *server_obj_ctx,
+                            const anj_persistence_context_t *ctx) {
+    assert(server_obj_ctx && ctx);
+    assert(anj_persistence_direction(ctx) == ANJ_PERSISTENCE_STORE);
+    assert(server_obj_ctx->installed);
+
+    if (server_obj_ctx->inst.iid == ANJ_ID_INVALID) {
+        dm_log(L_ERROR, "No Server Object instance to store");
+        return -1;
+    }
+    if (anj_persistence_magic(ctx, g_persistence_header,
+                              sizeof(g_persistence_header))) {
+        return -1;
+    }
+    return instance_persistence(server_obj_ctx, ctx);
+}
+int anj_dm_server_obj_restore(anj_dm_server_obj_t *server_obj_ctx,
+                              const anj_persistence_context_t *ctx) {
+    assert(server_obj_ctx && ctx);
+    assert(anj_persistence_direction(ctx) == ANJ_PERSISTENCE_RESTORE);
+    assert(!server_obj_ctx->installed);
+
+    if (anj_persistence_magic(ctx, g_persistence_header,
+                              sizeof(g_persistence_header))) {
+        return -1;
+    }
+    if (instance_persistence(server_obj_ctx, ctx)
+            || validate_instance(&server_obj_ctx->server_instance)) {
+        server_obj_ctx->inst.iid = ANJ_ID_INVALID;
+        return -1;
+    }
+    return 0;
+}
+#    endif // ANJ_WITH_PERSISTENCE
 
 #endif // ANJ_WITH_DEFAULT_SERVER_OBJ

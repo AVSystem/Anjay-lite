@@ -6,18 +6,18 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Minimal Socket Implementation
+Minimal socket implementation
 =============================
 
 .. contents:: :local:
 
-Introduction
-------------
+Overview
+--------
 
 This tutorial demonstrates how to implement a minimal UDP network compatibility
 layer for Anjay Lite using POSIX sockets. Although Anjay Lite already provides
-a built-in implementation for POSIX environments, this example is useful for
-understanding how to create a custom network layer.
+a built-in implementation for POSIX environments, this example helps you
+understand how to create your own custom network layer.
 
 .. note::
    Code related to this tutorial can be found under `examples/custom-network/minimal`
@@ -54,20 +54,20 @@ layer, apply the following changes in `CMakeLists.txt`:
 
     add_executable(anjay_lite_minimal_network_api src/main.c src/net.c)
 
-The `examples/custom-network/minimal/src/net.c` file will contain the
+The `examples/custom-network/minimal/src/net.c` file contains the
 custom network compatibility layer implementation.
 
 Limitations
 -----------
 
-To ensure clarity, the implementation includes only essential functionality and
+For clarity, this example includes only essential functionality and
 has the following limitations:
 
-- Supports only the UDP protocol.
-- Supports only IPv4 addresses. Connecting to IPv6 addresses is not possible.
+- Supports only UDP protocol.
+- Supports only IPv4 (no IPv6 connections).
 - Does not preserve the local port between multiple connections to the same server.
 - Does not validate input parameters.
-- Implements minimal error handling. The return values of several POSIX functions
+- Performs minimal error handling. The return values of several POSIX functions
   are not checked, including:
 
     - ``fcntl``
@@ -85,11 +85,11 @@ Create socket context
 The socket context is represented by a custom structure: ``net_ctx_posix_impl_t``.
 This structure stores:
 
-    - a file descriptor for the socket (``sockfd``)
-    - the current socket state (state)
+- the socket file descriptor (``sockfd``)
+- the current socket state (``state``)
 
-You can customize this structure to meet the requirements of your specific
-implementation. The example below shows a basic implementation:
+You can modify this structure to fit your needs.
+The example below shows a basic implementation:
 
 .. highlight:: c
 .. snippet-source:: examples/custom-network/minimal/src/net.c
@@ -129,17 +129,17 @@ memory for the ``net_ctx_posix_impl_t`` structure and initialize its values.
    other positive values are forbidden - they are reserved for client-side logic for
    potential new error codes. Please refer to `anj_net_api.h` for a full list of
    defined error codes and description when specific network API functions can return
-   them. 
+   them.
 
-   ``NET_GENERAL_ERROR`` is defined as ``-1``; however, any negative value may be
+   ``NET_GENERAL_ERROR`` is defined as ``-1``, but any negative value may be
    returned to indicate an error, Anjay Lite will treat them in the same way.
 
 Connect
 -------
 
-To establish a connection, first create a helper function that sets a socket to
-non-blocking mode. Non-blocking sockets prevent Anjay Lite from being halted while
-waiting for incoming data.
+
+First, define a helper function to set sockets to non-blocking mode.d
+This prevents Anjay Lite from halting while waiting for incoming data.
 
 .. highlight:: c
 .. snippet-source:: examples/custom-network/minimal/src/net.c
@@ -204,12 +204,14 @@ structures suitable for an IPv4 UDP connection.
     - ``hints.ai_family`` is set to ``AF_INET`` (IPv4).
     - ``hints.ai_socktype`` is set to ``SOCK_DGRAM`` (UDP).
 
-.. note::
+.. attention::
    The ``getaddrinfo`` function may block, which can halt the execution of Anjay Lite 
    during the call. If non-blocking behavior is required, use an asynchronous variant
    if available. If the connect operation is pending in a non-blocking
-   scenario, return ``ANJ_NET_EAGAIN`` to inform Anjay Lite that it needs to be
-   called again to finish establishing the connection.
+   scenario, return ``ANJ_NET_EINPROGRESS`` to inform Anjay Lite that it needs to be
+   called again to finish establishing the connection. Note that returning ``ANJ_NET_EINPROGRESS``
+   again and again will block the library from performing any other operation and falling back
+   with error handling procedure.
 
 **Create a socket and connect it to the server**
 
@@ -283,7 +285,7 @@ Now implement ``anj_udp_send``:
         errno = 0;
         ssize_t result = send(ctx->sockfd, buf, length, 0);
         if (result < 0) {
-            return would_block(errno) ? ANJ_NET_EAGAIN : NET_GENERAL_ERROR;
+            return would_block(errno) ? ANJ_NET_EINPROGRESS : NET_GENERAL_ERROR;
         }
         *bytes_sent = (size_t) result;
         if (*bytes_sent < length) {
@@ -297,15 +299,15 @@ Now implement ``anj_udp_send``:
 
 The ``anj_udp_send`` function acts as a simple wrapper around the standard POSIX ``send`` call:
 
-    - It sends the data from the buffer to the connected socket.
-    - If an error occurs it checks whether the error indicates a non-blocking situation.
-    - If not all of the data was sent, we return an error, as partial sent is not allowed in the case of UDP.
-    - On success, it reports the number of bytes sent via the ``bytes_sent`` output parameter.
+- Sends the data from the buffer to the connected socket.
+- If an error occurs it checks whether the error indicates a non-blocking situation.
+- Returns an error if only part of the data was sent.
+- On success, reports the number of bytes sent via the ``bytes_sent`` output parameter.
 
 Receive
 -------
 
-The receive function follows a similar logic to the send function:
+Receiving follows the same pattern as sending:
 
 .. highlight:: c
 .. snippet-source:: examples/custom-network/minimal/src/net.c
@@ -318,7 +320,11 @@ The receive function follows a similar logic to the send function:
         errno = 0;
         ssize_t result = recv(ctx->sockfd, buf, length, 0);
         if (result < 0) {
-            return would_block(errno) ? ANJ_NET_EAGAIN : NET_GENERAL_ERROR;
+            // in anj_net api, recv differentiates between EAGAIN and EINPROGRESS
+            if (errno == EAGAIN) {
+                return ANJ_NET_EAGAIN;
+            }
+            return would_block(errno) ? ANJ_NET_EINPROGRESS : NET_GENERAL_ERROR;
         }
         *bytes_received = (size_t) result;
         if (*bytes_received == length) {
@@ -335,6 +341,13 @@ The receive function follows a similar logic to the send function:
     }
 
 .. note::
+    The anj_upd_recv function differentiates between ``EAGAIN`` and ``EINPROGRESS``.
+    That is the only function in the Anjay Lite network API that does so.
+    ``EAGAIN`` indicates that no data is currently available for reading,
+    ``EINPROGRESS`` indicates any state where the operation would block while
+    receiving data.
+
+.. note::
     If the buffer is too small to hold the incoming packet, or matches it exactly
     ``anj_udp_recv`` returns ``ANJ_NET_EMSGSIZE``. This informs Anjay Lite to drop the packet gracefully.
     Any other error is treated as fatal and triggers a connection reset.
@@ -342,7 +355,7 @@ The receive function follows a similar logic to the send function:
 Shutdown
 --------
 
-The ``anj_udp_shutdown`` function is straightforward but requires updating the socket
+``anj_udp_shutdown`` function is straightforward but requires updating the socket
 context's state to ``ANJ_NET_SOCKET_STATE_SHUTDOWN`` upon completion.
 
 .. highlight:: c
@@ -361,7 +374,7 @@ context's state to ``ANJ_NET_SOCKET_STATE_SHUTDOWN`` upon completion.
 Close
 -----
 
-The ``anj_udp_close`` closes the underlying socket and updates the socket ``state``
+``anj_udp_close`` closes the underlying socket and updates the socket ``state``
 to ``ANJ_NET_SOCKET_STATE_CLOSED`` indicating that it is no longer active.
 
 .. highlight:: c
@@ -381,7 +394,7 @@ to ``ANJ_NET_SOCKET_STATE_CLOSED`` indicating that it is no longer active.
 .. note::
    The context object itself is not cleared here to preserve data for possible reuse.
 
-Context Cleanup
+Context cleanup
 ---------------
 
 The cleanup function releases all resources associated with the socket context.
@@ -402,11 +415,11 @@ allocated memory that stored the socket context's state.
     }
 
 
-Get Inner MTU
+Get inner MTU
 -------------
 
-The ``anj_udp_get_inner_mtu`` function returns the assumed maximum transmission
-unit for UDP datagrams over IPv4 without the protocol header overhead.
+``anj_udp_get_inner_mtu`` returns the assumed maximum transmission unit (MTU)
+for IPv4 UDP datagrams, excluding protocol headers:
 
 .. highlight:: c
 .. snippet-source:: examples/custom-network/minimal/src/net.c
@@ -421,10 +434,10 @@ unit for UDP datagrams over IPv4 without the protocol header overhead.
     This is a static implementation. In a real-world project, retrieve the
     actual MTU dynamically using ``getsockopt()``.
 
-Get State
+Get state
 ---------
 
-The ``anj_udp_get_state`` function allows Anjay Lite to retrieve the current connection status of the context.
+The ``anj_udp_get_state`` function lets Anjay Lite retrieve the current connection status of the context.
 
 .. highlight:: c
 .. snippet-source:: examples/custom-network/minimal/src/net.c
@@ -434,3 +447,28 @@ The ``anj_udp_get_state`` function allows Anjay Lite to retrieve the current con
         *(anj_net_socket_state_t *) out_value = ctx->state;
         return ANJ_NET_OK;
     }
+
+Queue Mode RX off
+-----------------
+
+``anj_udp_queue_mode_rx_off`` function hints the transport that the client
+will not need to receive application data until it initiates the next outgoing
+exchange. Behavior really depends on the targeted hardware platform. In this
+minimal POSIX implementation, this functionality is not applicable and
+simply returns ``ANJ_NET_OK``.
+
+.. highlight:: c
+.. snippet-source:: examples/custom-network/minimal/src/net.c
+
+    int anj_udp_queue_mode_rx_off(anj_net_ctx_t *ctx_) {
+        (void) ctx_;
+        return ANJ_NET_OK;
+    }
+
+Summary
+-------
+
+This example provides a minimal custom UDP socket layer for Anjay Lite. It
+covers connection management, send/receive operations, and cleanup. While not
+suitable for production use, it serves as a clear reference for integrating
+Anjay Lite with a platform-specific network stack.

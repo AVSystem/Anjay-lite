@@ -53,7 +53,7 @@
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&(Anj), &(Record)),          \
                           _ANJ_DM_LAST_RECORD);                               \
     VERIFY_STR_ENTRY((Record), &(Path), (Value));                             \
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&(Anj)));
+    _anj_dm_operation_end(&(Anj), ANJ_DM_TRANSACTION_SUCCESS);
 
 #define MANUFACTURER_STR "manufacturer"
 #define MODEL_NUMBER_STR "model_number"
@@ -115,23 +115,23 @@ ANJ_UNIT_TEST(dm_device_object, resources_execute) {
     ANJ_UNIT_ASSERT_EQUAL(g_reboot_execute_counter, 1);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_execute(&anj, NULL, 0));
     ANJ_UNIT_ASSERT_EQUAL(g_reboot_execute_counter, 2);
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0)));
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1)));
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 2)));
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 3)));
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 11)));
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 16)));
 }
@@ -155,7 +155,7 @@ ANJ_UNIT_TEST(dm_device_object, execute_on_missing_resource) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 4)));
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_execute(&anj, NULL, 0));
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_device_object, resources_read) {
@@ -233,5 +233,5 @@ ANJ_UNIT_TEST(dm_device_object, err_codes) {
                           _ANJ_DM_LAST_RECORD);
     VERIFY_INT_ENTRY(out_record, &ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 0, 11, 0),
                      0);
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 }

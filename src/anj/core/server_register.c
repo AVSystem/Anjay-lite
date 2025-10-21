@@ -11,7 +11,6 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include <math.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -20,7 +19,8 @@
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #ifdef ANJ_WITH_OBSERVE
@@ -31,54 +31,10 @@
 #endif // ANJ_WITH_LWM2M_SEND
 
 #include "../dm/dm_integration.h"
-#include "../dm/dm_io.h"
-#include "../exchange.h"
 #include "core_utils.h"
 #include "register.h"
 #include "server.h"
 #include "server_register.h"
-
-#ifndef NDEBUG
-typedef struct {
-    uint16_t rid;
-    anj_data_type_t type;
-} _resource_type_check_t;
-
-static int validate_server_resource_types(anj_t *anj) {
-    // if resource is not present and it is mandatory, it will be handled later
-    // in the code
-    anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER,
-                                                 anj->server_instance.iid, 0);
-    anj_data_type_t type;
-    // clang-format off
-    _resource_type_check_t server_obj_check[] = {
-        {.rid = SERVER_OBJ_LIFETIME_RID,                          .type = ANJ_DATA_TYPE_INT},
-        {.rid = SERVER_OBJ_DEFAULT_PMIN_RID,                      .type = ANJ_DATA_TYPE_INT},
-        {.rid = SERVER_OBJ_DEFAULT_PMAX_RID,                      .type = ANJ_DATA_TYPE_INT},
-        {.rid = SERVER_OBJ_DISABLE_TIMEOUT,                       .type = ANJ_DATA_TYPE_INT},
-        {.rid = SERVER_OBJ_NOTIFICATION_STORING_RID,              .type = ANJ_DATA_TYPE_BOOL},
-        {.rid = SERVER_OBJ_BOOTSTRAP_ON_REGISTRATION_FAILURE_RID, .type = ANJ_DATA_TYPE_BOOL},
-        {.rid = SERVER_OBJ_COMMUNICATION_RETRY_COUNT_RID,         .type = ANJ_DATA_TYPE_UINT},
-        {.rid = SERVER_OBJ_COMMUNICATION_RETRY_TIMER_RID,         .type = ANJ_DATA_TYPE_UINT},
-        {.rid = SERVER_OBJ_COMMUNICATION_SEQUENCE_DELAY_TIMER_RID,.type = ANJ_DATA_TYPE_UINT},
-        {.rid = SERVER_OBJ_COMMUNICATION_SEQUENCE_RETRY_COUNT_RID,.type = ANJ_DATA_TYPE_UINT},
-#    ifdef ANJ_WITH_LWM2M12
-        {.rid = SERVER_OBJ_DEFAULT_NOTIFICATION_MODE_RID,         .type = ANJ_DATA_TYPE_INT},
-#    endif // ANJ_WITH_LWM2M12
-    };
-    // clang-format on
-    for (size_t i = 0; i < ANJ_ARRAY_SIZE(server_obj_check); i++) {
-        path.ids[ANJ_ID_RID] = server_obj_check[i].rid;
-        if (!_anj_dm_get_resource_type(anj, &path, &type)
-                && type != server_obj_check[i].type) {
-            log(L_ERROR, "Invalid resource type, for %" PRIu16 " RID",
-                server_obj_check[i].rid);
-            return -1;
-        }
-    }
-    return 0;
-}
-#endif // NDEBUG
 
 /**
  * IMPORTANT: Data validation is omitted on purpose, it is done at the level of
@@ -96,8 +52,8 @@ static int register_op_read_data_model(anj_t *anj) {
         return -1;
     }
 
-    assert(!validate_server_resource_types(anj));
-    assert(!_anj_validate_security_resource_types(anj));
+    assert(!_anj_core_utils_validate_server_resource_types(anj));
+    assert(!_anj_core_utils_validate_security_resource_types(anj));
 
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER,
                                                  anj->server_instance.iid,
@@ -107,7 +63,8 @@ static int register_op_read_data_model(anj_t *anj) {
             || res_val.int_value > UINT32_MAX) {
         return -1;
     }
-    anj->server_instance.lifetime = (uint32_t) res_val.int_value;
+    anj->server_instance.lifetime =
+            anj_time_duration_new(res_val.int_value, ANJ_TIME_UNIT_S);
 
     // Communication Retry ... resources are optional so in case of error we
     // just use default values
@@ -146,7 +103,14 @@ static int register_op_read_data_model(anj_t *anj) {
         anj->server_instance.bootstrap_on_registration_failure = true;
     }
 
-    if (_anj_server_get_resolved_server_uri(anj)) {
+    if (_anj_core_utils_server_get_resolved_server_uri(anj)
+#ifdef ANJ_WITH_SECURITY
+            || (anj->security_instance.type == ANJ_NET_BINDING_DTLS
+                && _anj_core_utils_get_security_info(
+                           anj, false,
+                           &anj->net_socket_cfg.secure_socket_config.security))
+#endif // ANJ_WITH_SECURITY
+    ) {
         return -1;
     }
 
@@ -184,7 +148,8 @@ int _anj_server_register_start_register_operation(anj_t *anj) {
     anj->server_state.details.registration.registration_state =
             _ANJ_SRV_REG_STATE_CONNECTION_IN_PROGRESS;
     anj->server_state.details.registration.retry_count = 0;
-    anj->server_state.details.registration.retry_timeout = 0;
+    anj->server_state.details.registration.retry_timeout =
+            ANJ_TIME_MONOTONIC_ZERO;
     anj->server_state.details.registration.retry_seq_count = 0;
 
 #ifdef ANJ_WITH_LWM2M_SEND
@@ -208,20 +173,20 @@ static void calculate_communication_retry_timeout(anj_t *anj) {
          * of the communication retry attempt minus one (2**(retry attempt-1))
          * to create an exponential back-off.
          */
-        uint64_t delay =
-                anj->server_instance.retry_res.retry_timer
-                * (uint64_t) pow(
-                          2,
-                          anj->server_state.details.registration.retry_count
-                                  - 1);
+
+        anj_time_duration_t delay = anj_time_duration_new(
+                anj->server_instance.retry_res.retry_timer, ANJ_TIME_UNIT_S);
+        delay = anj_time_duration_mul(
+                delay,
+                1 << (anj->server_state.details.registration.retry_count - 1));
+
         anj->server_state.details.registration.retry_timeout =
-                anj_time_real_now()
-                + delay * 1000; // *1000 because retry_timer is in seconds
+                anj_time_monotonic_add(anj_time_monotonic_now(), delay);
         log(L_INFO,
-            "Registration retry no. %" PRIu16 " will start with %" PRIu64
+            "Registration retry no. %" PRIu16 " will start with %s"
             "s delay",
             anj->server_state.details.registration.retry_count,
-            delay);
+            ANJ_TIME_DURATION_AS_STRING(delay, ANJ_TIME_UNIT_S));
         // disconnect and reconnect
         anj->server_state.details.registration.registration_state =
                 _ANJ_SRV_REG_STATE_DISCONNECT_IN_PROGRESS;
@@ -238,8 +203,11 @@ static void calculate_communication_retry_timeout(anj_t *anj) {
     }
 
     anj->server_state.details.registration.retry_timeout =
-            anj_time_real_now()
-            + anj->server_instance.retry_res.seq_delay_timer * 1000;
+            anj_time_monotonic_add(
+                    anj_time_monotonic_now(),
+                    anj_time_duration_new(
+                            anj->server_instance.retry_res.seq_delay_timer,
+                            ANJ_TIME_UNIT_S));
     anj->server_state.details.registration.retry_count = 0;
     log(L_INFO,
         "Registration retry sequence no. %" PRIu16 " will start with %" PRIu32
@@ -262,9 +230,8 @@ _anj_server_register_process_register_operation(anj_t *anj,
                                          anj->security_instance.type,
                                          &anj->net_socket_cfg,
                                          anj->security_instance.server_uri,
-                                         anj->security_instance.port,
-                                         false);
-        if (anj_net_is_again(result)) {
+                                         anj->security_instance.port);
+        if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         if (anj_net_is_ok(result)) {
@@ -282,9 +249,8 @@ _anj_server_register_process_register_operation(anj_t *anj,
     }
 
     case _ANJ_SRV_REG_STATE_REGISTER_IN_PROGRESS: {
-
         int result = _anj_server_handle_request(anj);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         // error occurred, or exchange is finished properly but registration
@@ -302,7 +268,6 @@ _anj_server_register_process_register_operation(anj_t *anj,
     }
 
     case _ANJ_SRV_REG_STATE_ERROR_HANDLING_IN_PROGRESS: {
-        _anj_exchange_terminate(&anj->exchange_ctx);
         // new value of details.registration.registration_state is set in this
         // function
         calculate_communication_retry_timeout(anj);
@@ -316,7 +281,7 @@ _anj_server_register_process_register_operation(anj_t *anj,
                 anj->server_state.details.registration.registration_state
                 != _ANJ_SRV_REG_STATE_DISCONNECT_IN_PROGRESS;
         int result = _anj_server_close(&anj->connection_ctx, with_cleanup);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         anj->server_state.details.registration.registration_state =
@@ -328,8 +293,9 @@ _anj_server_register_process_register_operation(anj_t *anj,
     }
 
     case _ANJ_SRV_REG_STATE_RESTART_IN_PROGRESS: {
-        if (anj->server_state.details.registration.retry_timeout
-                < anj_time_real_now()) {
+        if (anj_time_monotonic_lt(
+                    anj->server_state.details.registration.retry_timeout,
+                    anj_time_monotonic_now())) {
             anj->server_state.details.registration.registration_state =
                     _ANJ_SRV_REG_STATE_CONNECTION_IN_PROGRESS;
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;

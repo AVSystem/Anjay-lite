@@ -19,7 +19,7 @@
 
 #include "../../src/anj/coap/coap.h"
 #include "../../src/anj/exchange.h"
-#include "exchange_internal.h"
+#include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
@@ -125,7 +125,7 @@ verify_payload(uint8_t *expected, size_t expected_len, _anj_coap_msg_t *msg) {
         };                                                              \
     }                                                                   \
     _anj_exchange_ctx_t ctx;                                            \
-    _anj_exchange_init(&ctx, 0);                                        \
+    _anj_exchange_init(&ctx);                                           \
     ASSERT_EQ(_anj_exchange_new_server_request(&ctx, Result_code, &msg, \
                                                &handlers, payload,      \
                                                sizeof(payload)),        \
@@ -238,7 +238,7 @@ ANJ_UNIT_TEST(server_requests, read_with_error) {
     ASSERT_EQ(handlers_arg.read_counter, 0);
     ASSERT_EQ(handlers_arg.write_counter, 0);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
-    ASSERT_EQ(handlers_arg.result, ANJ_COAP_CODE_UNAUTHORIZED);
+    ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_REQUEST);
 }
 
 static _anj_coap_msg_t process_block_read(_anj_exchange_ctx_t *ctx,
@@ -440,7 +440,7 @@ ANJ_UNIT_TEST(server_requests, read_operation_with_block_and_error) {
     ASSERT_EQ(handlers_arg.read_counter, 2);
     ASSERT_EQ(handlers_arg.write_counter, 0);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
-    ASSERT_EQ(handlers_arg.result, ANJ_COAP_CODE_UNAUTHORIZED);
+    ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_REQUEST);
 }
 
 // Test: Single Write operation.
@@ -904,10 +904,11 @@ ANJ_UNIT_TEST(server_requests, read_operation_with_timeout) {
         .payload_size = 0,
         .content_format = _ANJ_COAP_FORMAT_NOT_DEFINED
     };
-    set_mock_time(0);
+    mock_time_reset();
     _anj_exchange_ctx_t ctx;
-    _anj_exchange_init(&ctx, 0);
-    _anj_exchange_set_server_request_timeout(&ctx, 10000);
+    _anj_exchange_init(&ctx);
+    _anj_exchange_set_server_request_timeout(
+            &ctx, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     ASSERT_EQ(_anj_exchange_new_server_request(&ctx, ANJ_COAP_CODE_CONTENT,
                                                &msg, &handlers, payload,
                                                sizeof(payload)),
@@ -916,13 +917,14 @@ ANJ_UNIT_TEST(server_requests, read_operation_with_timeout) {
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
-    set_mock_time(10000 - 1);
+    mock_time_advance(anj_time_duration_new(9, ANJ_TIME_UNIT_S)); // T0 + 9s
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_WAITING_MSG);
-    set_mock_time(10000 + 1);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S)); // T0 + 11s
     ASSERT_EQ(_anj_exchange_process(&ctx, ANJ_EXCHANGE_EVENT_NONE, &msg),
               ANJ_EXCHANGE_STATE_FINISHED);
-    set_mock_time(0);
+
+    mock_time_reset();
     ASSERT_EQ(handlers_arg.read_counter, 1);
     ASSERT_EQ(handlers_arg.write_counter, 0);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
@@ -955,7 +957,7 @@ ANJ_UNIT_TEST(server_requests, notify_operation_with_block) {
     _anj_coap_msg_t msg;
     memset(&msg, 0, sizeof(msg));
     _anj_exchange_ctx_t ctx;
-    _anj_exchange_init(&ctx, 0);
+    _anj_exchange_init(&ctx);
     msg.operation = ANJ_OP_INF_NON_CON_NOTIFY;
     msg.observe_number = 2;
     msg.token.size = 1;
@@ -1054,7 +1056,7 @@ ANJ_UNIT_TEST(server_requests, read_operation_with_block_size_set) {
         }
     };
     _anj_exchange_ctx_t ctx;
-    _anj_exchange_init(&ctx, 0);
+    _anj_exchange_init(&ctx);
     ASSERT_EQ(_anj_exchange_new_server_request(&ctx, ANJ_COAP_CODE_CONTENT,
                                                &msg, &handlers, payload,
                                                sizeof(payload)),
@@ -1112,7 +1114,7 @@ ANJ_UNIT_TEST(server_requests, read_operation_with_size_set) {
         }
     };
     _anj_exchange_ctx_t ctx;
-    _anj_exchange_init(&ctx, 0);
+    _anj_exchange_init(&ctx);
     ASSERT_EQ(_anj_exchange_new_server_request(&ctx, ANJ_COAP_CODE_CONTENT,
                                                &msg, &handlers, payload,
                                                sizeof(payload)),
@@ -1228,7 +1230,7 @@ ANJ_UNIT_TEST(server_requests,
     ASSERT_EQ(handlers_arg.read_counter, 0);
     ASSERT_EQ(handlers_arg.write_counter, 2);
     ASSERT_EQ(handlers_arg.complete_counter, 1);
-    ASSERT_EQ(handlers_arg.result, ANJ_COAP_CODE_BAD_REQUEST);
+    ASSERT_EQ(handlers_arg.result, _ANJ_EXCHANGE_ERROR_REQUEST);
 }
 
 // Test: Write operation with block transfer number mismatch.

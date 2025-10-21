@@ -37,7 +37,8 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_register) {
     data.attr.register_attr.has_lwm2m_ver = true;
     data.attr.register_attr.has_Q = true;
     data.attr.register_attr.endpoint = "name";
-    data.attr.register_attr.lifetime = 120;
+    data.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
     data.attr.register_attr.lwm2m_ver = "1.2";
     data.token.size = 8;
 
@@ -618,7 +619,8 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_error_buff_size) {
     data.attr.register_attr.has_lwm2m_ver = true;
     data.attr.register_attr.has_Q = true;
     data.attr.register_attr.endpoint = "name";
-    data.attr.register_attr.lifetime = 120;
+    data.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
     data.attr.register_attr.lwm2m_ver = "1.2";
     data.token.size = 8;
 
@@ -686,7 +688,8 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_payload_extended_length_2bytes) {
     data.attr.register_attr.has_lwm2m_ver = true;
     data.attr.register_attr.has_Q = true;
     data.attr.register_attr.endpoint = "name";
-    data.attr.register_attr.lifetime = 120;
+    data.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
     data.attr.register_attr.lwm2m_ver = "1.2";
     data.token.size = 8;
 
@@ -731,7 +734,8 @@ ANJ_UNIT_TEST(anj_prepare_tcp, prepare_payload_extended_length_4bytes) {
     data.attr.register_attr.has_lwm2m_ver = true;
     data.attr.register_attr.has_Q = true;
     data.attr.register_attr.endpoint = "name";
-    data.attr.register_attr.lifetime = 120;
+    data.attr.register_attr.lifetime =
+            anj_time_duration_new(120, ANJ_TIME_UNIT_S);
     data.attr.register_attr.lwm2m_ver = "1.2";
     data.token.size = 8;
 

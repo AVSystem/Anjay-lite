@@ -6,7 +6,7 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Multi-Instance Resource Dynamic
+Multi-Instance Resource dynamic
 ===============================
 
 Overview
@@ -34,7 +34,7 @@ or other lists that are not known at compile time.
  
     For details, see the :ref:`Dynamic multiple resources instances generation<multi-resource-instances-dynamic-generator>` section.
 
-Implement Dynamic Resource
+Implement dynamic Resource
 --------------------------
 
 Implementation of a dynamic multiple-instance resource shares similarities with the static variant, with the following differences:
@@ -139,41 +139,31 @@ The last slot is then marked as empty by setting it to `ANJ_ID_INVALID`.
 
 .. _reset-instance-context:
 
-Reset Instance Context
+Reset instance context
 ----------------------
 
-To reset the instance context, implement a function that initializes all resource instances to their default state.
-Call this function during object registration and whenever the instance needs to be reset.
-In this example, `init_inst_ctx()` sets the first instance to a default value and marks the
-remaining slots as unused by setting them to `ANJ_ID_INVALID`.
-
-
-.. highlight:: c
-.. snippet-source:: examples/tutorial/AT-MultiInstanceResourceDynamic/src/binary_app_data_container.c
-    :emphasize-lines: 4
-
-    static void init_inst_ctx(void) {
-        for (uint16_t i = 1; i < DATA_RES_MAX_INST_COUNT; i++) {
-            bin_data_insts[i].data_size = 0;
-            res_insts[i] = ANJ_ID_INVALID;
-        }
-        bin_data_insts[0].data[0] = (uint8_t) 'X';
-        bin_data_insts[0].data_size = 1;
-        res_insts[0] = 0;
-    }
-
 In order to support Write Replace operation that targets the object instance, you need to implement
-`inst_reset()` handler. In this callback, you should reset the instance to its initial state by calling `init_inst_ctx()`.
+`inst_reset()` handler. In this callback, you should clear all resource instances by setting each entry in the
+`res_insts` array to `ANJ_ID_INVALID`.
+
+.. warning::
+    It is an :ref:`known issue <default-value-of-multi-instance-resource>` that
+    multiple instance resources can't have a default value after a write-replace
+    operation.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceResourceDynamic/src/binary_app_data_container.c
-    :emphasize-lines: 5
 
     static int inst_reset(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
         (void) anj;
         (void) obj;
         (void) iid;
-        init_inst_ctx();
+
+        // Clear all resource instances
+        for (uint8_t i = 0; i < DATA_RES_MAX_INST_COUNT; i++) {
+            res_insts[i] = ANJ_ID_INVALID;
+        }
+
         return 0;
     }
 
@@ -211,6 +201,13 @@ returns a pointer to the object definition.
     :emphasize-lines: 2
 
     const anj_dm_obj_t *init_binary_app_data_container(void) {
-        init_inst_ctx();
+        for (uint16_t i = 1; i < DATA_RES_MAX_INST_COUNT; i++) {
+            bin_data_insts[i].data_size = 0;
+            res_insts[i] = ANJ_ID_INVALID;
+        }
+        bin_data_insts[0].data[0] = (uint8_t) 'X';
+        bin_data_insts[0].data_size = 1;
+        res_insts[0] = 0;
+
         return &OBJ;
     }

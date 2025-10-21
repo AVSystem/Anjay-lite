@@ -20,24 +20,24 @@
 static anj_dm_res_t inst_00_res[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_RW,
+        .kind = ANJ_DM_RES_RW,
         .type = ANJ_DATA_TYPE_BOOL
     },
     {
         .rid = 17,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_OBJLNK
     }
 };
 static anj_dm_res_t inst_01_res[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_RW,
+        .kind = ANJ_DM_RES_RW,
         .type = ANJ_DATA_TYPE_BOOL
     },
     {
         .rid = 17,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_OBJLNK
     }
 };
@@ -117,7 +117,7 @@ static const anj_dm_handlers_t handlers = {
 static anj_dm_res_t obj_1_inst_1_res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT,
     }
 };
@@ -189,7 +189,8 @@ static anj_dm_res_t obj_1_inst_1_res[] = {
 #define DELETE_TEST(Path)                                                    \
     ANJ_UNIT_ASSERT_SUCCESS(                                                 \
             _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, true, &(Path))); \
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_end(&anj));
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));               \
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
 ANJ_UNIT_TEST(dm_bootstrap_delete, root) {
     DELETE_TEST_INIT();
@@ -224,7 +225,7 @@ ANJ_UNIT_TEST(dm_bootstrap_delete, security_instance_1) {
             _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, true,
                                     &ANJ_MAKE_INSTANCE_PATH(0, 1)),
             ANJ_DM_ERR_BAD_REQUEST);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_BAD_REQUEST);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(obj_0.insts[1].iid, 1);
     ANJ_UNIT_ASSERT_EQUAL(obj_1.insts[0].iid, 0);
     ANJ_UNIT_ASSERT_EQUAL(obj_3.insts[0].iid, 44);
@@ -272,7 +273,7 @@ ANJ_UNIT_TEST(dm_bootstrap_delete, device_obj) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, true,
                                                   &ANJ_MAKE_OBJECT_PATH(3)),
                           ANJ_DM_ERR_BAD_REQUEST);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_BAD_REQUEST);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(obj_3.insts[0].iid, 44);
     ANJ_UNIT_ASSERT_EQUAL(obj_0.insts[1].iid, 1);
     ANJ_UNIT_ASSERT_EQUAL(obj_1.insts[0].iid, 0);
@@ -322,7 +323,7 @@ ANJ_UNIT_TEST(dm_bootstrap_delete, oscore_instance_1) {
             _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, true,
                                     &ANJ_MAKE_INSTANCE_PATH(0, 1)),
             ANJ_DM_ERR_BAD_REQUEST);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_end(&anj), ANJ_DM_ERR_BAD_REQUEST);
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(obj_21.insts[1].iid, 1);
     ANJ_UNIT_ASSERT_EQUAL(obj_0.insts[1].iid, 1);
     ANJ_UNIT_ASSERT_EQUAL(obj_1.insts[0].iid, 0);

@@ -17,7 +17,7 @@
 #include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #ifdef ANJ_WITH_OBSERVE
@@ -25,7 +25,6 @@
 #endif // ANJ_WITH_OBSERVE
 
 #include "../coap/coap.h"
-#include "../exchange.h"
 #include "../io/io.h"
 #include "../utils.h"
 #include "dm_core.h"
@@ -383,8 +382,6 @@ static int read_composite(anj_t *anj,
 }
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
 
-// HACK: anj_exchange module calls this handler for each server request - if no
-// error occurs we end every operation on data model here.
 static uint8_t _dm_read_payload(void *arg_ptr,
                                 uint8_t *buff,
                                 size_t buff_len,
@@ -431,15 +428,15 @@ static uint8_t _dm_read_payload(void *arg_ptr,
         break;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
     case ANJ_OP_DM_CREATE:
-        // Create operation has no payload, so we have to create an instance
-        // here
-        if (!ctx->op_ctx.write_ctx.instance_creation_attempted
-                && !ctx->result) {
+        // HACK: Create operation has no payload, so we have to create an
+        // instance here
+        if (!ctx->op_ctx.write_ctx.instance_creation_attempted) {
             ret_val = _anj_dm_create_object_instance(anj, ANJ_ID_INVALID);
             if (ret_val) {
                 return map_err_to_coap_code(ret_val);
             }
             ctx->op_ctx.write_ctx.instance_creation_attempted = true;
+            ret_val = _anj_dm_operation_validate(anj);
         }
         if (!ctx->iid_provided) {
             dm_log(L_DEBUG, "Adding new object instance to the path");
@@ -453,19 +450,13 @@ static uint8_t _dm_read_payload(void *arg_ptr,
     default:
         out_params->format = _ANJ_COAP_FORMAT_NOT_DEFINED;
         out_params->payload_len = 0;
-        ret_val = 0;
         break;
     }
 
     if (ret_val && ret_val != _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED) {
-        _anj_dm_operation_end(anj);
         return map_err_to_coap_code(ret_val);
     } else if (ret_val == _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED) {
         return _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED;
-    }
-    ret_val = _anj_dm_operation_end(anj);
-    if (ret_val) {
-        return map_err_to_coap_code(ret_val);
     }
     return 0;
 }
@@ -503,9 +494,7 @@ static int process_write(anj_t *anj,
             // It must be checked before _anj_dm_get_resource_type call
             if (ctx->operation == ANJ_OP_DM_WRITE_COMP
                     && _anj_uri_path_to_security_or_oscore_obj(path)) {
-                ret_dm = ANJ_DM_ERR_UNAUTHORIZED;
-                ctx->result = ret_dm;
-                return ret_dm;
+                return ANJ_DM_ERR_UNAUTHORIZED;
             }
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
             if (ctx->operation == ANJ_OP_DM_CREATE
@@ -526,7 +515,6 @@ static int process_write(anj_t *anj,
             assert(ctx->operation != ANJ_OP_DM_READ_COMP);
             ret_dm = _anj_dm_get_resource_type(anj, &record.path, &record.type);
             if (ret_dm) {
-                ctx->result = ret_dm;
                 return ret_dm;
             }
             ret_anj = _anj_io_in_ctx_get_entry(&anj->anj_io.in_ctx,
@@ -559,7 +547,6 @@ static int process_write(anj_t *anj,
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
                     {
                         dm_log(L_ERROR, "anj_io in ctx no value given");
-                        ctx->result = ANJ_DM_ERR_BAD_REQUEST;
                         return ANJ_DM_ERR_BAD_REQUEST;
                     }
                 } else {
@@ -639,13 +626,13 @@ static uint8_t _dm_write_payload(void *arg_ptr,
         ret_val = ANJ_DM_ERR_BAD_REQUEST;
         break;
     }
-    // for ret_val == 0, _anj_dm_operation_end will be called in
-    // _dm_read_payload
+    // Perform validation only for the final block of a transactional operation.
+    // Validation is skipped if an error has already occurred, or if the
+    // operation is non-transactional (e.g., a composite read).
+    if (last_block && ctx->is_transactional && !ret_val) {
+        ret_val = _anj_dm_operation_validate(anj);
+    }
     if (ret_val) {
-        if (!ctx->result) {
-            ctx->result = ANJ_DM_ERR_INTERNAL;
-        }
-        _anj_dm_operation_end(anj);
         return map_err_to_coap_code(ret_val);
     }
     return 0;
@@ -655,10 +642,10 @@ static void _dm_process_finalization(void *arg_ptr,
                                      const _anj_coap_msg_t *response,
                                      int result) {
     (void) response;
-    (void) result;
     anj_t *anj = (anj_t *) arg_ptr;
 #ifdef ANJ_WITH_EXTERNAL_DATA
-    if (result != 0 && (anj->dm.out_record.type & ANJ_DATA_TYPE_FLAG_EXTERNAL)
+    if (result != _ANJ_EXCHANGE_RESULT_SUCCESS
+            && (anj->dm.out_record.type & ANJ_DATA_TYPE_FLAG_EXTERNAL)
             && anj->dm.data_to_copy
             && (anj->dm.operation == ANJ_OP_DM_READ
 #    ifdef ANJ_WITH_COMPOSITE_OPERATIONS
@@ -669,11 +656,10 @@ static void _dm_process_finalization(void *arg_ptr,
     }
 #endif // ANJ_WITH_EXTERNAL_DATA
     if (anj->dm.op_in_progress) {
-        dm_log(L_ERROR, "Operation cancelled");
-        if (!anj->dm.result) {
-            anj->dm.result = ANJ_DM_ERR_INTERNAL;
-        }
-        _anj_dm_operation_end(anj);
+        dm_log(L_TRACE, "Data model operation finalized");
+        _anj_dm_operation_end(anj, (result == _ANJ_EXCHANGE_RESULT_SUCCESS)
+                                           ? ANJ_DM_TRANSACTION_SUCCESS
+                                           : ANJ_DM_TRANSACTION_FAILURE);
     }
 }
 
@@ -785,6 +771,7 @@ void _anj_dm_process_request(anj_t *anj,
             break;
         case ANJ_OP_DM_DELETE:
             dm_log(L_DEBUG, "Delete operation");
+            ret_val = _anj_dm_operation_validate(anj);
             *out_response_code = ANJ_COAP_CODE_DELETED;
             break;
         default:
@@ -796,12 +783,10 @@ void _anj_dm_process_request(anj_t *anj,
         uri_log(&request->uri);
     }
     if (ret_val) {
-        dm_log(L_ERROR, "Operation initialization failed: %d", ret_val);
-        if (!anj->dm.result) {
-            anj->dm.result = ANJ_DM_ERR_INTERNAL;
-        }
         *out_response_code = map_err_to_coap_code(ret_val);
-        _anj_dm_operation_end(anj);
+        dm_log(L_ERROR, "Operation initialization failed: %s",
+               COAP_CODE_FORMAT(*out_response_code));
+        _anj_dm_operation_end(anj, ANJ_DM_TRANSACTION_FAILURE);
     }
 }
 
@@ -822,13 +807,9 @@ void _anj_dm_process_register_update_payload(
     _anj_io_register_ctx_init(&anj->anj_io.register_ctx);
 }
 
-void _anj_dm_observe_terminate_operation(anj_t *anj) {
+void _anj_dm_observe_finalize_operation(anj_t *anj, int result) {
     assert(anj);
-    _anj_dm_data_model_t *ctx = &anj->dm;
-    if (ctx->op_in_progress) {
-        dm_log(L_ERROR, "Operation cancelled");
-        _anj_dm_operation_end(anj);
-    }
+    _dm_process_finalization(anj, NULL, result);
 }
 
 #ifdef ANJ_WITH_OBSERVE
@@ -886,23 +867,20 @@ int _anj_dm_observe_build_msg(anj_t *anj,
         res = _anj_dm_operation_begin(anj, op, false,
                                       composite ? NULL : paths[0]);
         if (res) {
-            res = map_err_to_coap_code(res);
-            goto finalize;
+            return map_err_to_coap_code(res);
         }
         for (size_t i = 0; i < uri_path_count; i++) {
             if (composite) {
                 res = _anj_dm_count_readable_res_if_allowed(anj, paths[i],
                                                             &path_res_count);
                 if (res) {
-                    res = map_err_to_coap_code(res);
-                    goto finalize;
+                    return map_err_to_coap_code(res);
                 }
             } else {
                 _anj_dm_get_readable_res_count(anj, &path_res_count);
             }
             if (path_res_count == 0 && anj_uri_path_has(paths[i], ANJ_ID_RID)) {
-                res = ANJ_COAP_CODE_METHOD_NOT_ALLOWED;
-                goto finalize;
+                return ANJ_COAP_CODE_METHOD_NOT_ALLOWED;
             }
 
             res_count += path_res_count;
@@ -912,29 +890,15 @@ int _anj_dm_observe_build_msg(anj_t *anj,
                                    composite ? &ANJ_MAKE_ROOT_PATH() : paths[0],
                                    res_count, *inout_format);
         if (res) {
-            res = map_anj_io_err_to_coap_code(res);
-            goto finalize;
+            return map_anj_io_err_to_coap_code(res);
         }
         if (res_count == 0) {
             uri_path_count = 0;
         }
     }
 
-    res = read_composite(anj, paths, uri_path_count, true, already_processed,
-                         out_buff, buff_len, out_len, inout_format);
-    if (res == _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED) {
-        return res;
-    }
-finalize:
-    if (res) {
-        _anj_dm_operation_end(anj);
-    } else {
-        res = _anj_dm_operation_end(anj);
-        if (res) {
-            res = map_err_to_coap_code(res);
-        }
-    }
-    return res;
+    return read_composite(anj, paths, uri_path_count, true, already_processed,
+                          out_buff, buff_len, out_len, inout_format);
 }
 #    else  // ANJ_WITH_OBSERVE_COMPOSITE
 int _anj_dm_observe_build_msg(anj_t *anj,
@@ -949,6 +913,8 @@ int _anj_dm_observe_build_msg(anj_t *anj,
     assert(anj && paths && out_buff && out_len && buff_len && inout_format
            && uri_path_count != 0 && already_processed);
     (void) composite;
+    (void) uri_path_count;
+    (void) already_processed;
 
     _anj_dm_data_model_t *dm = &anj->dm;
 
@@ -959,42 +925,24 @@ int _anj_dm_observe_build_msg(anj_t *anj,
 
         res = _anj_dm_operation_begin(anj, ANJ_OP_DM_READ, false, paths[0]);
         if (res) {
-            res = map_err_to_coap_code(res);
-            goto finalize;
+            return map_err_to_coap_code(res);
         }
 
         _anj_dm_get_readable_res_count(anj, &res_count);
 
         if (res_count == 0 && anj_uri_path_has(paths[0], ANJ_ID_RID)) {
-            res = ANJ_COAP_CODE_METHOD_NOT_ALLOWED;
-            goto finalize;
+            return ANJ_COAP_CODE_METHOD_NOT_ALLOWED;
         }
 
         res = _anj_io_out_ctx_init(&anj->anj_io.out_ctx, ANJ_OP_DM_READ,
                                    paths[0], res_count, *inout_format);
         if (res) {
-            res = map_anj_io_err_to_coap_code(res);
-            goto finalize;
+            return map_anj_io_err_to_coap_code(res);
         }
     }
 
     *inout_format = _anj_io_out_ctx_get_format(&anj->anj_io.out_ctx);
-
-    res = process_read(anj, out_buff, buff_len, out_len, paths[0], false);
-
-    if (res == _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED) {
-        return res;
-    }
-finalize:
-    if (res) {
-        _anj_dm_operation_end(anj);
-    } else {
-        res = _anj_dm_operation_end(anj);
-        if (res) {
-            res = map_err_to_coap_code(res);
-        }
-    }
-    return res;
+    return process_read(anj, out_buff, buff_len, out_len, paths[0], false);
 }
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
 #endif     // ANJ_WITH_OBSERVE

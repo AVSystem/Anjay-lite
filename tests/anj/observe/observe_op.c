@@ -22,16 +22,14 @@
 #include "../../../src/anj/observe/observe.h"
 #include "../../src/anj/coap/coap.h"
 #include "../../src/anj/exchange.h"
+#include "../mock/time_api_mock.h"
 
 #include <anj_unit_test.h>
 
 #ifdef ANJ_WITH_OBSERVE
 
-#    define ONE_DAY_MS 86400000
-
-uint64_t anj_time_now(void);
-uint64_t anj_time_real_now(void);
-void set_mock_time(uint64_t time);
+#    define ONE_DAY anj_time_duration_new(1, ANJ_TIME_UNIT_DAY)
+#    define ONE_DAY_MS (24 * 60 * 60 * 1000)
 
 static double get_res_value_double = 7.0;
 static bool get_res_value_bool = true;
@@ -78,36 +76,36 @@ static anj_dm_handlers_t handlers = {
 static anj_dm_res_t inst_0_res[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_DOUBLE,
     },
     {
         .rid = 2,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_BOOL,
     },
     {
         .rid = 7,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_DOUBLE,
     },
     {
         .rid = 8,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .type = ANJ_DATA_TYPE_DOUBLE,
         .max_inst_count = 1,
         .insts = (anj_riid_t[]){ 1 }
     },
     {
         .rid = 9,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .type = ANJ_DATA_TYPE_BOOL,
         .max_inst_count = 1,
         .insts = (anj_riid_t[]){ 1 }
     },
     {
         .rid = 10,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .type = ANJ_DATA_TYPE_BOOL,
         .max_inst_count = 0
     },
@@ -138,7 +136,7 @@ static anj_dm_obj_t obj_0 = {
                                             {
                                                 {
                                                     .rid = 0,
-                                                    .operation = ANJ_DM_RES_R,
+                                                    .kind = ANJ_DM_RES_R,
                                                     .type = ANJ_DATA_TYPE_STRING,
                                                 }
                                             }
@@ -212,10 +210,12 @@ void compare_observations(_anj_observe_ctx_t *ctx1, _anj_observe_ctx_t *ctx2) {
                      &ctx2->observations[i].effective_attr);
         ASSERT_EQ(ctx1->observations[i].observe_active,
                   ctx2->observations[i].observe_active);
-        ASSERT_EQ(ctx1->observations[i].last_notify_timestamp,
-                  ctx2->observations[i].last_notify_timestamp);
-        ASSERT_EQ(ctx1->observations[i].next_conf_notify_timestamp,
-                  ctx2->observations[i].next_conf_notify_timestamp);
+        ASSERT_TRUE(
+                anj_time_real_eq(ctx1->observations[i].last_notify_timestamp,
+                                 ctx2->observations[i].last_notify_timestamp));
+        ASSERT_TRUE(anj_time_real_eq(
+                ctx1->observations[i].next_conf_notify_timestamp,
+                ctx2->observations[i].next_conf_notify_timestamp));
         ASSERT_EQ(ctx1->observations[i].last_sent_value.double_value,
                   ctx2->observations[i].last_sent_value.double_value);
         ASSERT_EQ(ctx1->observations[i].notification_to_send,
@@ -234,7 +234,7 @@ void compare_observations(_anj_observe_ctx_t *ctx1, _anj_observe_ctx_t *ctx2) {
 #    define OBSERVE_OP(Path, Attr, Result, Msg_Code)                          \
         _anj_exchange_ctx_t exchange_ctx;                                     \
         _anj_exchange_handlers_t out_handlers;                                \
-        _anj_exchange_init(&exchange_ctx, 0);                                 \
+        _anj_exchange_init(&exchange_ctx);                                    \
         _anj_coap_msg_t inout_msg = {                                         \
             .operation = ANJ_OP_INF_OBSERVE,                                  \
             .attr.notification_attr = Attr,                                   \
@@ -703,7 +703,7 @@ ANJ_UNIT_TEST(observe_op, observe_check_timestamps) {
     ctx_ref.observations[0].token.bytes[0] = 0x22;
     ctx_ref.observations[0].last_notify_timestamp = anj_time_real_now();
     ctx_ref.observations[0].next_conf_notify_timestamp =
-            anj_time_real_now() + ONE_DAY_MS;
+            anj_time_real_add(anj_time_real_now(), ONE_DAY);
     ctx_ref.observations[0].effective_attr = (_anj_attr_notification_t) {
         .has_max_period = true,
         .max_period = 22,
@@ -720,7 +720,7 @@ ANJ_UNIT_TEST(observe_op, observe_check_timestamps) {
                               ANJ_COAP_CODE_CONTENT);
 
     compare_observations(&anj.observe_ctx, &ctx_ref);
-    set_mock_time(10000);
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
 
     inout_msg.operation = ANJ_OP_INF_OBSERVE;
     inout_msg.attr.notification_attr = observe_attr;
@@ -728,7 +728,7 @@ ANJ_UNIT_TEST(observe_op, observe_check_timestamps) {
     inout_msg.payload_size = 0;
     ctx_ref.observations[0].last_notify_timestamp = anj_time_real_now();
     ctx_ref.observations[0].next_conf_notify_timestamp =
-            anj_time_real_now() + ONE_DAY_MS;
+            anj_time_real_add(anj_time_real_now(), ONE_DAY);
     ASSERT_OK(_anj_observe_new_request(&anj, &out_handlers, &srv, &inout_msg,
                                        &response_code));
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
@@ -741,7 +741,7 @@ ANJ_UNIT_TEST(observe_op, observe_check_timestamps) {
               ANJ_EXCHANGE_STATE_FINISHED);
     compare_observations(&anj.observe_ctx, &ctx_ref);
     // go back to 0 value after test execution
-    set_mock_time(0);
+    mock_time_reset();
 }
 
 ANJ_UNIT_TEST(observe_op, observe_wrong_observe_attr_pmax) {
@@ -776,7 +776,7 @@ ANJ_UNIT_TEST(observe_op, observe_block) {
     TEST_INIT();
     _anj_exchange_ctx_t exchange_ctx;
     _anj_exchange_handlers_t out_handlers;
-    _anj_exchange_init(&exchange_ctx, 0);
+    _anj_exchange_init(&exchange_ctx);
     _anj_observe_server_state_t srv = {
         .ssid = 1,
         .default_max_period = 77,
@@ -976,7 +976,7 @@ ANJ_UNIT_TEST(observe_op, observe_wrong_observe_attr) {
 #    define CANCEL_OBSERVE_OP_TEST(Path, Result, Expected)                    \
         _anj_exchange_ctx_t exchange_ctx;                                     \
         _anj_exchange_handlers_t out_handlers;                                \
-        _anj_exchange_init(&exchange_ctx, 0);                                 \
+        _anj_exchange_init(&exchange_ctx);                                    \
         _anj_observe_server_state_t srv = {                                   \
             .ssid = 1,                                                        \
         };                                                                    \

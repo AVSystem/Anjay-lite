@@ -19,7 +19,7 @@
 #include <anj/dm/device_object.h>
 #include <anj/dm/security_object.h>
 #include <anj/dm/server_object.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #define log(...) anj_log(example_log, __VA_ARGS__)
 
@@ -60,18 +60,6 @@ static int install_security_obj(anj_t *anj,
     return 0;
 }
 
-static void connection_status_callback(void *arg,
-                                       anj_t *anj,
-                                       anj_conn_status_t conn_status) {
-    (void) arg;
-
-    if (conn_status == ANJ_CONN_STATUS_FAILURE) {
-        log(L_ERROR, "Bootstrap failed");
-        anj_dm_bootstrap_cleanup(anj);
-        anj_core_restart(anj);
-    }
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         log(L_ERROR, "No endpoint name given");
@@ -85,7 +73,6 @@ int main(int argc, char *argv[]) {
 
     anj_configuration_t config = {
         .endpoint_name = argv[1],
-        .connection_status_cb = connection_status_callback,
     };
     if (anj_core_init(&anj, &config)) {
         log(L_ERROR, "Failed to initialize Anjay Lite");

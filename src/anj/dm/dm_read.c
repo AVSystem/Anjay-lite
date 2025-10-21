@@ -18,7 +18,7 @@
 #include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "../utils.h"
@@ -26,10 +26,10 @@
 #include "dm_io.h"
 
 static size_t get_readable_res_count_from_resource(const anj_dm_res_t *res) {
-    if (!_anj_dm_is_readable_resource(res->operation)) {
+    if (!_anj_dm_is_readable_resource(res->kind)) {
         return 0;
     }
-    if (!_anj_dm_is_multi_instance_resource(res->operation)) {
+    if (!_anj_dm_is_multi_instance_resource(res->kind)) {
         return 1;
     }
     return _anj_dm_count_res_insts(res);
@@ -64,14 +64,13 @@ get_readable_res_count_and_set_start_level(_anj_dm_data_model_t *dm) {
     if (entity_ptrs->riid != ANJ_ID_INVALID) {
         read_ctx->base_level = ANJ_ID_RIID;
         read_ctx->total_op_count =
-                _anj_dm_is_readable_resource(entity_ptrs->res->operation) ? 1
-                                                                          : 0;
+                _anj_dm_is_readable_resource(entity_ptrs->res->kind) ? 1 : 0;
         if (read_ctx->total_op_count == 0) {
             dm_log(L_ERROR, "Resource is not readable");
             return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
         }
     } else if (entity_ptrs->res) {
-        if (!_anj_dm_is_readable_resource(entity_ptrs->res->operation)) {
+        if (!_anj_dm_is_readable_resource(entity_ptrs->res->kind)) {
             dm_log(L_ERROR, "Resource is not readable");
             return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
         }
@@ -92,11 +91,12 @@ get_readable_res_count_and_set_start_level(_anj_dm_data_model_t *dm) {
     return 0;
 }
 
+#if defined(ANJ_WITH_COMPOSITE_OPERATIONS) || defined(ANJ_WITH_OBSERVE)
 static bool resource_can_be_read(const anj_dm_res_t *res) {
-    if (!_anj_dm_is_readable_resource(res->operation)) {
+    if (!_anj_dm_is_readable_resource(res->kind)) {
         return false;
     }
-    if (_anj_dm_is_multi_instance_resource(res->operation)
+    if (_anj_dm_is_multi_instance_resource(res->kind)
             && (res->max_inst_count == 0 || res->insts[0] == ANJ_ID_INVALID)) {
         return false;
     }
@@ -122,7 +122,6 @@ static bool object_can_be_read(const anj_dm_obj_t *obj) {
     return false;
 }
 
-#if defined(ANJ_WITH_COMPOSITE_OPERATIONS) || defined(ANJ_WITH_OBSERVE)
 int _anj_dm_path_has_readable_resources(_anj_dm_data_model_t *dm,
                                         const anj_uri_path_t *path) {
 
@@ -201,8 +200,8 @@ static void get_readable_resource(_anj_dm_data_model_t *dm) {
         }
         assert(read_ctx->res_idx < entity_ptrs->inst->res_count);
         res = &entity_ptrs->inst->resources[read_ctx->res_idx];
-        if (_anj_dm_is_readable_resource(res->operation)) {
-            if (_anj_dm_is_multi_instance_resource(res->operation)
+        if (_anj_dm_is_readable_resource(res->kind)) {
+            if (_anj_dm_is_multi_instance_resource(res->kind)
                     && res->max_inst_count != 0
                     && res->insts[0] != ANJ_ID_INVALID) {
                 uint16_t inst_count = _anj_dm_count_res_insts(res);
@@ -217,7 +216,7 @@ static void get_readable_resource(_anj_dm_data_model_t *dm) {
                 }
                 found = true;
             } else {
-                if (!_anj_dm_is_multi_instance_resource(res->operation)) {
+                if (!_anj_dm_is_multi_instance_resource(res->kind)) {
                     found = true;
                     entity_ptrs->riid = ANJ_ID_INVALID;
                 }
@@ -235,7 +234,7 @@ static void get_readable_resource(_anj_dm_data_model_t *dm) {
 int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
     assert(anj && out_record);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
+    assert(dm->op_in_progress);
     assert(dm->op_count);
     assert(dm->operation == ANJ_OP_DM_READ
            || dm->operation == ANJ_OP_DM_READ_COMP);
@@ -249,7 +248,7 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
     }
     // there is nothing to do on ANJ_ID_RIID level
     if (read_ctx->base_level == ANJ_ID_RID) {
-        if (_anj_dm_is_multi_instance_resource(entity_ptrs->res->operation)) {
+        if (_anj_dm_is_multi_instance_resource(entity_ptrs->res->kind)) {
             assert(read_ctx->res_inst_idx < entity_ptrs->res->max_inst_count);
             entity_ptrs->riid =
                     entity_ptrs->res->insts[read_ctx->res_inst_idx++];
@@ -266,22 +265,21 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
                     ? ANJ_MAKE_RESOURCE_INSTANCE_PATH(obj->oid, obj_inst->iid,
                                                       res->rid, riid)
                     : ANJ_MAKE_RESOURCE_PATH(obj->oid, obj_inst->iid, res->rid);
-    dm->result = get_read_value(anj, &out_record->value, entity_ptrs);
-    if (dm->result) {
-        return dm->result;
+    int result = get_read_value(anj, &out_record->value, entity_ptrs);
+    if (result) {
+        return result;
     }
 
     dm->op_count--;
 
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    int ret;
     // comp_read_current_object variable is used for root path
     if (dm->operation == ANJ_OP_DM_READ_COMP && dm->op_count == 0
             && dm->comp_read_current_object != 0
             && dm->comp_read_current_object < dm->objs_count) {
-        ret = _anj_dm_composite_next_path(anj, &ANJ_MAKE_ROOT_PATH());
-        if (ret && ret != _ANJ_DM_NO_RECORD) {
-            return ret;
+        result = _anj_dm_composite_next_path(anj, &ANJ_MAKE_ROOT_PATH());
+        if (result && result != _ANJ_DM_NO_RECORD) {
+            return result;
         }
     }
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
@@ -292,7 +290,7 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
 void _anj_dm_get_readable_res_count(anj_t *anj, size_t *out_res_count) {
     assert(anj && out_res_count);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
+    assert(dm->op_in_progress);
     assert(dm->operation == ANJ_OP_DM_READ);
 
     *out_res_count = dm->op_ctx.read_ctx.total_op_count;
@@ -304,20 +302,20 @@ int _anj_dm_count_readable_res_if_allowed(anj_t *anj,
                                           size_t *out_res_count) {
     assert(anj && path && out_res_count);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
+    assert(dm->op_in_progress);
     assert(dm->operation == ANJ_OP_DM_READ_COMP);
 
     size_t count = 0;
 
     if (anj_uri_path_has(path, ANJ_ID_OID)) {
         _anj_dm_entity_ptrs_t ptrs;
-        dm->result = _anj_dm_get_entity_ptrs(dm, path, &ptrs);
-        if (dm->result) {
-            return dm->result;
+        int result = _anj_dm_get_entity_ptrs(dm, path, &ptrs);
+        if (result) {
+            return result;
         }
 
         if (ptrs.riid != ANJ_ID_INVALID) {
-            count = _anj_dm_is_readable_resource(ptrs.res->operation) ? 1 : 0;
+            count = _anj_dm_is_readable_resource(ptrs.res->kind) ? 1 : 0;
         } else if (ptrs.res) {
             count = get_readable_res_count_from_resource(ptrs.res);
         } else if (ptrs.inst) {
@@ -341,7 +339,7 @@ int _anj_dm_count_readable_res_if_allowed(anj_t *anj,
 int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path) {
     assert(anj && path);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
+    assert(dm->op_in_progress);
     assert(dm->operation == ANJ_OP_DM_READ_COMP);
 
     int ret = 0;
@@ -371,14 +369,14 @@ int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path) {
             path = &object_path;
         }
 
-        dm->result = _anj_dm_get_entity_ptrs(dm, path, &dm->entity_ptrs);
-        if (dm->result) {
-            return dm->result;
+        int result = _anj_dm_get_entity_ptrs(dm, path, &dm->entity_ptrs);
+        if (result) {
+            return result;
         }
 
-        dm->result = get_readable_res_count_and_set_start_level(dm);
-        if (dm->result) {
-            return dm->result;
+        result = get_readable_res_count_and_set_start_level(dm);
+        if (result) {
+            return result;
         }
 
         if (dm->op_count == 0) {
@@ -421,13 +419,12 @@ int _anj_dm_get_resource_value(anj_t *anj,
     if (!out_value) {
         return 0;
     }
-    if (!_anj_dm_is_readable_resource(ptrs.res->operation)) {
+    if (!_anj_dm_is_readable_resource(ptrs.res->kind)) {
         dm_log(L_ERROR, "Resource is not readable");
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
 
-    bool is_multi_instance =
-            _anj_dm_is_multi_instance_resource(ptrs.res->operation);
+    bool is_multi_instance = _anj_dm_is_multi_instance_resource(ptrs.res->kind);
     if (out_multi_res) {
         *out_multi_res = is_multi_instance ? true : false;
     }
@@ -460,23 +457,21 @@ int _anj_dm_begin_read_op(anj_t *anj, const anj_uri_path_t *base_path) {
         if (base_path->ids[ANJ_ID_OID] != ANJ_OBJ_ID_SERVER
                 && base_path->ids[ANJ_ID_OID] != ANJ_OBJ_ID_ACCESS_CONTROL) {
             dm_log(L_ERROR, "Bootstrap server can't access this object");
-            dm->result = ANJ_DM_ERR_METHOD_NOT_ALLOWED;
-            return dm->result;
+            return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
         }
         if (anj_uri_path_has(base_path, ANJ_ID_RID)) {
             dm_log(L_ERROR, "Bootstrap read can't target resource");
-            dm->result = ANJ_DM_ERR_METHOD_NOT_ALLOWED;
-            return dm->result;
+            return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
         }
     }
 
-    dm->result = _anj_dm_get_entity_ptrs(dm, base_path, &dm->entity_ptrs);
-    if (dm->result) {
-        return dm->result;
+    int result = _anj_dm_get_entity_ptrs(dm, base_path, &dm->entity_ptrs);
+    if (result) {
+        return result;
     }
-    dm->result = get_readable_res_count_and_set_start_level(dm);
-    if (dm->result) {
-        return dm->result;
+    result = get_readable_res_count_and_set_start_level(dm);
+    if (result) {
+        return result;
     }
 
     _anj_dm_read_ctx_t *read_ctx = &dm->op_ctx.read_ctx;

@@ -215,6 +215,7 @@ static int encode_bytes(char *encoded_buf,
     assert(bytes_to_encode);
     assert(*bytes_to_encode);
     assert(last_chunk);
+    (void) last_chunk;
 
     size_t copied_bytes = 0;
     switch (entry->type) {

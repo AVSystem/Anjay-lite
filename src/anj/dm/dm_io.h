@@ -91,13 +91,23 @@ int _anj_dm_operation_begin(anj_t *anj,
  * operation any function returns error value this function must be called
  * immediately.
  *
+ * @param anj    Anjay object to operate on.
+ * @param result Result of the operation.
+ */
+void _anj_dm_operation_end(anj_t *anj, anj_dm_transaction_result_t result);
+
+/**
+ * Called at the end of each transactional operation on the data model. Must be
+ * called before @ref _anj_dm_operation_end for transactional operations if no
+ * error occurred.
+ *
  * @param anj Anjay object to operate on.
  *
  * @returns
  * - 0 on success,
  * - a negative value in case of error.
  */
-int _anj_dm_operation_end(anj_t *anj);
+int _anj_dm_operation_validate(anj_t *anj);
 
 /**
  * Processes READ, READ-COMPOSITE and BOOTSTRAP-READ operation. Should be

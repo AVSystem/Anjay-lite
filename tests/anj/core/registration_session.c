@@ -13,6 +13,7 @@
 #include <string.h>
 
 #include <anj/compat/net/anj_net_api.h>
+#include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
@@ -21,6 +22,7 @@
 #include <anj/dm/server_object.h>
 #include <anj/utils.h>
 
+#include "../../../src/anj/exchange.h"
 #include "../mock/net_api_mock.h"
 #include "../mock/time_api_mock.h"
 
@@ -37,7 +39,7 @@ conn_status_cb(void *arg, anj_t *anj, anj_conn_status_t conn_status) {
 // inner_mtu_value value will lead to block transfer for addtional objects in
 // payload
 #define _TEST_INIT(With_queue_mode, Queue_timeout)         \
-    set_mock_time(0);                                      \
+    mock_time_reset();                                     \
     net_api_mock_t mock = { 0 };                           \
     net_api_mock_ctx_init(&mock);                          \
     mock.bytes_to_send = 100;                              \
@@ -46,7 +48,7 @@ conn_status_cb(void *arg, anj_t *anj, anj_conn_status_t conn_status) {
     anj_configuration_t config = {                         \
         .endpoint_name = "name",                           \
         .queue_mode_enabled = With_queue_mode,             \
-        .queue_mode_timeout_ms = Queue_timeout,            \
+        .queue_mode_timeout = Queue_timeout,               \
         .connection_status_cb = conn_status_cb,            \
     };                                                     \
     ANJ_UNIT_ASSERT_SUCCESS(anj_core_init(&anj, &config)); \
@@ -55,7 +57,7 @@ conn_status_cb(void *arg, anj_t *anj, anj_conn_status_t conn_status) {
     anj_dm_server_obj_t ser_obj;                           \
     anj_dm_server_obj_init(&ser_obj)
 
-#define TEST_INIT() _TEST_INIT(false, 0)
+#define TEST_INIT() _TEST_INIT(false, ANJ_TIME_DURATION_ZERO)
 #define TEST_INIT_WITH_QUEUE_MODE(Queue_timeout) _TEST_INIT(true, Queue_timeout)
 
 #define ADD_INSTANCES()                                                   \
@@ -71,7 +73,8 @@ conn_status_cb(void *arg, anj_t *anj, anj_conn_status_t conn_status) {
     anj_dm_security_instance_init_t sec_inst = { \
         .server_uri = "coap://server.com:5683",  \
         .ssid = 2,                               \
-        .iid = &iid                              \
+        .iid = &iid,                             \
+        .security_mode = ANJ_DM_SECURITY_NOSEC,  \
     };                                           \
     anj_dm_server_instance_init_t ser_inst = {   \
         .ssid = 2,                               \
@@ -184,10 +187,9 @@ ANJ_UNIT_TEST(registration_session, lifetime_check) {
     HANDLE_UPDATE(update_with_lifetime);
 
     // next update should be sent after 50 seconds
-    uint64_t actual_time = 49;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(49, ANJ_TIME_UNIT_S));
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
-    set_mock_time_advance(&actual_time, 2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 
     // lifetime changed - new update should be sent
@@ -202,19 +204,19 @@ ANJ_UNIT_TEST(registration_session, lifetime_check) {
     update_with_lifetime[24] = '1';
 
     // next update should be sent after 500-MAX_TRANSMIT_WAIT
-    set_mock_time_advance(&actual_time, (500 - MAX_TRANSMIT_WAIT - 1));
+    mock_time_advance(anj_time_duration_new((500 - MAX_TRANSMIT_WAIT - 1),
+                                            ANJ_TIME_UNIT_S));
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
-    set_mock_time_advance(&actual_time, 2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 }
 
-ANJ_UNIT_TEST(registration_session, inifinite_lifetime) {
+ANJ_UNIT_TEST(registration_session, infinite_lifetime) {
     EXTENDED_INIT();
     ser_obj.server_instance.lifetime = 0;
     PROCESS_REGISTRATION();
     // there is no update possible
-    uint64_t actual_time = 10000;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
     // lifetime changed - new update should be sent
@@ -224,7 +226,7 @@ ANJ_UNIT_TEST(registration_session, inifinite_lifetime) {
                                 ANJ_CORE_CHANGE_TYPE_VALUE_CHANGED);
     HANDLE_UPDATE(update_with_lifetime);
     // next update should be sent after 50 seconds
-    set_mock_time_advance(&actual_time, 51);
+    mock_time_advance(anj_time_duration_new(51, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 }
 
@@ -236,11 +238,11 @@ ANJ_UNIT_TEST(registration_session, update_trigger) {
     anj_core_server_obj_registration_update_trigger_executed(&anj);
     HANDLE_UPDATE(update);
     // lifetime is 150 so next update should be sent after 75 seconds
-    uint64_t actual_time = 74;
-    set_mock_time(actual_time);
+
+    mock_time_advance(anj_time_duration_new(74, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
-    set_mock_time_advance(&actual_time, 2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 }
 
@@ -258,8 +260,7 @@ ANJ_UNIT_TEST(registration_session, update_with_data_model) {
     EXTENDED_INIT();
     PROCESS_REGISTRATION();
     // first update is without data model
-    uint64_t actual_time = 76;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(76, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 
     anj_core_data_model_changed(&anj, &ANJ_MAKE_INSTANCE_PATH(1, 3),
@@ -304,8 +305,8 @@ ANJ_UNIT_TEST(registration_session, update_with_block_data_model) {
     EXTENDED_INIT();
     PROCESS_REGISTRATION();
     // first update is without data model
-    uint64_t actual_time = 76;
-    set_mock_time(actual_time);
+
+    mock_time_advance(anj_time_duration_new(76, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 
     // anj_core_data_model_changed is called in anj_dm_add_obj
@@ -336,7 +337,7 @@ ANJ_UNIT_TEST(registration_session, update_with_block_data_model) {
                           ANJ_CONN_STATUS_REGISTERED);
 
     // next update doesn't contain data model
-    set_mock_time_advance(&actual_time, 76);
+    mock_time_advance(anj_time_duration_new(76, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 }
 
@@ -364,8 +365,7 @@ ANJ_UNIT_TEST(registration_session, update_retransmissions) {
     mock.bytes_sent = 0;
 
     // first retry - because of resonse timeout
-    uint64_t actual_time = 12;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(12, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
@@ -374,7 +374,7 @@ ANJ_UNIT_TEST(registration_session, update_retransmissions) {
     mock.bytes_sent = 0;
 
     // second retry
-    set_mock_time_advance(&actual_time, 12);
+    mock_time_advance(anj_time_duration_new(12, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
@@ -408,9 +408,29 @@ ANJ_UNIT_TEST(registration_session, update_connection_error) {
     // after registration next update is successful
     mock.bytes_to_send = 100;
     PROCESS_REGISTRATION();
-    uint64_t actual_time = 100;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(100, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
+}
+
+ANJ_UNIT_TEST(registration_session, update_blocked_by_recv_einprogress) {
+    EXTENDED_INIT();
+    PROCESS_REGISTRATION();
+
+    // reach the moment an Update would normally be sent
+    // exceed an update interval
+    mock_time_advance(anj_time_duration_new(150, ANJ_TIME_UNIT_S));
+    // record current send count
+    int current_send_count = mock.call_count[ANJ_NET_FUN_SEND];
+    // simulate blocking operation in the underlying socket
+    mock.call_result[ANJ_NET_FUN_RECV] = ANJ_NET_EINPROGRESS;
+    // process the tick where Update is due
+    anj_core_step(&anj);
+    // no send attempt happened due to EINPROGRESS on recv
+    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_SEND],
+                          current_send_count);
+
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
 }
 
 static char error_response[] = "\x68"         // header v 0x01, Ack, tkl 8
@@ -435,8 +455,7 @@ ANJ_UNIT_TEST(registration_session, update_error_response) {
 
     // after registration next update is successful
     PROCESS_REGISTRATION();
-    uint64_t actual_time = 100;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(100, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 }
 
@@ -488,7 +507,7 @@ ANJ_UNIT_TEST(registration_session, server_requests) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
     CHECK_RESPONSE(read_response);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     // write request
     ADD_REQUEST(write_request);
@@ -496,7 +515,7 @@ ANJ_UNIT_TEST(registration_session, server_requests) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
     CHECK_RESPONSE(write_response);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     // write request with lifetime in result after write request update with
     // lifetime is immediately sent
@@ -534,7 +553,7 @@ ANJ_UNIT_TEST(registration_session, server_requests_error_handling) {
     CHECK_RESPONSE(read_ivalid_path);
     // set uri-path_1 to /1 again
     read_request[7] = 0x31;
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     // invalid - write_response is used as random ACK - message should be
     // ignored
@@ -544,7 +563,7 @@ ANJ_UNIT_TEST(registration_session, server_requests_error_handling) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     // malformed request - message should be ignored
     mock.bytes_sent = 0;
@@ -553,7 +572,7 @@ ANJ_UNIT_TEST(registration_session, server_requests_error_handling) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     // read request - ACK timeout
     // change msgid to not reveice message from cache
@@ -561,9 +580,9 @@ ANJ_UNIT_TEST(registration_session, server_requests_error_handling) {
     ADD_REQUEST(read_request);
     mock.bytes_to_send = 0;
     anj_core_step(&anj);
-    uint64_t actual_time = 5;
-    ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
-    set_mock_time(actual_time);
+
+    ANJ_UNIT_ASSERT_TRUE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
+    mock_time_advance(anj_time_duration_new(5, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
@@ -641,8 +660,7 @@ ANJ_UNIT_TEST(registration_session, observations) {
     // observation should be added
     ANJ_UNIT_ASSERT_EQUAL(anj.observe_ctx.observations[0].ssid, 2);
 
-    uint64_t actual_time = 101;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(101, ANJ_TIME_UNIT_S));
     mock.bytes_sent = 0;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
@@ -662,12 +680,12 @@ ANJ_UNIT_TEST(registration_session, observations) {
     mock.bytes_sent = 0;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     // change time to > pmax
-    set_mock_time_advance(&actual_time, 301);
+    mock_time_advance(anj_time_duration_new(301, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
     // second notification - increase observe option
     notification[7] = 2;
     CHECK_NOTIFY(notification);
@@ -683,52 +701,75 @@ ANJ_UNIT_TEST(registration_session, observations) {
 
     // change time to > pmax to force notification - send error leads to
     // reregistration
-    set_mock_time_advance(&actual_time, 301);
+    mock_time_advance(anj_time_duration_new(301, ANJ_TIME_UNIT_S));
     mock.bytes_to_send = 0;
     mock.call_result[ANJ_NET_FUN_SEND] = -14;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
     // observation should be removed
     ANJ_UNIT_ASSERT_EQUAL(anj.observe_ctx.observations[0].ssid, 0);
 }
 
-static char deregistrer[] = "\x48"         // Confirmable, tkl 8
-                            "\x04\x00\x00" // DELETE, msg_id
-                            "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
-                            "\xb2\x72\x64"                     // uri path /rd
-                            "\x04\x35\x61\x33\x66";            // uri path /5a3f
+static char deregister[] = "\x48"         // Confirmable, tkl 8
+                           "\x04\x00\x00" // DELETE, msg_id
+                           "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
+                           "\xb2\x72\x64"                     // uri path /rd
+                           "\x04\x35\x61\x33\x66";            // uri path /5a3f
 
-static char deregistrer_response[] =
-        "\x68"                              // header v 0x01, Ack, tkl 8
-        "\x42\x00\x00"                      // Code=Deleted
-        "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"; // token
+static char deregister_response[] = "\x68"         // header v 0x01, Ack, tkl 8
+                                    "\x42\x00\x00" // Code=Deleted
+                                    "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF"; // token
 
-#define HANDLE_DEREGISTER(Response)                                       \
-    anj_core_step(&anj);                                                  \
-    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                                \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent);      \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregistrer, \
-                                      mock.bytes_sent);                   \
-    ADD_RESPONSE(Response);                                               \
-    anj_core_step(&anj);                                                  \
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                   \
-                          ANJ_CONN_STATUS_SUSPENDED);                     \
-    mock.bytes_sent = 0;                                                  \
-    anj_core_step(&anj);                                                  \
+#define HANDLE_DEREGISTER(Response)                                      \
+    anj_core_step(&anj);                                                 \
+    COPY_TOKEN_AND_MSG_ID(deregister, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregister) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregister, \
+                                      mock.bytes_sent);                  \
+    ADD_RESPONSE(Response);                                              \
+    anj_core_step(&anj);                                                 \
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                  \
+                          ANJ_CONN_STATUS_SUSPENDED);                    \
+    mock.bytes_sent = 0;                                                 \
+    anj_core_step(&anj);                                                 \
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0)
+
+static char execute_disable_request[] =
+        "\x42"         // Header: Ver=1, Type=0 (CON), TKL=2
+        "\x02\x47\x25" // Code=EXECUTE (0.05), MID=0x4725
+        "\x12\x34"     // Token
+        "\xB1\x31"     // Uri-Path: /1
+        "\x01\x31"     // Uri-Path: /1
+        "\x01\x34";    // Uri-Path: /4
 
 ANJ_UNIT_TEST(registration_session, server_disable_by_server) {
     EXTENDED_INIT();
     PROCESS_REGISTRATION();
 
-    // simulate execute on /1/0/4
-    anj_core_server_obj_disable_executed(&anj, 5);
-    HANDLE_DEREGISTER(deregistrer_response);
+    mock.call_result[ANJ_NET_FUN_CLOSE] = ANJ_NET_EINPROGRESS;
+    // execute on /1/1/4
+    ADD_REQUEST(execute_disable_request);
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+    COPY_TOKEN_AND_MSG_ID(deregister, 8);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregister) - 1, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregister,
+                                      mock.bytes_sent);
+    ADD_RESPONSE(deregister_response);
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+    mock.call_result[ANJ_NET_FUN_CLOSE] = 0;
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_SUSPENDED);
 
-    // pass 6s and check if Anjay exits the suspended state
-    set_mock_time(6);
+    // pass 1 day and check if Anjay exits the suspended state
+    // 1 day is default disable timeout
+    mock_time_advance(anj_time_duration_new(1, ANJ_TIME_UNIT_DAY));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
@@ -743,7 +784,7 @@ ANJ_UNIT_TEST(registration_session, server_disable_failed_deregister) {
     HANDLE_DEREGISTER(error_response);
 
     // pass 6s and check if Anjay exits the suspended state
-    set_mock_time(6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
@@ -753,11 +794,11 @@ ANJ_UNIT_TEST(registration_session, server_disable_by_user_with_timeout) {
     EXTENDED_INIT();
     PROCESS_REGISTRATION();
 
-    anj_core_disable_server(&anj, 5);
-    HANDLE_DEREGISTER(deregistrer_response);
+    anj_core_disable_server(&anj, anj_time_duration_new(5, ANJ_TIME_UNIT_S));
+    HANDLE_DEREGISTER(deregister_response);
 
     // pass 5s and check if Anjay exits the suspended state
-    set_mock_time(5);
+    mock_time_advance(anj_time_duration_new(5, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
@@ -767,12 +808,12 @@ ANJ_UNIT_TEST(registration_session, server_disable_by_user_with_enable) {
     EXTENDED_INIT();
     PROCESS_REGISTRATION();
 
-    anj_core_disable_server(&anj, 5);
+    anj_core_disable_server(&anj, anj_time_duration_new(5, ANJ_TIME_UNIT_S));
 
-    HANDLE_DEREGISTER(deregistrer_response);
+    HANDLE_DEREGISTER(deregister_response);
 
     // pass 2s and enable server manually
-    set_mock_time(2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     anj_core_restart(&anj);
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
@@ -786,87 +827,95 @@ ANJ_UNIT_TEST(registration_session, server_disable_twice) {
     // simulate execute on /1/0/4
     anj_core_server_obj_disable_executed(&anj, 50);
 
-    HANDLE_DEREGISTER(deregistrer_response);
+    HANDLE_DEREGISTER(deregister_response);
 
-    uint64_t mock_time_s = 45;
-    set_mock_time(mock_time_s);
+    mock_time_advance(anj_time_duration_new(45, ANJ_TIME_UNIT_S));
     // anjay should leave suspended state after 5 seconds but we add additional
     // 10 seconds
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), 5 * 1000);
-    anj_core_disable_server(&anj, 10 * 1000);
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), 10 * 1000);
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(5, ANJ_TIME_UNIT_S)));
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(10, ANJ_TIME_UNIT_S)));
 
     // update time and check if Anjay exits the suspended state
-    set_mock_time_advance(&mock_time_s, 5);
+    mock_time_advance(anj_time_duration_new(5, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_SUSPENDED);
-    set_mock_time_advance(&mock_time_s, 6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
 }
 
 ANJ_UNIT_TEST(registration_session, queue_mode_check_set_timeout) {
-    EXTENDED_INIT_WITH_QUEUE_MODE(50000);
-    uint64_t actual_time = 10000;
-    set_mock_time(actual_time / 1000);
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
+
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.registered.queue_start_time,
-                          actual_time + 50000);
+
+    ANJ_UNIT_ASSERT_TRUE(anj_time_real_eq(
+            anj.server_state.details.registered.queue_start_time,
+            anj_time_real_add(anj_time_real_now(),
+                              anj_time_duration_new(50, ANJ_TIME_UNIT_S))));
 }
 
 ANJ_UNIT_TEST(registration_session, queue_mode_check_default_timeout) {
-    EXTENDED_INIT_WITH_QUEUE_MODE(0);
-    uint64_t actual_time = 10000;
-    set_mock_time(actual_time / 1000);
+    EXTENDED_INIT_WITH_QUEUE_MODE(ANJ_TIME_DURATION_ZERO);
+
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
+
     // default timeout is 93 seconds: MAX_TRANSMIT_WAIT
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.registered.queue_start_time,
-                          actual_time + (93 * 1000));
+    ANJ_UNIT_ASSERT_TRUE(anj_time_real_eq(
+            anj.server_state.details.registered.queue_start_time,
+            anj_time_real_add(anj_time_real_now(),
+                              anj_time_duration_new(93, ANJ_TIME_UNIT_S))));
 }
 
 ANJ_UNIT_TEST(registration_session, queue_mode_basic_check) {
     // lifetime is set to 150 so next update should be sent after 75 seconds
     // queue mode timeout is 50 seconds so after 50 seconds queue mode should be
     // started
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
 
-    uint64_t actual_time_s = 45;
-    set_mock_time(actual_time_s);
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), 0);
+    mock_time_advance(anj_time_duration_new(45, ANJ_TIME_UNIT_S));
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq(anj_core_next_step_time(&anj),
+                                              ANJ_TIME_DURATION_ZERO));
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
 
-    // client try to close connection before entering queue mode
-    set_mock_time_advance(&actual_time_s, 10);
-    mock.call_result[ANJ_NET_FUN_CLOSE] = ANJ_NET_EAGAIN;
+    // client informs net compat about wish to enter queue mode to allow for
+    // turning off rx
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
+    mock.call_result[ANJ_NET_FUN_QUEUE_MODE_RX_OFF] = ANJ_NET_EINPROGRESS;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_ENTERING_QUEUE_MODE);
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), 0);
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq(anj_core_next_step_time(&anj),
+                                              ANJ_TIME_DURATION_ZERO));
 
-    // close connection is successful - queue mode is started
-    mock.call_result[ANJ_NET_FUN_CLOSE] = 0;
+    // turning off rx is successful - queue mode is started
+    mock.call_result[ANJ_NET_FUN_QUEUE_MODE_RX_OFF] = 0;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
 
     // lifetime is 150 so next update should be sent after 75 seconds, 55
     // seconds already passed
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), (75 - 55) * 1000);
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq(
+            anj_core_next_step_time(&anj),
+            anj_time_duration_new((75 - 55), ANJ_TIME_UNIT_S)));
 
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
-    set_mock_time_advance(&actual_time_s, 25);
-    // it's update time - first client will try to open connection
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
-    anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
-                          ANJ_CONN_STATUS_QUEUE_MODE);
-    mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
+    mock_time_advance(anj_time_duration_new(25, ANJ_TIME_UNIT_S));
+    // it's update time - client will just use send() as nothing happened
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
@@ -874,13 +923,14 @@ ANJ_UNIT_TEST(registration_session, queue_mode_basic_check) {
 
     // after 10 seconds we are still in registered state
     // 40 second before next queue mode
-    set_mock_time_advance(&actual_time_s, 10);
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.registered.queue_start_time
-                                  / 1000,
-                          actual_time_s + 40);
+    ANJ_UNIT_ASSERT_TRUE(anj_time_real_eq(
+            anj.server_state.details.registered.queue_start_time,
+            anj_time_real_add(anj_time_real_now(),
+                              anj_time_duration_new(40, ANJ_TIME_UNIT_S))));
 
     // read request extend queue mode time
     ADD_REQUEST(read_request);
@@ -888,18 +938,19 @@ ANJ_UNIT_TEST(registration_session, queue_mode_basic_check) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
     CHECK_RESPONSE(read_response);
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.details.registered.queue_start_time
-                                  / 1000,
-                          actual_time_s + 50);
+    ANJ_UNIT_ASSERT_TRUE(anj_time_real_eq(
+            anj.server_state.details.registered.queue_start_time,
+            anj_time_real_add(anj_time_real_now(),
+                              anj_time_duration_new(50, ANJ_TIME_UNIT_S))));
 
-    // close connection is successful - queue mode is started immediately
-    set_mock_time_advance(&actual_time_s, 51);
+    // another queue_rx_off() is successful - queue mode is started immediately
+    mock_time_advance(anj_time_duration_new(51, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
     // next anj_core_step() is called with big delay, but still everything is ok
     // and update is sent
-    set_mock_time_advance(&actual_time_s, 3000);
+    mock_time_advance(anj_time_duration_new(3000, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 }
 
@@ -907,21 +958,22 @@ ANJ_UNIT_TEST(registration_session, queue_mode_force_update) {
     // lifetime is set to 150 so next update should be sent after 75 seconds
     // queue mode timeout is 50 seconds so after 50 seconds queue mode should be
     // started
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
 
-    uint64_t actual_time_s = 55;
-    set_mock_time(actual_time_s);
+    mock_time_advance(anj_time_duration_new(55, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), 20 * 1000);
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq(anj_core_next_step_time(&anj),
+                                 anj_time_duration_new(20, ANJ_TIME_UNIT_S)));
     anj_core_request_update(&anj);
     HANDLE_UPDATE(update);
 }
 
 ANJ_UNIT_TEST(registration_session, queue_mode_notifications) {
-    TEST_INIT_WITH_QUEUE_MODE((50 * 1000));
+    TEST_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     INIT_BASIC_INSTANCES();
     // set longer lifetime to avoid update before notification
     ser_inst.lifetime = 300;
@@ -938,8 +990,7 @@ ANJ_UNIT_TEST(registration_session, queue_mode_notifications) {
     CHECK_RESPONSE(observe_response);
 
     // enter queue mode - notification shouldn't be sent yet
-    uint64_t actual_time = 60;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(60, ANJ_TIME_UNIT_S));
     mock.bytes_sent = 0;
     ser_obj.server_instance.disable_timeout = 200;
     anj_core_step(&anj);
@@ -953,36 +1004,41 @@ ANJ_UNIT_TEST(registration_session, queue_mode_notifications) {
 
     // pmin is set to 100 so notification should be sent after 100 seconds
     // 60 seconds already passed
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), (100 - 60) * 1000);
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq(
+            anj_core_next_step_time(&anj),
+            anj_time_duration_new(100 - 60, ANJ_TIME_UNIT_S)));
 
     // notification should be sent
-    set_mock_time_advance(&actual_time, 50);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
     CHECK_NOTIFY(notification);
 
     // enter queue mode after 50 seconds
-    set_mock_time_advance(&actual_time, 40);
+    mock_time_advance(anj_time_duration_new(40, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
-    set_mock_time_advance(&actual_time, 20);
+    mock_time_advance(anj_time_duration_new(20, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
 
     // we are 170 seconds after start
     // update should be sent after 300 - MAX_TRANSMIT_WAIT = 207 seconds
-    set_mock_time_advance(&actual_time, 30);
+    mock_time_advance(anj_time_duration_new(30, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     // liftime is set to 300 so next update should be sent after 207 seconds
     // 200 seconds already passed
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), (207 - 200) * 1000);
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq(
+            anj_core_next_step_time(&anj),
+            anj_time_duration_new(207 - 200, ANJ_TIME_UNIT_S)));
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
-    set_mock_time_advance(&actual_time, 10);
-    ANJ_UNIT_ASSERT_EQUAL(anj_core_next_step_time(&anj), 0);
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq(anj_core_next_step_time(&anj),
+                                              ANJ_TIME_DURATION_ZERO));
     HANDLE_UPDATE(update);
 }
 
@@ -996,7 +1052,7 @@ static char observe_request_no_attributes[] =
         "\x01\x35";    // uri-path_3 /5
 
 ANJ_UNIT_TEST(registration_session, queue_mode_notifications_no_attributes) {
-    TEST_INIT_WITH_QUEUE_MODE((50 * 1000));
+    TEST_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     INIT_BASIC_INSTANCES();
     // set longer lifetime to avoid update before notification
     ser_inst.lifetime = 300;
@@ -1011,8 +1067,7 @@ ANJ_UNIT_TEST(registration_session, queue_mode_notifications_no_attributes) {
     CHECK_RESPONSE(observe_response);
 
     // enter queue mode - notification shouldn't be sent yet
-    uint64_t actual_time = 60;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(60, ANJ_TIME_UNIT_S));
     mock.bytes_sent = 0;
     ser_obj.server_instance.disable_timeout = 200;
     anj_core_step(&anj);
@@ -1027,16 +1082,15 @@ ANJ_UNIT_TEST(registration_session, queue_mode_notifications_no_attributes) {
     CHECK_NOTIFY(notification);
 }
 
-ANJ_UNIT_TEST(registration_session, queue_mode_connection_error) {
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+ANJ_UNIT_TEST(registration_session, queue_mode_send_error) {
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
     ANJ_UNIT_ASSERT_EQUAL(g_conn_status, ANJ_CONN_STATUS_REGISTERED);
 
-    uint64_t actual_time_s = 45;
-    set_mock_time(actual_time_s);
+    mock_time_advance(anj_time_duration_new(45, ANJ_TIME_UNIT_S));
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
-    set_mock_time_advance(&actual_time_s, 10);
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
@@ -1045,39 +1099,28 @@ ANJ_UNIT_TEST(registration_session, queue_mode_connection_error) {
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
-    set_mock_time_advance(&actual_time_s, 25);
-    // it's update time - first client will try to open connection
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
-    anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
-                          ANJ_CONN_STATUS_QUEUE_MODE);
-    // connection error leads to reregistration
-    mock.call_result[ANJ_NET_FUN_CONNECT] = -888;
+    mock_time_advance(anj_time_duration_new(25, ANJ_TIME_UNIT_S));
+    // it's update time - client will just use send() as nothing happened but
+    // send error leads to reregistration
+    net_api_mock_force_send_failure();
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
     ANJ_UNIT_ASSERT_EQUAL(g_conn_status, ANJ_CONN_STATUS_REGISTERING);
-    mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
-    // first attempt to reregister failed because of network error
-    // (log from INFO [server] [../src/anj/core/server_register.c:
-    // `Registration retry no. 1 will start with 60s delay`)
-    // so we need to wait at least 60 seconds to see next attempt
-    set_mock_time_advance(&actual_time_s, 70);
     PROCESS_REGISTRATION();
     ANJ_UNIT_ASSERT_EQUAL(g_conn_status, ANJ_CONN_STATUS_REGISTERED);
 }
 
 ANJ_UNIT_TEST(registration_session, queue_mode_update_error) {
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
 
-    uint64_t actual_time_s = 55;
-    set_mock_time(actual_time_s);
+    mock_time_advance(anj_time_duration_new(55, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
 
-    set_mock_time_advance(&actual_time_s, 25);
+    mock_time_advance(anj_time_duration_new(25, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(update, 8);
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update) - 1, mock.bytes_sent);
@@ -1091,29 +1134,28 @@ ANJ_UNIT_TEST(registration_session, queue_mode_update_error) {
     PROCESS_REGISTRATION();
     // after registration next update is successful
     // because it's already update time we skip queue mode
-    set_mock_time_advance(&actual_time_s, 100);
+    mock_time_advance(anj_time_duration_new(100, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
 }
 
 ANJ_UNIT_TEST(registration_session, queue_mode_entering_queue_mode_error) {
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
 
-    uint64_t actual_time_s = 45;
-    set_mock_time(actual_time_s);
+    mock_time_advance(anj_time_duration_new(45, ANJ_TIME_UNIT_S));
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
 
-    // client try to close connection before entering queue mode
-    set_mock_time_advance(&actual_time_s, 10);
-    mock.net_eagain_calls = 1;
+    // client informs net compat about wish to enter queue mode to allow for
+    // turning off rx
+    mock_time_advance(anj_time_duration_new(10, ANJ_TIME_UNIT_S));
+    mock.call_result[ANJ_NET_FUN_QUEUE_MODE_RX_OFF] = ANJ_NET_EINPROGRESS;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_ENTERING_QUEUE_MODE);
 
-    // close connection error leads to reregistration
-    mock.call_result[ANJ_NET_FUN_CLOSE] = -888;
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
+    // queue_rx_off() error leads to reregistration
+    mock.call_result[ANJ_NET_FUN_QUEUE_MODE_RX_OFF] = -888;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
@@ -1128,9 +1170,6 @@ static char bootstrap_request_trigger[] = "\x42" // header v 0x01, Confirmable
                                           "\xB1\x31"     //  URI_PATH 11 /1
                                           "\x01\x31"     //              /1
                                           "\x01\x39";    //              /9
-static char execute_response[] = "\x62"                  // ACK, tkl 3
-                                 "\x44\x11\x55"          // Changed code 2.04
-                                 "\x12\x77";             // token
 
 ANJ_UNIT_TEST(registration_session, bootstrap_trigger) {
     EXTENDED_INIT();
@@ -1139,21 +1178,23 @@ ANJ_UNIT_TEST(registration_session, bootstrap_trigger) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.bootstrap_request_triggered, false);
     PROCESS_REGISTRATION();
 
-    mock.call_result[ANJ_NET_FUN_CLEANUP] = ANJ_NET_EAGAIN;
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
-    mock.bytes_to_send = 0;
-    // bootstrap request trigger should be executed
-    // then response shuld be sent
-    // in next step connection should be closed, with cleanup
+    mock.call_result[ANJ_NET_FUN_CLEANUP] = ANJ_NET_EINPROGRESS;
+
+    // after bootstrap trigger ACK, anjay should try to deregister
     ADD_REQUEST(bootstrap_request_trigger);
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 0);
-    mock.bytes_to_send = 500;
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+    COPY_TOKEN_AND_MSG_ID(deregister, 8);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregister) - 1, mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregister,
+                                      mock.bytes_sent);
+    ADD_RESPONSE(deregister_response);
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 1);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
-    CHECK_RESPONSE(execute_response);
     mock.call_result[ANJ_NET_FUN_CLEANUP] = 0;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 2);
@@ -1166,9 +1207,9 @@ ANJ_UNIT_TEST(registration_session, shutdown) {
     EXTENDED_INIT();
     PROCESS_REGISTRATION();
     static const int cleanup_retries = 5;
-    mock.call_result[ANJ_NET_FUN_CLEANUP] = ANJ_NET_EAGAIN;
+    mock.call_result[ANJ_NET_FUN_CLEANUP] = ANJ_NET_EINPROGRESS;
     for (int i = 0; i < cleanup_retries; ++i) {
-        ANJ_UNIT_ASSERT_EQUAL(anj_core_shutdown(&anj), ANJ_NET_EAGAIN);
+        ANJ_UNIT_ASSERT_EQUAL(anj_core_shutdown(&anj), ANJ_NET_EINPROGRESS);
         ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], i + 1);
     }
     mock.call_result[ANJ_NET_FUN_CLEANUP] = 0;
@@ -1187,16 +1228,16 @@ ANJ_UNIT_TEST(registration_session, shutdown) {
                           cleanup_retries + 2);
 }
 
-#define HANDLE_DEREGISTER_WITH_REGISTRATION()                             \
-    anj_core_step(&anj);                                                  \
-    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                                \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent);      \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregistrer, \
-                                      mock.bytes_sent);                   \
-    ADD_RESPONSE(deregistrer_response);                                   \
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;               \
-    anj_core_step(&anj);                                                  \
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                   \
+#define HANDLE_DEREGISTER_WITH_REGISTRATION()                            \
+    anj_core_step(&anj);                                                 \
+    COPY_TOKEN_AND_MSG_ID(deregister, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregister) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregister, \
+                                      mock.bytes_sent);                  \
+    ADD_RESPONSE(deregister_response);                                   \
+    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EINPROGRESS;         \
+    anj_core_step(&anj);                                                 \
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                  \
                           ANJ_CONN_STATUS_REGISTERING);
 
 ANJ_UNIT_TEST(registration_session, restart) {
@@ -1213,71 +1254,62 @@ ANJ_UNIT_TEST(registration_session, restart) {
 }
 
 ANJ_UNIT_TEST(registration_session, restart_from_queue_mode) {
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
 
-    uint64_t actual_time_s = 51;
-    set_mock_time(actual_time_s);
+    mock_time_advance(anj_time_duration_new(51, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 1);
     anj_core_restart(&anj);
-    // first we want to connect to the server
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
+    // first client goes from queue mode to registered and tries to deregister
+    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EINPROGRESS;
     anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 2);
+
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
-                          ANJ_CONN_STATUS_QUEUE_MODE);
-    // then we start the standard deregistration process
-    mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
+                          ANJ_CONN_STATUS_REGISTERED);
+    // then we allow for deregistration
+    mock.call_result[ANJ_NET_FUN_SEND] = 0;
     HANDLE_DEREGISTER_WITH_REGISTRATION();
     mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
     PROCESS_REGISTRATION();
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 1);
-    // 1 register, 2 when leaving queue mode, 2 when reregistering
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 5);
+    // 1 register, 2 when reregistering
+    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 3);
 }
 
 ANJ_UNIT_TEST(registration_session, suspend_from_queue_mode) {
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
 
-    uint64_t actual_time_s = 51;
-    set_mock_time(actual_time_s);
+    mock_time_advance(anj_time_duration_new(51, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 1);
-    anj_core_disable_server(&anj, 10);
-    // first we want to connect to the server
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
-    anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 2);
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
-                          ANJ_CONN_STATUS_QUEUE_MODE);
-    // then we start the standard deregistration process
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
+    // start the standard deregistration process
     mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
-    HANDLE_DEREGISTER(deregistrer_response);
+    HANDLE_DEREGISTER(deregister_response);
     // important check - cleanup shouldn't be called
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 0);
-    // 1 register, 2 when leaving queue mode
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 3);
+    // 1 register
+    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 1);
 }
 
 ANJ_UNIT_TEST(registration_session, suspend_from_queue_mode_with_open_error) {
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
+    EXTENDED_INIT_WITH_QUEUE_MODE(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     PROCESS_REGISTRATION();
 
-    uint64_t actual_time_s = 51;
-    set_mock_time(actual_time_s);
+    mock_time_advance(anj_time_duration_new(51, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_QUEUE_MODE);
-    anj_core_disable_server(&anj, 10);
-    // error during queue mode doesn't lead to reregistration but still to
-    // suspend
-    mock.call_result[ANJ_NET_FUN_CONNECT] = -1;
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
+    // error while sending the first update after exiting queue mode doesn't
+    // lead to reregistration but still to suspend
+    mock.call_result[ANJ_NET_FUN_SEND] = -1;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_SUSPENDED);
@@ -1291,19 +1323,19 @@ static char expected_bootstrap[] =
         "\x47\x65\x70\x3d\x6e\x61\x6d\x65"  // uri-query: ep=name
         "\x07\x70\x63\x74\x3d\x31\x31\x32"; // uri-query: pct=112
 
-#define HANDLE_DEREGISTER_WITH_BOOTSTRAP()                                \
-    anj_core_step(&anj);                                                  \
-    COPY_TOKEN_AND_MSG_ID(deregistrer, 8);                                \
-    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregistrer) - 1, mock.bytes_sent);      \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregistrer, \
-                                      mock.bytes_sent);                   \
-    ADD_RESPONSE(deregistrer_response);                                   \
-    anj_core_step(&anj);                                                  \
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                   \
-                          ANJ_CONN_STATUS_BOOTSTRAPPING);                 \
-    COPY_TOKEN_AND_MSG_ID(expected_bootstrap, 8);                         \
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,              \
-                                      expected_bootstrap,                 \
+#define HANDLE_DEREGISTER_WITH_BOOTSTRAP()                               \
+    anj_core_step(&anj);                                                 \
+    COPY_TOKEN_AND_MSG_ID(deregister, 8);                                \
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(deregister) - 1, mock.bytes_sent);      \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, deregister, \
+                                      mock.bytes_sent);                  \
+    ADD_RESPONSE(deregister_response);                                   \
+    anj_core_step(&anj);                                                 \
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,                  \
+                          ANJ_CONN_STATUS_BOOTSTRAPPING);                \
+    COPY_TOKEN_AND_MSG_ID(expected_bootstrap, 8);                        \
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,             \
+                                      expected_bootstrap,                \
                                       sizeof(expected_bootstrap) - 1);
 
 ANJ_UNIT_TEST(registration_session, suspend_from_bootstrap) {
@@ -1312,7 +1344,7 @@ ANJ_UNIT_TEST(registration_session, suspend_from_bootstrap) {
     // force bootstrap
     anj_core_request_bootstrap(&anj);
     HANDLE_DEREGISTER_WITH_BOOTSTRAP();
-    anj_core_disable_server(&anj, 10);
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 1);
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
@@ -1344,7 +1376,7 @@ ANJ_UNIT_TEST(registration_session, restart_from_suspend) {
     PROCESS_REGISTRATION();
     anj_core_request_bootstrap(&anj);
     HANDLE_DEREGISTER_WITH_BOOTSTRAP();
-    anj_core_disable_server(&anj, 10);
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_SUSPENDED);
@@ -1355,8 +1387,8 @@ ANJ_UNIT_TEST(registration_session, restart_from_suspend) {
 ANJ_UNIT_TEST(registration_session, bootstrap_from_suspend) {
     EXTENDED_INIT_WITH_BOOTSTRAP();
     PROCESS_REGISTRATION();
-    anj_core_disable_server(&anj, 10);
-    HANDLE_DEREGISTER(deregistrer_response);
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
+    HANDLE_DEREGISTER(deregister_response);
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_SUSPENDED);
@@ -1371,7 +1403,7 @@ ANJ_UNIT_TEST(registration_session, bootstrap_from_suspend_from_bootstrap) {
     PROCESS_REGISTRATION();
     anj_core_request_bootstrap(&anj);
     HANDLE_DEREGISTER_WITH_BOOTSTRAP();
-    anj_core_disable_server(&anj, 10);
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_SUSPENDED);
@@ -1396,27 +1428,8 @@ ANJ_UNIT_TEST(registration_session, bootstrap_and_suspend_from_registering) {
     // we trigger bootstrap and then suspend, but bootstrap has higher priority
     // so we should end up in bootstrapping state
     anj_core_request_bootstrap(&anj);
-    anj_core_disable_server(&anj, 10);
+    anj_core_disable_server(&anj, anj_time_duration_new(10, ANJ_TIME_UNIT_S));
     PROCESS_BOOTSTRAP();
-}
-
-ANJ_UNIT_TEST(registration_session, queue_mode_with_reuse_port_error) {
-    EXTENDED_INIT_WITH_QUEUE_MODE((50 * 1000));
-    PROCESS_REGISTRATION();
-
-    uint64_t actual_time_s = 51;
-    set_mock_time(actual_time_s);
-    anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
-                          ANJ_CONN_STATUS_QUEUE_MODE);
-    mock.call_result[ANJ_NET_FUN_REUSE_LAST_PORT] = -35;
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
-    set_mock_time_advance(&actual_time_s, 25);
-    // reconnect failed because of reuse port error, so we process new
-    // registration
-    anj_core_step(&anj);
-    mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
-    PROCESS_REGISTRATION();
 }
 
 static char CoAP_PING[] = "\x40\x00\x01\x01"; // Confirmable, tkl 0, empty msg
@@ -1432,7 +1445,7 @@ ANJ_UNIT_TEST(registration_session, CoAP_ping) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
     CHECK_RESPONSE(RST_response);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERED);
 }
@@ -1725,7 +1738,7 @@ ANJ_UNIT_TEST(registration_session, send_cached_during_another_exchange) {
     ADD_RESPONSE(update_response);
     anj_core_step(&anj);
 
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 }
 
 /**
@@ -1741,7 +1754,7 @@ ANJ_UNIT_TEST(registration_session, cache_service_unavailable) {
     PROCESS_REGISTRATION();
 
     // advance time to trigger update
-    set_mock_time(76);
+    mock_time_advance(anj_time_duration_new(76, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ASSERT_NE(mock.bytes_sent, 0);
 
@@ -1909,10 +1922,10 @@ ANJ_UNIT_TEST(registration_session,
     ADD_RESPONSE(ret_update_response_block_3);
     anj_core_step(&anj);
 
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 }
 
-ANJ_UNIT_TEST(registration_session, retransmission_eagain) {
+ANJ_UNIT_TEST(registration_session, retransmission_einprogress) {
     EXTENDED_INIT();
     PROCESS_REGISTRATION();
 
@@ -1937,9 +1950,9 @@ ANJ_UNIT_TEST(registration_session, retransmission_eagain) {
     ANJ_UNIT_ASSERT_EQUAL(sizeof(update_with_data_model_block_1) - 1,
                           mock.bytes_sent);
 
-    // send request with equal msg id, _anj_server_send will return eagain
+    // send request with equal msg id, _anj_server_send will return einprogress
     mock.bytes_to_send = 0;
-    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EAGAIN;
+    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EINPROGRESS;
     ADD_REQUEST(write_mute_send_disable_request);
     anj_core_step(&anj);
     // previous value
@@ -1989,7 +2002,7 @@ static anj_dm_obj_t obj_111 = {
                         {
                             {
                                 .rid = 0,
-                                .operation = ANJ_DM_RES_W,
+                                .kind = ANJ_DM_RES_W,
                                 .type = ANJ_DATA_TYPE_STRING
                             }
                         }
@@ -2073,9 +2086,9 @@ ANJ_UNIT_TEST(registration_session, retransmission_write_block) {
     mock.bytes_sent = 0;
     memset(mock.send_data_buffer, 0, 100);
 
-    // retransmission of first block, sent return eagain
+    // retransmission of first block, sent return einprogress
     mock.bytes_to_send = 0;
-    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EAGAIN;
+    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EINPROGRESS;
     ADD_REQUEST(block_write_request_1);
     anj_core_step(&anj);
     ASSERT_EQ(mock.bytes_sent, 0);
@@ -2120,5 +2133,5 @@ ANJ_UNIT_TEST(registration_session, retransmission_write_block) {
     ANJ_UNIT_ASSERT_EQUAL_BYTES(res_buff,
                                 "very long string split into three requests");
 
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 }

@@ -42,7 +42,7 @@ static binary_app_data_container_inst_t
 static const anj_dm_res_t RES_DATA = {
     .rid = RID_DATA,
     .type = ANJ_DATA_TYPE_BYTES,
-    .operation = ANJ_DM_RES_RWM,
+    .kind = ANJ_DM_RES_RWM,
     .insts = res_insts,
     .max_inst_count = DATA_RES_MAX_INST_COUNT,
 };
@@ -119,31 +119,28 @@ static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result) {
     (void) anj;
     (void) obj;
-    if (!result) {
+    if (result == ANJ_DM_TRANSACTION_SUCCESS) {
         return;
     }
     memcpy(res_insts, res_insts_cached, sizeof(res_insts));
     memcpy(bin_data_insts, bin_data_insts_cached, sizeof(bin_data_insts));
 }
 
-static void init_inst_ctx(void) {
-    for (uint16_t i = 1; i < DATA_RES_MAX_INST_COUNT; i++) {
-        bin_data_insts[i].data_size = 0;
-        res_insts[i] = ANJ_ID_INVALID;
-    }
-    bin_data_insts[0].data[0] = (uint8_t) 'X';
-    bin_data_insts[0].data_size = 1;
-    res_insts[0] = 0;
-}
-
 static int inst_reset(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
     (void) anj;
     (void) obj;
     (void) iid;
-    init_inst_ctx();
+
+    // Clear all resource instances
+    for (uint8_t i = 0; i < DATA_RES_MAX_INST_COUNT; i++) {
+        res_insts[i] = ANJ_ID_INVALID;
+    }
+
     return 0;
 }
 
@@ -214,6 +211,13 @@ static const anj_dm_obj_t OBJ = {
 };
 
 const anj_dm_obj_t *init_binary_app_data_container(void) {
-    init_inst_ctx();
+    for (uint16_t i = 1; i < DATA_RES_MAX_INST_COUNT; i++) {
+        bin_data_insts[i].data_size = 0;
+        res_insts[i] = ANJ_ID_INVALID;
+    }
+    bin_data_insts[0].data[0] = (uint8_t) 'X';
+    bin_data_insts[0].data_size = 1;
+    res_insts[0] = 0;
+
     return &OBJ;
 }

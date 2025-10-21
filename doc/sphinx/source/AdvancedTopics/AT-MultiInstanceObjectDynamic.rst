@@ -6,7 +6,7 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Multi-Instance Object Dynamic
+Multi-Instance Object dynamic
 =============================
 
 Overview
@@ -35,13 +35,13 @@ Implement the Object
     .. code-block:: bash
 
         ./tools/anjay_codegen.py -i temperature_obj.xml -o temperature_obj.c -ni 5 -di
- 
+
     For details, see the :ref:`Dynamic multiple instance object generation<multi-dynamic-instance-generator>` section.
 
 Although the set of Object Instances is dynamic, you must still define the
 maximum number of instances using ``TEMP_OBJ_NUMBER_OF_INSTANCES``.
 
-Object and Object Instances State
+Object and Object Instances state
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Since the number of instances is now dynamic, to support transactional operations,
@@ -68,7 +68,7 @@ cache entire Object Instances instead of individual Resources.
     } temp_obj_ctx_t;
 
 
-Create and Delete Handlers
+Create and Delete handlers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To support server-side Instance management, implement the ``inst_create`` and
@@ -158,7 +158,7 @@ If the **Create** operation does not specify an `iid`, Anjay Lite assigns one an
 passes it to the `inst_create handler`.
 
 
-Object definition and Initialization
+Object definition and initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Begin by defining a static `temperature_obj` structure that holds the Object metadata:
@@ -241,7 +241,7 @@ and `temp_insts` arrays:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObjectDynamic/src/temperature_obj.c
-    :emphasize-lines: 6-7, 25-27
+    :emphasize-lines: 6-7, 28-30
 
     static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
         (void) anj;
@@ -260,15 +260,17 @@ and `temp_insts` arrays:
         return 0;
     }
 
-    static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+    static void transaction_end(anj_t *anj,
+                                const anj_dm_obj_t *obj,
+                                anj_dm_transaction_result_t result) {
         (void) anj;
         (void) obj;
 
-        if (result) {
-            // restore cached data
-            temp_obj_ctx_t *ctx = get_ctx();
-            memcpy(ctx->insts, ctx->insts_cached, sizeof(ctx->insts));
-            memcpy(ctx->temp_insts, ctx->temp_insts_cached,
-                sizeof(ctx->temp_insts));
+        if (result == ANJ_DM_TRANSACTION_SUCCESS) {
+            return;
         }
+        // restore cached data
+        temp_obj_ctx_t *ctx = get_ctx();
+        memcpy(ctx->insts, ctx->insts_cached, sizeof(ctx->insts));
+        memcpy(ctx->temp_insts, ctx->temp_insts_cached, sizeof(ctx->temp_insts));
     }

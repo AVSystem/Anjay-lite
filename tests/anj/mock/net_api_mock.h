@@ -24,18 +24,15 @@ typedef enum {
     ANJ_NET_FUN_SHUTDOWN,
     ANJ_NET_FUN_CLOSE,
     ANJ_NET_FUN_CLEANUP,
-    ANJ_NET_FUN_REUSE_LAST_PORT,
     ANJ_NET_FUN_GET_INNER_MTU,
-    ANJ_NET_FUN_GET_BYTES_RECEIVED,
-    ANJ_NET_FUN_GET_BYTES_SENT,
     ANJ_NET_FUN_GET_STATE,
+    ANJ_NET_FUN_QUEUE_MODE_RX_OFF,
     ANJ_NET_FUN_LAST
 } anj_net_fun_t;
 
 typedef struct {
     int call_result[ANJ_NET_FUN_LAST];
     int call_count[ANJ_NET_FUN_LAST];
-    size_t net_eagain_calls;
 
     size_t bytes_to_send;
     uint8_t send_data_buffer[1500];

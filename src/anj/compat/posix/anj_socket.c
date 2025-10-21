@@ -28,7 +28,7 @@
 #    ifdef ANJ_NET_WITH_UDP
 #        include <anj/compat/net/anj_udp.h>
 #    endif // ANJ_NET_WITH_UDP
-#    include <anj/log/log.h>
+#    include <anj/log.h>
 #    include <anj/utils.h>
 
 #    include <arpa/inet.h>
@@ -85,14 +85,8 @@ typedef struct anj_net_ctx_posix_impl {
     sockfd_t sockfd;
     int sock_type;
     anj_net_socket_state_t state;
-    bool local_port_was_set;
-    uint16_t port; // client side connection port number in network order
-    sa_family_t last_af_used;
 
     anj_net_socket_configuration_t config;
-
-    uint64_t bytes_received;
-    uint64_t bytes_sent;
 } anj_net_ctx_posix_impl_t;
 
 typedef enum {
@@ -123,15 +117,15 @@ static int anj_net_map_errno(int errno_val) {
  */
 #    ifdef EAGAIN
     case EAGAIN:
-        return ANJ_NET_EAGAIN;
+        return ANJ_NET_EINPROGRESS;
 #    endif
 #    if defined(EWOULDBLOCK) && (EWOULDBLOCK != EAGAIN)
     case EWOULDBLOCK:
-        return ANJ_NET_EAGAIN;
+        return ANJ_NET_EINPROGRESS;
 #    endif
 #    ifdef EINPROGRESS
     case EINPROGRESS:
-        return ANJ_NET_EAGAIN;
+        return ANJ_NET_EINPROGRESS;
 #    endif
 #    ifdef EBADF
     case EBADF:
@@ -139,7 +133,7 @@ static int anj_net_map_errno(int errno_val) {
 #    endif
 #    ifdef EBUSY
     case EBUSY:
-        return ANJ_NET_EAGAIN;
+        return ANJ_NET_EINPROGRESS;
 #    endif
 #    ifdef EINVAL
     case EINVAL:
@@ -202,40 +196,6 @@ static sa_family_t get_socket_family(sockfd_t fd) {
     return addr.sa_family;
 }
 
-static int store_local_port_in_ctx(anj_net_ctx_posix_impl_t *ctx) {
-    struct sockaddr addr;
-    socklen_t addrlen = sizeof(addr);
-
-    ctx->local_port_was_set = false;
-
-    errno = 0;
-    if (getsockname(ctx->sockfd, &addr, &addrlen)) {
-        return failure_from_errno();
-    }
-
-    switch (addr.sa_family) {
-#    ifdef ANJ_NET_WITH_IPV4
-    case AF_INET: {
-        struct sockaddr_in *addr_in = (struct sockaddr_in *) &addr;
-        ctx->port = addr_in->sin_port;
-        break;
-    }
-#    endif // ANJ_NET_WITH_IPV4
-#    ifdef ANJ_NET_WITH_IPV6
-    case AF_INET6: {
-        struct sockaddr_in6 *addr_in = (struct sockaddr_in6 *) &addr;
-        ctx->port = addr_in->sin6_port;
-        break;
-    }
-#    endif // ANJ_NET_WITH_IPV6
-    default:
-        return ANJ_NET_FAILED;
-    }
-
-    ctx->local_port_was_set = true;
-    return ANJ_NET_OK;
-}
-
 static void copy_config(anj_net_ctx_posix_impl_t *ctx,
                         const anj_net_socket_configuration_t *config) {
     if (!config) {
@@ -248,8 +208,6 @@ static void copy_config(anj_net_ctx_posix_impl_t *ctx,
 
 static void cleanup_ctx_internal(anj_net_ctx_posix_impl_t *ctx) {
     ctx->sockfd = INVALID_SOCKET;
-    ctx->bytes_received = 0;
-    ctx->bytes_sent = 0;
     ctx->state = ANJ_NET_SOCKET_STATE_CLOSED;
 }
 
@@ -270,17 +228,6 @@ static int create_net_socket(anj_net_ctx_posix_impl_t *ctx, sa_family_t af) {
         return ANJ_NET_ENOMEM;
     }
 
-    /* Always allow for reuse of address */
-    int reuse_addr = 1;
-    errno = 0;
-    if (setsockopt(ctx->sockfd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr,
-                   sizeof(reuse_addr))) {
-        int ret = failure_from_errno();
-        net_log(L_ERROR, "Failed to set socket opt");
-        net_close_internal(ctx);
-        return ret;
-    }
-
     return ANJ_NET_OK;
 }
 
@@ -299,8 +246,6 @@ static int create_net_ctx(anj_net_ctx_t **ctx_,
 
     cleanup_ctx_internal(ctx);
     ctx->sock_type = type;
-    ctx->local_port_was_set = false;
-    ctx->last_af_used = AF_UNSPEC;
     copy_config(ctx, config ? &config->raw_socket_config : NULL);
 
     if (ctx->config.af_setting < ANJ_NET_AF_SETTING_UNSPEC
@@ -458,19 +403,17 @@ static int net_addrinfo_resolve(anj_net_ctx_posix_impl_t *ctx,
     hints.ai_socktype = ctx->sock_type; // SOCK_STREAM or SOCK_DGRAM
     hints.ai_flags = 0;                 // Adjust flags as needed
 
-    int ret = getaddrinfo(hostname, NULL, &hints, servinfo);
+    const int ret = getaddrinfo(hostname, NULL, &hints, servinfo);
     if (ret != 0) {
         net_log(L_ERROR, "Address resolution failed for %s:%u: %s", hostname,
                 ntohs(port_in_net_order), gai_strerror(ret));
-        if (ret == EAI_AGAIN) {
-            /**
-             * getaddrinfo is allowed to return EAGAIN in which case we need to
-             * try again to resolve the address.
-             */
-            return ANJ_NET_EAGAIN;
-        } else {
-            return ANJ_NET_FAILED;
-        }
+        /**
+         * getaddrinfo is allowed to return EAGAIN,
+         * but this is ignored and treated as failed - to proceed with
+         * normal error handling procedure
+         */
+
+        return ANJ_NET_FAILED;
     }
 
     update_ports(*servinfo, port_in_net_order);
@@ -559,13 +502,7 @@ net_connect(anj_net_ctx_t *ctx_, const char *hostname, const char *port_str) {
     if (ret == ANJ_NET_OK) {
         net_log(L_INFO, "Connected");
         ctx->state = ANJ_NET_SOCKET_STATE_CONNECTED;
-
-        if (store_local_port_in_ctx(ctx)) {
-            net_log(L_WARNING, "Failed to store local port");
-        }
-
-        ctx->last_af_used = get_socket_family(ctx->sockfd);
-    } else if (ret != ANJ_NET_EAGAIN) {
+    } else if (ret != ANJ_NET_EINPROGRESS) {
         net_close_internal(ctx);
     }
     return ret;
@@ -581,7 +518,6 @@ static int net_send_internal(anj_net_ctx_posix_impl_t *ctx,
         return failure_from_errno();
     }
 
-    ctx->bytes_sent += (uint64_t) result;
     *bytes_sent = (size_t) result;
 
     /* we did send something but it might be less then we wanted */
@@ -622,10 +558,13 @@ static int net_recv_internal(anj_net_ctx_posix_impl_t *ctx,
     errno = 0;
     ssize_t result = recv(ctx->sockfd, data, data_size, 0);
     if (result < 0) {
+        // recv (and only recv) has to differentiate EAGAIN from other errors
+        if (errno == EAGAIN) {
+            return ANJ_NET_EAGAIN;
+        }
         return failure_from_errno();
     }
 
-    ctx->bytes_received += (uint64_t) result;
     *bytes_received = (size_t) result;
 
     if (ctx->sock_type == SOCK_DGRAM && result > 0
@@ -663,68 +602,6 @@ static int net_recv(anj_net_ctx_t *ctx_,
     }
 
     return net_recv_internal(ctx, bytes_received, buf, length);
-}
-
-static int net_bind_internal(anj_net_ctx_posix_impl_t *ctx,
-                             struct addrinfo **serverinfo,
-                             const char *address,
-                             const uint16_t port_in_net_order) {
-    int ret = net_addrinfo_resolve(ctx, address, port_in_net_order, serverinfo,
-                                   ctx->last_af_used);
-    if (ret != ANJ_NET_OK) {
-        return ret;
-    }
-
-    struct addrinfo *addr = *serverinfo;
-    if (!addr) {
-        return ANJ_NET_FAILED;
-    }
-
-    ret = create_net_socket(ctx, (sa_family_t) addr->ai_family);
-    if (ret != ANJ_NET_OK) {
-        return ret;
-    }
-
-    net_log(L_INFO, "Binding to port %u", ntohs(port_in_net_order));
-
-    errno = 0;
-    if (bind(ctx->sockfd, addr->ai_addr, addr->ai_addrlen) < 0) {
-        ret = failure_from_errno();
-        net_log(L_ERROR, "Failed to bind socket");
-        return ret;
-    }
-
-    ctx->state = ANJ_NET_SOCKET_STATE_BOUND;
-    return ANJ_NET_OK;
-}
-
-static int net_reuse_last_port(anj_net_ctx_t *ctx_) {
-    if (!ctx_) {
-        return ANJ_NET_EBADFD;
-    }
-
-    anj_net_ctx_posix_impl_t *ctx = (anj_net_ctx_posix_impl_t *) ctx_;
-    if (ctx->sockfd != INVALID_SOCKET || !ctx->local_port_was_set) {
-        return ANJ_NET_EINVAL;
-    }
-
-    if (ctx->last_af_used != AF_INET && ctx->last_af_used != AF_INET6) {
-        return ANJ_NET_EINVAL;
-    }
-
-    struct addrinfo *serverinfo = NULL;
-    int ret =
-            net_bind_internal(ctx, &serverinfo,
-                              ctx->last_af_used == AF_INET6 ? "::" : "0.0.0.0",
-                              ctx->port);
-    if (serverinfo) {
-        freeaddrinfo(serverinfo);
-    }
-    if (ret != ANJ_NET_OK) {
-        net_close_internal(ctx);
-    }
-
-    return ret;
 }
 
 static int get_mtu(anj_net_ctx_posix_impl_t *ctx, int32_t *out_mtu) {
@@ -880,12 +757,6 @@ static int net_get_opt(anj_net_ctx_t *ctx_,
     anj_net_ctx_posix_impl_t *ctx = (anj_net_ctx_posix_impl_t *) ctx_;
 
     switch (opt_key) {
-    case ANJ_POSIX_SOCKET_OPT_BYTES_SENT:
-        *(uint64_t *) out_value = ctx->bytes_sent;
-        return ANJ_NET_OK;
-    case ANJ_POSIX_SOCKET_OPT_BYTES_RECEIVED:
-        *(uint64_t *) out_value = ctx->bytes_received;
-        return ANJ_NET_OK;
     case ANJ_POSIX_SOCKET_OPT_STATE:
         *(anj_net_socket_state_t *) out_value = ctx->state;
         return ANJ_NET_OK;
@@ -898,23 +769,13 @@ static int net_get_opt(anj_net_ctx_t *ctx_,
     }
 }
 
-static const void *get_system_socket(anj_net_ctx_t *ctx_) {
-    if (!ctx_) {
-        return NULL;
-    }
-
-    anj_net_ctx_posix_impl_t *ctx = (anj_net_ctx_posix_impl_t *) ctx_;
-    if (ctx->sockfd == INVALID_SOCKET) {
-        return NULL;
-    }
-    return &ctx->sockfd;
+static int net_queue_mode_rx_off(anj_net_ctx_t *ctx_) {
+    (void) ctx_;
+    return ANJ_NET_OK;
 }
 
 /* POSIX layer wrappers */
 #    ifdef ANJ_NET_WITH_TCP
-const void *anj_tcp_get_system_socket(anj_net_ctx_t *ctx) {
-    return get_system_socket(ctx);
-}
 
 int anj_tcp_create_ctx(anj_net_ctx_t **ctx, const anj_net_config_t *config) {
     return create_net_ctx(ctx, SOCK_STREAM, config);
@@ -952,14 +813,6 @@ int anj_tcp_close(anj_net_ctx_t *ctx) {
     return net_close(ctx);
 }
 
-int anj_tcp_get_bytes_received(anj_net_ctx_t *ctx, uint64_t *out_value) {
-    return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_BYTES_RECEIVED);
-}
-
-int anj_tcp_get_bytes_sent(anj_net_ctx_t *ctx, uint64_t *out_value) {
-    return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_BYTES_SENT);
-}
-
 int anj_tcp_get_state(anj_net_ctx_t *ctx, anj_net_socket_state_t *out_value) {
     return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_STATE);
 }
@@ -967,15 +820,13 @@ int anj_tcp_get_state(anj_net_ctx_t *ctx, anj_net_socket_state_t *out_value) {
 int anj_tcp_get_inner_mtu(anj_net_ctx_t *ctx, int32_t *out_value) {
     return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_INNER_MTU);
 }
-int anj_tcp_reuse_last_port(anj_net_ctx_t *ctx) {
-    return net_reuse_last_port(ctx);
+
+int anj_tcp_queue_mode_rx_off(anj_net_ctx_t *ctx) {
+    return net_queue_mode_rx_off(ctx);
 }
 #    endif // ANJ_NET_WITH_TCP
 
 #    ifdef ANJ_NET_WITH_UDP
-const void *anj_udp_get_system_socket(anj_net_ctx_t *ctx) {
-    return get_system_socket(ctx);
-}
 
 int anj_udp_create_ctx(anj_net_ctx_t **ctx, const anj_net_config_t *config) {
     return create_net_ctx(ctx, SOCK_DGRAM, config);
@@ -1013,14 +864,6 @@ int anj_udp_close(anj_net_ctx_t *ctx) {
     return net_close(ctx);
 }
 
-int anj_udp_get_bytes_received(anj_net_ctx_t *ctx, uint64_t *out_value) {
-    return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_BYTES_RECEIVED);
-}
-
-int anj_udp_get_bytes_sent(anj_net_ctx_t *ctx, uint64_t *out_value) {
-    return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_BYTES_SENT);
-}
-
 int anj_udp_get_state(anj_net_ctx_t *ctx, anj_net_socket_state_t *out_value) {
     return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_STATE);
 }
@@ -1029,8 +872,8 @@ int anj_udp_get_inner_mtu(anj_net_ctx_t *ctx, int32_t *out_value) {
     return net_get_opt(ctx, out_value, ANJ_POSIX_SOCKET_OPT_INNER_MTU);
 }
 
-int anj_udp_reuse_last_port(anj_net_ctx_t *ctx) {
-    return net_reuse_last_port(ctx);
+int anj_udp_queue_mode_rx_off(anj_net_ctx_t *ctx) {
+    return net_queue_mode_rx_off(ctx);
 }
 #    endif // ANJ_NET_WITH_UDP
 #else      // ANJ_WITH_SOCKET_POSIX_COMPAT

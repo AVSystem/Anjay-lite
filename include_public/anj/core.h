@@ -9,6 +9,14 @@
 
 #include <anj/init.h>
 
+/**
+ * @file
+ * @brief Core LwM2M client API.
+ *
+ * Declares configuration, connection state, and main loop functions that drive
+ * the Anjay Lite client.
+ */
+
 #ifndef ANJ_CORE_H
 #    define ANJ_CORE_H
 
@@ -16,15 +24,19 @@
 #    include <anj/defs.h>
 #    include <anj/dm/core.h>
 
+/** @cond */
 #    define ANJ_INTERNAL_INCLUDE_EXCHANGE
 #    include <anj_internal/exchange.h> // IWYU pragma: export
 #    undef ANJ_INTERNAL_INCLUDE_EXCHANGE
+/** @endcond */
 
+/** @cond */
 #    ifdef ANJ_WITH_BOOTSTRAP
 #        define ANJ_INTERNAL_INCLUDE_BOOTSTRAP
 #        include <anj_internal/bootstrap.h> // IWYU pragma: export
 #        undef ANJ_INTERNAL_INCLUDE_BOOTSTRAP
 #    endif // ANJ_WITH_BOOTSTRAP
+/** @endcond */
 
 #    ifdef ANJ_WITH_LWM2M_SEND
 #        include <anj/lwm2m_send.h>
@@ -57,6 +69,7 @@ typedef enum {
      * immediately transition to @ref ANJ_CONN_STATUS_INVALID.
      */
     ANJ_CONN_STATUS_INITIAL,
+
     /**
      * Provided configuration is invalid and a connection cannot be established.
      *
@@ -64,6 +77,7 @@ typedef enum {
      * @ref ANJ_CONN_STATUS_FAILURE to indicate a permanent failure.
      */
     ANJ_CONN_STATUS_INVALID,
+
     /**
      * Indicates that bootstrap or registration has permanently failed
      * (i.e., all configured retry attempts have been exhausted).
@@ -73,35 +87,43 @@ typedef enum {
      * @ref anj_core_restart.
      */
     ANJ_CONN_STATUS_FAILURE,
+
     /**
      * Bootstrap process is ongoing.
      */
     ANJ_CONN_STATUS_BOOTSTRAPPING,
+
     /**
      * Bootstrapping process has finished successfully.
      */
     ANJ_CONN_STATUS_BOOTSTRAPPED,
+
     /**
      * Registering process is ongoing.
      */
     ANJ_CONN_STATUS_REGISTERING,
+
     /**
      * Registering/Updating process has finished successfully.
      */
     ANJ_CONN_STATUS_REGISTERED,
+
     /**
      * Connection is suspended. If the suspension was initiated by the server
-     * the client will remain suspended until the Disable Timeout (resource
-     * 1/x/5) expires. If the suspension was initiated by the client application
-     * no action is taken until user decides to resume or timeout occurs.
+     * the client will remain suspended until the Disable Timeout (Resource
+     * /1/x/5) expires. If the suspension was initiated by the client
+     * application no action is taken until user decides to resume or timeout
+     * occurs.
      */
     ANJ_CONN_STATUS_SUSPENDED,
+
     /**
-     * Client is entering queue mode.
+     * Client is entering Queue Mode.
      */
     ANJ_CONN_STATUS_ENTERING_QUEUE_MODE,
+
     /**
-     * Client is in queue mode: new requests still can be sent to the server,
+     * Client is in Queue Mode: new requests still can be sent to the server,
      * but no new messages are received.
      */
     ANJ_CONN_STATUS_QUEUE_MODE,
@@ -114,8 +136,10 @@ typedef enum {
 typedef enum {
     /** Resource or Resource Instance value changed. */
     ANJ_CORE_CHANGE_TYPE_VALUE_CHANGED = 0,
+
     /** Object Instance or Resource Instance added. */
     ANJ_CORE_CHANGE_TYPE_ADDED = 1,
+
     /** Object Instance or Resource Instance deleted. */
     ANJ_CORE_CHANGE_TYPE_DELETED = 2
 } anj_core_change_type_t;
@@ -124,28 +148,31 @@ typedef enum {
  * Callback type for connection status change notifications.
  *
  * This function is called whenever the connection state of the LwM2M client
- * changes — e.g., transitioning from bootstrapping to registered, or entering
- * queue mode.
+ * changes — e.g., transitioning from @ref ANJ_CONN_STATUS_REGISTERING to @ref
+ * ANJ_CONN_STATUS_REGISTERED, or entering Queue Mode.
  *
  * Users may use this callback to monitor client connectivity and act
  * accordingly (e.g., update UI, manage power states, or trigger other logic).
  *
- * @param arg          Opaque argument passed to the callback.
- * @param anj          Anjay object reporting the status change.
- * @param conn_status  New connection status value; see @ref anj_conn_status_t.
+ * @param arg         Opaque argument passed to the callback, as provided in
+ *                    @ref anj_dm_device_object_init_t::reboot_cb_arg.
+ * @param anj         Anjay object.
+ * @param conn_status New connection status value; see @ref anj_conn_status_t.
  */
 typedef void anj_connection_status_callback_t(void *arg,
                                               anj_t *anj,
                                               anj_conn_status_t conn_status);
 
 /**
- * Anjay Lite configuration. Provided in @ref anj_core_init() function.
+ * Anjay Lite configuration. Provided in @ref anj_core_init function.
  */
-typedef struct anjay_configuration_struct {
+typedef struct anj_configuration_struct {
     /**
      * Endpoint name as presented to the LwM2M server. Must be non-NULL.
      *
-     * NOTE: Endpoint name must stay valid for the whole lifetime of the Anjay.
+     * @warning This string parameter is not copied internally. The user must
+     *          ensure that this pointer remains valid for the entire lifetime
+     *          of @ref anj_t object.
      */
     const char *endpoint_name;
 
@@ -153,8 +180,9 @@ typedef struct anjay_configuration_struct {
      * Optional callback for monitoring connection status changes.
      *
      * If provided, this callback will be invoked by the library whenever the
-     * client transitions between connection states, check @ref
-     * anj_connection_status_callback_t for details.
+     * client transitions between connection states.
+     *
+     * @see anj_connection_status_callback_t
      */
     anj_connection_status_callback_t *connection_status_cb;
 
@@ -162,18 +190,18 @@ typedef struct anjay_configuration_struct {
      * Opaque argument that will be passed to the function configured in the
      * @ref connection_status_cb field.
      *
-     * If @ref connection_status_cb is NULL, this field is ignored.
+     * If @ref connection_status_cb is @c NULL, this field is ignored.
      */
     void *connection_status_cb_arg;
 
     /**
-     * Enables Queue Mode — an LwM2M feature that allows the client to close
+     * Enables Queue Mode — a LwM2M feature that allows the client to close
      * its transport connection (e.g., UDP socket) to reduce power consumption
      * in constrained environments.
      *
      * When enabled, the client enters offline mode after a configurable period
      * of inactivity — that is, when no message exchange with the server has
-     * occurred for @ref queue_mode_timeout_ms time.
+     * occurred for @ref queue_mode_timeout time.
      *
      * The client exits offline mode only when sending a Registration Update,
      * a Send message, or a Notification.
@@ -184,32 +212,30 @@ typedef struct anjay_configuration_struct {
     bool queue_mode_enabled;
 
     /**
-     * Specifies the timeout (in milliseconds) after which the client enters
+     * Specifies the timeout after which the client enters
      * offline mode in Queue Mode.
      *
-     * @note If not set, the default is based on the CoAP MAX_TRANSMIT_WAIT,
-     *       which is derived from CoAP transmission parameters
-     *       (see @ref udp_tx_params).
+     * @note If not set, the default is CoAP MAX_TRANSMIT_WAIT, which is derived
+     *       from CoAP transmission parameters (see @ref udp_tx_params).
      */
-    uint64_t queue_mode_timeout_ms;
+    anj_time_duration_t queue_mode_timeout;
 
     /**
      * Network socket configuration.
      */
-    const anj_net_config_t *net_socket_cfg;
+    const anj_net_socket_configuration_t *net_socket_cfg;
 
     /**
-     * UDP transmission parameters, for LwM2M client requests. If NULL, default
-     * values will be used.
+     * UDP transmission parameters, for LwM2M client requests. If @c NULL,
+     * the default value of @ref ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT is used.
      */
     const anj_exchange_udp_tx_params_t *udp_tx_params;
 
     /**
      * Time to wait for the next block of the LwM2M Server request. If not set,
-     * the default internal value of \c _ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT_MS
-     * is used.
+     * the default value of @ref ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT is used.
      */
-    uint64_t exchange_request_timeout_ms;
+    anj_time_duration_t exchange_request_timeout;
 #    ifdef ANJ_WITH_BOOTSTRAP
 
     /**
@@ -219,43 +245,42 @@ typedef struct anjay_configuration_struct {
     uint16_t bootstrap_retry_count;
 
     /**
-     * The delay, in seconds, between successive communication attempts in a
+     * The delay between successive communication attempts in a
      * communication sequence to the Bootstrap Server. This value is multiplied
      * by two to the power of the communication retry attempt minus one
      * (2**(retry attempt-1)) to create an exponential back-off.
      */
-    uint32_t bootstrap_retry_timeout;
+    anj_time_duration_t bootstrap_retry_timeout;
 
     /**
-     * Timeout (in seconds) for the Bootstrap process.
+     * Timeout for the Bootstrap process.
      *
      * This timeout defines the maximum period of inactivity allowed during
      * the Bootstrap phase. If no message is received from the Bootstrap Server
      * within this time, the bootstrap process will be considered failed.
      *
      * If not set, a default value of 247 seconds is used, which corresponds to
-     * the CoAP EXCHANGE_LIFETIME value.
+     * the CoAP EXCHANGE_LIFETIME value for default CoAP transmission
+     * parameters.
      */
-    uint32_t bootstrap_timeout;
+    anj_time_duration_t bootstrap_timeout;
 #    endif // ANJ_WITH_BOOTSTRAP
 } anj_configuration_t;
 
 /**
- * Initializes the core of the Anjay Lite library.
- * The @p anj object must be created and allocated by the user before calling
- * this function.
+ * Initializes the core of the Anjay Lite library. The @p anj object must be
+ * created and allocated by the user before calling this function.
  *
- * @note It is recommended to ensure that the system time is set correctly
- *       before calling this function. Many internal operations — such as
- *       registration lifetimes, scheduling, and retransmissions — rely on
- *       time-based logic. If the system time is significantly adjusted
- *       (e.g., via NTP or manual update) after initialization, it may affect
- *       incorrect library behavior.
+ * @warning User must ensure that real (calendar) time (see @ref
+ *          anj_time_real_now) is set correctly before calling this function.
+ *          Many internal mechanisms depend on the monotonic clock. Significant
+ *          adjustments of the clock (e.g. via NTP or manual update) after
+ *          initialization may cause the library to behave incorrectly.
  *
  * @param anj    Anjay object to operate on.
  * @param config Configuration structure.
  *
- * @returns 0 on success, or a negative value in case of error.
+ * @return 0 on success, a non-zero value in case of an error.
  */
 int anj_core_init(anj_t *anj, const anj_configuration_t *config);
 
@@ -265,21 +290,21 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config);
  * This function should be called regularly in the main application loop. It
  * drives the internal state machine and handles all scheduled operations
  * related to LwM2M communication (e.g., bootstrap, registration, notifications,
- * queue mode transitions, etc.).
+ * Queue Mode transitions, etc.).
  *
  * This function is non-blocking, unless a custom network implementation
  * introduces blocking behavior.
  *
- * @param anj  Anjay object to operate on.
+ * @param anj Anjay object to operate on.
  */
 void anj_core_step(anj_t *anj);
 
 /**
- * Returns the time (in milliseconds) until the next call to @ref anj_core_step
+ * Returns the time until the next call to @ref anj_core_step
  * is required.
  *
- * In most cases, the returned value will be 0, indicating that the main loop
- * should call @ref anj_core_step immediately.
+ * In most cases, the returned value will be @ref ANJ_TIME_DURATION_ZERO,
+ * indicating that the main loop should call @ref anj_core_step immediately.
  *
  * However, in certain low-activity states, this function may return a positive
  * value:
@@ -292,64 +317,61 @@ void anj_core_step(anj_t *anj);
  * allowing the main loop to wait the appropriate amount of time before calling
  * @ref anj_core_step again.
  *
- * @note For example, if the device is in queue mode and the next Update
+ * @note For example, if the device is in Queue Mode and the next Update
  *       message is scheduled to be sent in 20 seconds and there is no active
- *       observations, this function will return 20*1000.
+ *       observations, this function will return @ref anj_time_duration_t
+ *       representing 20 seconds.
  *
  * @note Returned value might become outdated if @ref anj_core_change_type_t is
- * called after this function returns. In such case, the application should call
- * @ref anj_core_next_step_time again to get an updated value.
+ *       called after this function returns. In such case, the application
+ *       should call @ref anj_core_next_step_time again to get an updated value.
  *
  * This function allows the integration layer to optimize power consumption
  * or sleep scheduling by delaying calls to @ref anj_core_step until necessary.
  *
- * @param anj  Anjay object to operate on.
+ * @param anj Anjay object to operate on.
  *
- * @return Time in milliseconds until the next @ref anj_core_step is required.
+ * @return @ref anj_time_duration_t until the next @ref anj_core_step is
+ *         required.
+ *
+ * @see anj_time_duration_t
+ * @see anj_time_scalar_from_duration
  */
-uint64_t anj_core_next_step_time(anj_t *anj);
+anj_time_duration_t anj_core_next_step_time(anj_t *anj);
 
 /**
- * Checks if there is an ongoing exchange between the client and the server.
- * User must not process operations on the data model if this function returns
- * true.
- *
- * @param anj  Anjay object to operate on.
- *
- * @returns true if there is an ongoing operation, false otherwise.
- */
-bool anj_core_ongoing_operation(anj_t *anj);
-
-/**
- * Should be called when Disable resource of Server object (/1/x/4) is executed.
+ * Should be called when the Disable Resource of the Server Object (/1/x/4)
+ * is executed.
  *
  * @note The disable process will be scheduled but delayed until the currently
  *       processed LwM2M request is fully completed.
  *
- * @note De-Register message will be sent to the server before the connection is
- *       closed.
+ * @note A De-Register message will be sent to the server before the connection
+ *       is closed.
  *
- * @param anj     Anjay object to operate on.
- * @param timeout Timeout for server disable, i.e. time for which a server
- *                should be disabled before it's automatically enabled again, in
- *                seconds. It's taken from /1/x/5 Resource and if it's not set,
- *                default value of 86400 seconds (24h) should be used.
+ * @param anj     Anjay object.
+ * @param timeout Timeout for which the server should remain disabled, in
+ *                seconds. This value MUST be taken from the Disable Timeout
+ *                Resource (/1/x/5) of the Server Object Instance corresponding
+ *                to the LwM2M server that has executed the Resource. If that
+ *                resource is not present, the default value of @ref
+ *                ANJ_DISABLE_TIMEOUT_DEFAULT_VALUE SHALL be used.
  */
 void anj_core_server_obj_disable_executed(anj_t *anj, uint32_t timeout);
 
 /**
- * Should be called when Registration Update Trigger resource of Server object
+ * Should be called when Registration Update Trigger Resource of Server Object
  * (/1/x/8) is executed.
  *
  * @note The Update operation will be scheduled but delayed until the currently
  *       processed LwM2M request is fully completed.
  *
- * @param anj   Anjay object to operate on.
+ * @param anj Anjay object.
  */
 void anj_core_server_obj_registration_update_trigger_executed(anj_t *anj);
 
 /**
- * Should be called when Bootstrap-Request Trigger resource of Server object
+ * Should be called when Bootstrap-Request Trigger resource of Server Object
  * (/1/x/9) is executed.
  *
  * @note The bootstrap process will be scheduled but delayed until the currently
@@ -358,56 +380,60 @@ void anj_core_server_obj_registration_update_trigger_executed(anj_t *anj);
  * @note De-Register message will be sent to the server before the connection
  *       with Management Server is closed and Bootstrap is started.
  *
- * @param anj   Anjay object to operate on.
+ * @param anj Anjay object.
  */
 void anj_core_server_obj_bootstrap_request_trigger_executed(anj_t *anj);
 
 /**
- * Notifies the library that data model changed. Depending on the
- * @p change_type there are three possible scenarios:
- *  - @ref ANJ_CORE_CHANGE_TYPE_VALUE_CHANGED - Resource or Resource Instance
- *    value changed. It may trigger preparation of a LwM2M Notify message.
- *  - @ref ANJ_CORE_CHANGE_TYPE_ADDED - Object Instance or Resource Instance has
- *    been added. It may trigger preparation of a LwM2M Notify message and for
- *    new Object Instance also registration update.
- *  - @ref ANJ_CORE_CHANGE_TYPE_DELETED - Object Instance or Resource Instance
- *    has been deleted. The consequence will be the removal of all observations
- *    and attributes associated with this Instance. For removed Object Instance
- *    it will also trigger registration update.
+ * Informs the library that the application has modified the data model.
  *
- * For correct handling of notifications, and registration updates, this
- * function must be called on any change in the data model.
+ * This function must be called whenever the application itself changes any
+ * Object, Instance, or Resource in the data model — i.e., when the change is
+ * not a direct result of an operation initiated by the LwM2M Server.
  *
- * IMPORTANT: This function is to be used only for changes in the data model
- * that are caused by user actions. Changes caused by the LwM2M Server are
- * handled internally.
+ * Typical examples where this function MUST be called:
+ *  - @ref ANJ_CORE_CHANGE_TYPE_VALUE_CHANGED — a Resource or Resource Instance
+ *    value was modified by the application logic (not by a Write/Execute from
+ *    the Server). This may trigger a LwM2M Notify message.
+ *    - Special case: if the Lifetime Resource of the Server object
+ *      (Object ID: @ref ANJ_OBJ_ID_SERVER) is changed, this will additionally
+ *      trigger a registration update with the new lifetime value.
+ *  - @ref ANJ_CORE_CHANGE_TYPE_ADDED — the application created a new Object
+ *    Instance or Resource Instance. This may trigger a Notify, and for new
+ *    Object Instances also a registration update.
+ *  - @ref ANJ_CORE_CHANGE_TYPE_DELETED — the application removed an Object
+ *    Instance or Resource Instance. This removes associated observations and
+ *    attributes, and for Object Instances also triggers a registration update.
  *
- * @param anj          Anjay object to operate on.t.
- * @param path         Pointer to the path of the Resource that changed, or
- *                     the Instance that was added/removed.
- * @param change_type  Type of change; @ref anj_core_change_type_t.
+ * @warning Do not call this for changes that are a direct result of LwM2M
+ *          Server operations (e.g., after a Write or Create request). Such
+ *          cases are handled internally by the library.
+ *
+ * @param anj         Anjay object.
+ * @param path        Pointer to the path of the changed Resource or affected
+ *                    Instance.
+ * @param change_type Type of change; see @ref anj_core_change_type_t.
  */
 void anj_core_data_model_changed(anj_t *anj,
                                  const anj_uri_path_t *path,
                                  anj_core_change_type_t change_type);
 
 /**
- * Disables the LwM2M Server connection for a specified timeout.
- * If the server is already disabled, this call will only update the timeout
- * value.
+ * Temporarily disables the LwM2M Server connection.
  *
- * @note If the client is currently registered, a De-Register message will
- *       be sent to the server before the connection is closed.
+ * If the server is currently active and registered, a De-Register message
+ * will be sent before the connection is closed. If the server is already
+ * disabled, calling this function updates the disable timeout.
  *
- * @note To disable the server for infinite time, set @p timeout_ms to @ref
- *       ANJ_TIME_UNDEFINED.
+ * The server will be automatically re-enabled after the specified duration.
+ * To disable the server indefinitely, set @p timeout to
+ * @ref ANJ_TIME_DURATION_INVALID.
  *
- * @param anj     Anjay object to operate on.
- * @param timeout_ms Timeout for server disable, i.e. time for which a server
- *                should be disabled before it's automatically enabled again, in
- *                miliseconds.
+ * @param anj     Anjay object.
+ * @param timeout Duration of the disable period, expressed as
+ *                @ref anj_time_duration_t.
  */
-void anj_core_disable_server(anj_t *anj, uint64_t timeout_ms);
+void anj_core_disable_server(anj_t *anj, anj_time_duration_t timeout);
 
 /**
  * Forces the start of a Bootstrap sequence.
@@ -415,36 +441,39 @@ void anj_core_disable_server(anj_t *anj, uint64_t timeout_ms);
  * This function immediately initiates a client-side Bootstrap procedure,
  * regardless of the current connection status.
  *
- * @note If a bootstrap session is already active, this function will have no
- *       effect.
+ * @note If a Bootstrap session is already active, this function has no effect.
  *
- * @param anj  Anjay object to operate on.
+ * @warning If the client is in the @ref ANJ_CONN_STATUS_SUSPENDED state due to
+ *          a server-triggered Disable operation (see
+ *          @ref anj_core_server_obj_disable_executed), it is expected to remain
+ *          disconnected until the disable timeout expires. Reconnecting earlier
+ *          is technically possible, but it will cause the client to ignore the
+ *          server's request to stay offline for the specified duration.
+ *
+ * @param anj Anjay object.
  */
 void anj_core_request_bootstrap(anj_t *anj);
 
 /**
- * Restarts the Anjay Lite client connection by resetting its internal state to
- * the initial state (@ref ANJ_CONN_STATUS_INITIAL).
+ * Restarts the Anjay Lite client by resetting its internal state to
+ * @ref ANJ_CONN_STATUS_INITIAL.
  *
- * This function can be used to fully reinitialize the LwM2M connection cycle,
- * e.g., after a configuration change, error recovery, or user-triggered reset.
+ * This fully reinitializes the LwM2M connection cycle and can be used after
+ * configuration changes, error recovery, or a user-triggered reset.
  *
- * The following operations are performed:
- * - If the client is currently registered with a LwM2M Server,
- *   a De-Register message is sent before tearing down the connection.
- * - If a Bootstrap or Registration process is in progress,
- *   it will be immediately aborted.
+ * Actions performed:
+ * - If the client is registered, a De-Register message is sent before the
+ *   connection is closed.
+ * - If Bootstrap or Registration is in progress, it is aborted immediately.
  *
- * @note If the client is currently in the @ref ANJ_CONN_STATUS_SUSPENDED state
- *       due to a server-triggered Disable operation (i.e., after calling
- *       @ref anj_core_server_obj_disable_executed), the user should **not**
- *       attempt to manually resume the connection (e.g., via
- *       @ref anj_core_restart or @ref anj_core_request_bootstrap).
+ * @warning If the client is in the @ref ANJ_CONN_STATUS_SUSPENDED state due to
+ *          a server-triggered Disable operation (see
+ *          @ref anj_core_server_obj_disable_executed), it is expected to remain
+ *          disconnected until the disable timeout expires. Reconnecting earlier
+ *          is technically possible, but it will cause the client to ignore the
+ *          server's request to stay offline for the specified duration.
  *
- *       In this case, the connection is suspended intentionally by the server,
- *       and the client must remain idle until the disable timeout expires.
- *
- * @param anj  Anjay object to operate on.
+ * @param anj Anjay object.
  */
 void anj_core_restart(anj_t *anj);
 
@@ -454,7 +483,7 @@ void anj_core_restart(anj_t *anj);
  * @note If a registration session is not active, this function will have no
  *       effect.
  *
- * @param anj  Anjay object to operate on.
+ * @param anj Anjay object.
  */
 void anj_core_request_update(anj_t *anj);
 
@@ -506,15 +535,17 @@ void anj_core_request_update(anj_t *anj);
  *
  * @param anj Pointer to the Anjay client instance to shut down.
  *
- * @returns 0 on success,
- *          @ref ANJ_NET_EAGAIN if shutdown is still in progress,
- *          or a different error code on failure.
+ * @return 0 on success,
+ *         @ref ANJ_NET_EAGAIN if shutdown is still in progress,
+ *         or a different error code on failure.
  */
 int anj_core_shutdown(anj_t *anj);
 
+/** @cond */
 #    define ANJ_INTERNAL_INCLUDE_CORE
 #    include <anj_internal/core.h> // IWYU pragma: export
 #    undef ANJ_INTERNAL_INCLUDE_CORE
+/** @endcond */
 
 #    ifdef __cplusplus
 }

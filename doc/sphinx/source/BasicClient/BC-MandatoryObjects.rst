@@ -27,8 +27,8 @@ When Anjay Lite is first instantiated (as in our previous :ref:`hello world
 i.e., no LwM2M Objects are registered within it. You must explicitly install
 the required Objects, as shown below.
 
-Instal Objects
-^^^^^^^^^^^^^^
+Install Objects
+^^^^^^^^^^^^^^^
 
 Use the following functions to install the Objects:
 
@@ -200,13 +200,15 @@ library. However, most real-world applications also need to handle their own
 logic. How to implement application-specific functionality will be explained
 in the following sections.
 
-Coiote experience
-^^^^^^^^^^^^^^^^^
 
-At this stage, you can log in to Coiote IoT Device Management and open the
-**Device Center** for your registered device to explore the platform
-functionality. Check the **Data Model tab** to see which LwM2M Objects are
-currently exposed. You will notice that the Server and Device objects are
-visible, but the Security object is not. This is expected behavior defined by
-the LwM2M specification — the Security object is neither readable nor
-discoverable from the device to protect sensitive configuration data.
+Use Coiote DM to view objects
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+You can now log in to **Coiote IoT Device Management** and open the
+**Device Center** for your registered device to explore platform functionality.
+Check the **Data model** tab to view which LwM2M objects are exposed.
+
+You'll notice that the **Server** and **Device** Objects are visible, but the
+**Security** Object isn't. This is expected behavior — according to the LwM2M
+specification, the Security Object is neither readable nor discoverable from
+the device to protect sensitive configuration data.

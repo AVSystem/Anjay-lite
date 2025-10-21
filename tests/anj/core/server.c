@@ -30,14 +30,13 @@ ANJ_UNIT_TEST(server, instant_connect_disconnect) {
     TEST_INIT();
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", false));
+                                                "localhost", "9998"));
     ANJ_UNIT_ASSERT_EQUAL_STRING(mock.hostname, "localhost");
     ANJ_UNIT_ASSERT_EQUAL_STRING(mock.port, "9998");
     ANJ_UNIT_ASSERT_EQUAL(ctx.mtu, 500);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_GET_INNER_MTU], 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_REUSE_LAST_PORT], 0);
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_close(&ctx, true));
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_SHUTDOWN], 1);
@@ -45,64 +44,31 @@ ANJ_UNIT_TEST(server, instant_connect_disconnect) {
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 1);
 }
 
-ANJ_UNIT_TEST(server, connect_disconnect_with_net_again) {
+ANJ_UNIT_TEST(server, connect_disconnect_with_net_inprogress) {
     TEST_INIT();
 
-    mock.net_eagain_calls = 2;
+    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EINPROGRESS;
     ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", false),
-                          ANJ_NET_EAGAIN);
+                                              "localhost", "9998"),
+                          ANJ_NET_EINPROGRESS);
+    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EINPROGRESS;
     ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", false),
-                          ANJ_NET_EAGAIN);
+                                              "localhost", "9998"),
+                          ANJ_NET_EINPROGRESS);
+    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_OK;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", false));
+                                                "localhost", "9998"));
     ANJ_UNIT_ASSERT_EQUAL_STRING(mock.hostname, "localhost");
     ANJ_UNIT_ASSERT_EQUAL_STRING(mock.port, "9998");
     ANJ_UNIT_ASSERT_EQUAL(ctx.mtu, 500);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 3);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_GET_INNER_MTU], 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_REUSE_LAST_PORT], 0);
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_close(&ctx, true));
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_SHUTDOWN], 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLOSE], 0);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 1);
-}
-
-ANJ_UNIT_TEST(server, connect_with_reconnect) {
-    TEST_INIT();
-
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", false));
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_GET_INNER_MTU], 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_REUSE_LAST_PORT], 0);
-
-    mock.net_eagain_calls = 1;
-    ANJ_UNIT_ASSERT_EQUAL(_anj_server_close(&ctx, false), ANJ_NET_EAGAIN);
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_server_close(&ctx, false));
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_SHUTDOWN], 2);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLOSE], 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 0);
-
-    mock.net_eagain_calls = 1;
-    ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", true),
-                          ANJ_NET_EAGAIN);
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
-    ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", true),
-                          ANJ_NET_EAGAIN);
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_OK;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 1 + 2);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_GET_INNER_MTU], 1 + 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1 + 0);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_REUSE_LAST_PORT], 0 + 2);
 }
 
 ANJ_UNIT_TEST(server, connect_errors) {
@@ -110,7 +76,7 @@ ANJ_UNIT_TEST(server, connect_errors) {
 
     mock.call_result[ANJ_NET_FUN_CREATE] = -22;
     ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", false),
+                                              "localhost", "9998"),
                           -22);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 0);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1);
@@ -119,7 +85,7 @@ ANJ_UNIT_TEST(server, connect_errors) {
 
     mock.call_result[ANJ_NET_FUN_CONNECT] = -3;
     ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", false),
+                                              "localhost", "9998"),
                           -3);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 0 + 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1 + 1);
@@ -129,7 +95,7 @@ ANJ_UNIT_TEST(server, connect_errors) {
 
     mock.call_result[ANJ_NET_FUN_GET_INNER_MTU] = -4;
     ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", false),
+                                              "localhost", "9998"),
                           -4);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 0 + 1 + 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1 + 1 + 1);
@@ -140,7 +106,7 @@ ANJ_UNIT_TEST(server, connect_errors) {
 
     mock.inner_mtu_value = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", false),
+                                              "localhost", "9998"),
                           -1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 0 + 1 + 1 + 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1 + 1 + 1 + 0);
@@ -148,27 +114,6 @@ ANJ_UNIT_TEST(server, connect_errors) {
                           0 + 1 + 1);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_close(&ctx, false));
     mock.inner_mtu_value = 500;
-
-    mock.call_result[ANJ_NET_FUN_REUSE_LAST_PORT] = -5;
-    ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", true),
-                          -5);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT],
-                          0 + 1 + 1 + 1 + 0);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE],
-                          1 + 1 + 1 + 0 + 0);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_REUSE_LAST_PORT], 1);
-
-    // ANJ_NET_ENOTSUP is not an error here
-    mock.state = ANJ_NET_SOCKET_STATE_CLOSED;
-    mock.call_result[ANJ_NET_FUN_REUSE_LAST_PORT] = ANJ_NET_ENOTSUP;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT],
-                          0 + 1 + 1 + 1 + 0 + 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE],
-                          1 + 1 + 1 + 0 + 0 + 0);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_REUSE_LAST_PORT], 1 + 1);
 }
 
 ANJ_UNIT_TEST(server, disconnect) {
@@ -182,12 +127,11 @@ ANJ_UNIT_TEST(server, disconnect) {
 
     mock.call_result[ANJ_NET_FUN_CONNECT] = -22;
     ANJ_UNIT_ASSERT_EQUAL(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                              "localhost", "9998", false),
+                                              "localhost", "9998"),
                           -22);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CONNECT], 1);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_GET_INNER_MTU], 0);
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CREATE], 1);
-    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_REUSE_LAST_PORT], 0);
 
     // there is no connection and cleanup - return imidiately
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_close(&ctx, false));
@@ -205,7 +149,7 @@ ANJ_UNIT_TEST(server, disconnect_with_shutdown_error) {
     TEST_INIT();
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
+                                                "localhost", "9998"));
 
     // error in shutdown should not stop the process
     mock.call_result[ANJ_NET_FUN_SHUTDOWN] = -33;
@@ -219,7 +163,7 @@ ANJ_UNIT_TEST(server, disconnect_with_close_error) {
     TEST_INIT();
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
+                                                "localhost", "9998"));
 
     // error in shutdown should not stop the process
     mock.call_result[ANJ_NET_FUN_CLOSE] = -33;
@@ -233,7 +177,7 @@ ANJ_UNIT_TEST(server, disconnect_with_cleanup_error) {
     TEST_INIT();
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
+                                                "localhost", "9998"));
 
     // error in shutdown should not stop the process
     mock.call_result[ANJ_NET_FUN_CLEANUP] = -11;
@@ -247,18 +191,21 @@ ANJ_UNIT_TEST(server, send) {
     TEST_INIT();
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
+                                                "localhost", "9998"));
 
     uint8_t buffer[20] = "1234567890ABCDEFGHIJ";
 
     mock.bytes_to_send = 0;
-    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EAGAIN;
-    ANJ_UNIT_ASSERT_EQUAL(_anj_server_send(&ctx, buffer, 20), ANJ_NET_EAGAIN);
+    mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_EINPROGRESS;
+    ANJ_UNIT_ASSERT_EQUAL(_anj_server_send(&ctx, buffer, 20),
+                          ANJ_NET_EINPROGRESS);
     ANJ_UNIT_ASSERT_EQUAL(ctx.bytes_sent, 0);
     mock.bytes_to_send = 10;
     mock.call_result[ANJ_NET_FUN_SEND] = ANJ_NET_OK;
-    // first chunk is send, but not all data so _anj_server_send returns EAGAIN
-    ANJ_UNIT_ASSERT_EQUAL(_anj_server_send(&ctx, buffer, 20), ANJ_NET_EAGAIN);
+    // first chunk is send, but not all data so _anj_server_send returns
+    // EINPROGRESS
+    ANJ_UNIT_ASSERT_EQUAL(_anj_server_send(&ctx, buffer, 20),
+                          ANJ_NET_EINPROGRESS);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer, "1234567890", 10);
     ANJ_UNIT_ASSERT_EQUAL(ctx.bytes_sent, 10);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_send(&ctx, buffer, 20));
@@ -270,7 +217,7 @@ ANJ_UNIT_TEST(server, recv) {
     TEST_INIT();
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
+                                                "localhost", "9998"));
 
     uint8_t buffer[20] = { 0 };
     size_t out_length;
@@ -303,7 +250,7 @@ ANJ_UNIT_TEST(server, payload_size) {
     TEST_INIT();
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_server_connect(&ctx, ANJ_NET_BINDING_UDP, NULL,
-                                                "localhost", "9998", true));
+                                                "localhost", "9998"));
 
     // tests only with server_request = true,
     // _anj_coap_calculate_msg_header_max_size is tested in another place

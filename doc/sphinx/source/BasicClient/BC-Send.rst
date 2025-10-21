@@ -72,7 +72,9 @@ Next, we make a few modifications to the loop in which we call
 .. snippet-source:: examples/tutorial/BC-Send/src/main.c
 
     anj_res_value_t value;
-    uint64_t next_read_time = anj_time_now() + 1000;
+    anj_time_monotonic_t next_read_time =
+            anj_time_monotonic_add(anj_time_monotonic_now(),
+                                   anj_time_duration_new(1, ANJ_TIME_UNIT_S));
     uint16_t send_id = 0;
     anj_io_out_entry_t records[MAX_RECORDS];
     fin_handler_data_t data = { 0 };
@@ -81,8 +83,10 @@ Next, we make a few modifications to the loop in which we call
         anj_core_step(&anj);
         update_temperature_obj_value();
         usleep(50 * 1000);
-        if (next_read_time < anj_time_now()) {
-            next_read_time = anj_time_now() + 1000;
+        if (anj_time_monotonic_lt(next_read_time, anj_time_monotonic_now())) {
+            next_read_time = anj_time_monotonic_add(
+                    anj_time_monotonic_now(),
+                    anj_time_duration_new(1, ANJ_TIME_UNIT_S));
             if (data.record_idx < MAX_RECORDS) {
                 if (anj_dm_res_read(&anj,
                                     &ANJ_MAKE_RESOURCE_PATH(3303, 0, 5700),
@@ -94,17 +98,17 @@ Next, we make a few modifications to the loop in which we call
                     records[data.record_idx].type = ANJ_DATA_TYPE_DOUBLE;
                     records[data.record_idx].value = value;
                     records[data.record_idx].timestamp =
-                            (double) anj_time_real_now() / 1000;
+                            anj_time_real_to_fscalar(anj_time_real_now(),
+                                                     ANJ_TIME_UNIT_S);
                     data.record_idx++;
                 }
             } else {
                 log(L_WARNING,
-                        "Records array full, abort send operation ID: "
-                        "%u",
-                        send_id);
+                    "Records array full, abort send operation ID: "
+                    "%u",
+                    send_id);
                 if (anj_send_abort(&anj, send_id)) {
-                    log(L_ERROR,
-                            "Failed to abort send operation");
+                    log(L_ERROR, "Failed to abort send operation");
                 } else {
                     data.record_idx = 0;
                     data.send_in_progress = false;
@@ -176,11 +180,12 @@ it after each successful read.
 .. snippet-source:: examples/tutorial/BC-Send/src/main.c
 
     records[data.record_idx].path =
-            ANJ_MAKE_RESOURCE_PATH(3303, 0, 5700);
+        ANJ_MAKE_RESOURCE_PATH(3303, 0, 5700);
     records[data.record_idx].type = ANJ_DATA_TYPE_DOUBLE;
     records[data.record_idx].value = value;
     records[data.record_idx].timestamp =
-            (double) anj_time_real_now() / 1000;
+        anj_time_real_to_fscalar(anj_time_real_now(),
+                                 ANJ_TIME_UNIT_S);
     data.record_idx++;
 
 .. note::

@@ -13,10 +13,10 @@
 #    define ANJ_REGISTER_H
 
 #    include <stdbool.h>
-#    include <stdint.h>
 
 #    include <anj/core.h>
 #    include <anj/defs.h>
+#    include <anj/time.h>
 
 /**
  * A group of codes that can be returned by @ref _anj_register_operation_status.
@@ -87,7 +87,7 @@ void _anj_register_register(anj_t *anj,
  *                          specifications.
  */
 void _anj_register_update(anj_t *anj,
-                          const uint32_t *lifetime,
+                          const anj_time_duration_t *lifetime,
                           bool with_payload,
                           _anj_coap_msg_t *out_msg,
                           _anj_exchange_handlers_t *out_handlers);

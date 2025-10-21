@@ -17,7 +17,7 @@
 
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "../dm/dm_integration.h"
@@ -226,13 +226,11 @@ static int add_attr(_anj_observe_ctx_t *ctx,
     _anj_observe_attr_storage_t *attr_rec =
             _anj_observe_get_attr_from_path(ctx, &request->uri, ssid);
     if (attr_rec) {
-        observe_log(L_DEBUG,
-                    "Path has attributes attached. Going to update them");
+        observe_log(L_DEBUG, "Attributes added");
         _anj_observe_update_attr(&attr_rec->attr,
                                  &request->attr.notification_attr);
     } else {
-        observe_log(L_DEBUG,
-                    "Path has no attributes attached. Going to add them");
+        observe_log(L_DEBUG, "Attributes updated");
         attr_rec = find_spot_for_new_attr(ctx);
         if (!attr_rec) {
             observe_log(L_ERROR, "No space for new attributes");

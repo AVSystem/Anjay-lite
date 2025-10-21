@@ -33,12 +33,12 @@
 static anj_dm_res_t inst_00_res[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_RW,
+        .kind = ANJ_DM_RES_RW,
         .type = ANJ_DATA_TYPE_BOOL
     },
     {
         .rid = 10,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     }
 };
@@ -47,12 +47,12 @@ static int g_rid_00_10_value = 1;
 static anj_dm_res_t inst_01_res[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_RW,
+        .kind = ANJ_DM_RES_RW,
         .type = ANJ_DATA_TYPE_BOOL
     },
     {
         .rid = 10,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     }
 };
@@ -60,7 +60,7 @@ static anj_dm_res_t inst_01_res[] = {
 static anj_dm_res_t obj_1_inst_1_res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     }
 };
@@ -202,30 +202,6 @@ static const anj_dm_handlers_t handlers = {
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_0)); \
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_1)); \
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3))
-
-ANJ_UNIT_TEST(dm_bootstrap_handlers, cleanup) {
-    INIT_DATA_MODEL();
-    // anj_dm_bootstrap_cleanup calls Bootstrap-Delete operation
-    // which is tested better in dm_bootstrap_delete.c
-    anj_dm_bootstrap_cleanup(&anj);
-    // all Server and Security instances should be deleted except for the
-    // bootstrap server related Security instance,
-    ANJ_UNIT_ASSERT_EQUAL(obj_0.insts[0].iid, 1);
-    ANJ_UNIT_ASSERT_EQUAL(obj_0.insts[1].iid, ANJ_ID_INVALID);
-    ANJ_UNIT_ASSERT_EQUAL(obj_1.insts[0].iid, ANJ_ID_INVALID);
-    ANJ_UNIT_ASSERT_EQUAL(obj_3.insts[0].iid, 7);
-}
-
-ANJ_UNIT_TEST(dm_bootstrap_handlers, cleanup_no_instances) {
-    INIT_DATA_MODEL();
-    anj_dm_bootstrap_cleanup(&anj);
-    // second call should not change anything
-    anj_dm_bootstrap_cleanup(&anj);
-    ANJ_UNIT_ASSERT_EQUAL(obj_0.insts[0].iid, 1);
-    ANJ_UNIT_ASSERT_EQUAL(obj_0.insts[1].iid, ANJ_ID_INVALID);
-    ANJ_UNIT_ASSERT_EQUAL(obj_1.insts[0].iid, ANJ_ID_INVALID);
-    ANJ_UNIT_ASSERT_EQUAL(obj_3.insts[0].iid, 7);
-}
 
 ANJ_UNIT_TEST(dm_bootstrap_handlers, validation) {
     INIT_DATA_MODEL();

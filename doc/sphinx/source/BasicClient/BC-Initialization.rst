@@ -76,7 +76,7 @@ Now, we can begin the actual client implementation. Create a ``main.c`` file in 
     #include <unistd.h>
 
     #include <anj/core.h>
-    #include <anj/log/log.h>
+    #include <anj/log.h>
 
     #define log(...) anj_log(example_log, __VA_ARGS__)
 

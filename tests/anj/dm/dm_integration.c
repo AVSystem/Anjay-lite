@@ -44,12 +44,12 @@ enum transaction_end_result {
 static anj_dm_res_t obj_2_new_inst_res[2] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_W,
+        .kind = ANJ_DM_RES_W,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 4,
-        .operation = ANJ_DM_RES_RW,
+        .kind = ANJ_DM_RES_RW,
         .type = ANJ_DATA_TYPE_STRING
     }
 };
@@ -187,7 +187,9 @@ static int res_write(anj_t *anj,
 
 static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj);
 static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj);
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result);
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result);
 
 static const anj_dm_handlers_t handlers = {
     .inst_create = inst_create,
@@ -207,12 +209,12 @@ static anj_riid_t res_insts[] = { 1, 2 };
 static anj_dm_res_t inst_1_res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_W,
+        .kind = ANJ_DM_RES_W,
         .type = ANJ_DATA_TYPE_INT
     }
 };
@@ -220,35 +222,35 @@ static anj_dm_res_t inst_1_res[] = {
 static anj_dm_res_t inst_2_res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_W,
+        .kind = ANJ_DM_RES_W,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 2,
-        .operation = ANJ_DM_RES_RWM,
+        .kind = ANJ_DM_RES_RWM,
         .type = ANJ_DATA_TYPE_INT,
         .max_inst_count = 2,
         .insts = res_insts,
     },
     {
         .rid = 3,
-        .operation = ANJ_DM_RES_WM,
+        .kind = ANJ_DM_RES_WM,
         .type = ANJ_DATA_TYPE_INT,
         .max_inst_count = 0,
     },
     {
         .rid = 4,
-        .operation = ANJ_DM_RES_RW,
+        .kind = ANJ_DM_RES_RW,
         .type = ANJ_DATA_TYPE_STRING
     },
     {
         .rid = 5,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     }
 };
 
@@ -275,7 +277,7 @@ static anj_dm_obj_t obj_0 = {
                         {
                             {
                                 .rid = 0,
-                                .operation = ANJ_DM_RES_R,
+                                .kind = ANJ_DM_RES_R,
                                 .type = ANJ_DATA_TYPE_INT
                             }
                         }
@@ -295,7 +297,7 @@ static anj_dm_obj_t obj_1 = {
 static anj_riid_t obj_2_res_insts[] = { 1, ANJ_ID_INVALID };
 static anj_dm_res_t obj_2_res = {
     .rid = 2,
-    .operation = ANJ_DM_RES_RWM,
+    .kind = ANJ_DM_RES_RWM,
     .type = ANJ_DATA_TYPE_INT,
     .max_inst_count = 2,
     .insts = obj_2_res_insts
@@ -336,7 +338,7 @@ static anj_dm_obj_t obj_4 = {
                         {
                             {
                                 .rid = 0,
-                                .operation = ANJ_DM_RES_R,
+                                .kind = ANJ_DM_RES_R,
                                 .type = ANJ_DATA_TYPE_INT
                             }
                         }
@@ -355,7 +357,7 @@ static anj_dm_obj_t obj_21 = {
                         {
                             {
                                 .rid = 0,
-                                .operation = ANJ_DM_RES_R,
+                                .kind = ANJ_DM_RES_R,
                                 .type = ANJ_DATA_TYPE_INT
                             }
                         }
@@ -435,12 +437,12 @@ static const anj_dm_handlers_t handlers_external = {
 static anj_dm_res_t obj_3_res[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_EXTERNAL_STRING,
     },
     {
         .rid = 2,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT,
     }
 };
@@ -507,8 +509,10 @@ static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-static int transaction_end_results[MAX_OBJECT_COUNT];
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+static anj_dm_transaction_result_t transaction_end_results[MAX_OBJECT_COUNT];
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result) {
     (void) anj;
 
     ASSERT_TRUE(obj != &obj_0 && obj != &obj_21);
@@ -530,30 +534,32 @@ static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
     }
 }
 
-#define DEFAULT_TRANSACTION_END_RESULT 0xFFFFFFFF
+#define DEFAULT_TRANSACTION_END_RESULT 0x01
 
-#define SET_UP()                                           \
-    uint8_t payload[512];                                  \
-    size_t payload_len = sizeof(payload);                  \
-    _anj_coap_msg_t msg;                                   \
-    memset(&msg, 0, sizeof(msg));                          \
-    msg.token.size = 1;                                    \
-    msg.token.bytes[0] = 0x01;                             \
-    msg.coap_binding_data.udp.message_id = 0x1111;         \
-    anj_t anj = { 0 };                                     \
-    _anj_dm_initialize(&anj);                              \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_0)); \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_1)); \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_2)); \
-                                                           \
-    _anj_exchange_ctx_t exchange_ctx;                      \
-    _anj_exchange_init(&exchange_ctx, 0);                  \
-    uint8_t response_code;                                 \
-    _anj_exchange_handlers_t handlers;                     \
-    write_value = 0;                                       \
-    write_value2 = 0;                                      \
-    write_value3 = 0;                                      \
-    memset(&transaction_end_results, 0xFF, sizeof(transaction_end_results))
+#define SET_UP()                                                     \
+    uint8_t payload[512];                                            \
+    size_t payload_len = sizeof(payload);                            \
+    _anj_coap_msg_t msg;                                             \
+    memset(&msg, 0, sizeof(msg));                                    \
+    msg.token.size = 1;                                              \
+    msg.token.bytes[0] = 0x01;                                       \
+    msg.coap_binding_data.udp.message_id = 0x1111;                   \
+    anj_t anj = { 0 };                                               \
+    _anj_dm_initialize(&anj);                                        \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_0));           \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_1));           \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_2));           \
+                                                                     \
+    _anj_exchange_ctx_t exchange_ctx;                                \
+    _anj_exchange_init(&exchange_ctx);                               \
+    uint8_t response_code;                                           \
+    _anj_exchange_handlers_t handlers;                               \
+    write_value = 0;                                                 \
+    write_value2 = 0;                                                \
+    write_value3 = 0;                                                \
+    for (int i = 0; i < MAX_OBJECT_COUNT; ++i) {                     \
+        transaction_end_results[i] = DEFAULT_TRANSACTION_END_RESULT; \
+    }
 
 #define PROCESS_REQUEST(Bootstrap)                                             \
     _anj_dm_process_request(&anj, &msg, Bootstrap ? _ANJ_SSID_BOOTSTRAP : 1,   \
@@ -954,7 +960,7 @@ ANJ_UNIT_TEST(dm_integration, read_operation_block_with_termination) {
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
                           ANJ_EXCHANGE_STATE_MSG_TO_SEND);
-    _anj_exchange_terminate(&exchange_ctx);
+    _anj_exchange_terminate(&exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     ANJ_UNIT_ASSERT_EQUAL(anj.dm.op_in_progress, false);
 }
 
@@ -1444,7 +1450,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_with_termination) {
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
                           ANJ_EXCHANGE_STATE_MSG_TO_SEND);
-    _anj_exchange_terminate(&exchange_ctx);
+    _anj_exchange_terminate(&exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     ANJ_UNIT_ASSERT_EQUAL(anj.dm.op_in_progress, false);
 }
 
@@ -1996,8 +2002,10 @@ ANJ_UNIT_TEST(dm_integration, write_composite) {
     ASSERT_EQ(write_value2, 321);
     ASSERT_EQ(write_value3, 456);
 
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_TRANSACTION_SUCCESS);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized) {
@@ -2048,9 +2056,9 @@ ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized) {
     ASSERT_EQ(write_value3, 456);
 
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
-              ANJ_DM_ERR_UNAUTHORIZED);
+              ANJ_DM_TRANSACTION_FAILURE);
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
-              ANJ_DM_ERR_UNAUTHORIZED);
+              ANJ_DM_TRANSACTION_FAILURE);
     // transaction_end will not be called for object 0 because there will be
     // error before calling transaction_begin
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_0],
@@ -2105,7 +2113,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized_in_the_middle) {
     ASSERT_EQ(write_value3, 0);
 
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
-              ANJ_DM_ERR_UNAUTHORIZED);
+              ANJ_DM_TRANSACTION_FAILURE);
     // transaction_end will not be called for objects 0 and 2 because there will
     // be error before calling transaction_begin
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
@@ -2161,7 +2169,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_nonexistent_path) {
     ASSERT_EQ(write_value3, 0);
 
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
-              ANJ_DM_ERR_NOT_FOUND);
+              ANJ_DM_TRANSACTION_FAILURE);
     // transaction_end will not be called for object 2 because there will be
     // error before calling transaction_begin
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
@@ -2206,8 +2214,10 @@ ANJ_UNIT_TEST(dm_integration,
     ASSERT_EQ(write_value2, 321);
     ASSERT_EQ(write_value3, 456);
 
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_TRANSACTION_SUCCESS);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_TRANSACTION_SUCCESS);
 
     // /222/1/2/2
     ASSERT_EQ(obj_2_insts[0].resources[0].insts[1], 2);
@@ -2261,9 +2271,9 @@ ANJ_UNIT_TEST(dm_integration,
     ASSERT_EQ(write_value3, 0);
 
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
-              _ANJ_DM_ERR_MEMORY);
+              ANJ_DM_TRANSACTION_FAILURE);
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
-              _ANJ_DM_ERR_MEMORY);
+              ANJ_DM_TRANSACTION_FAILURE);
 
     obj_2_res.max_inst_count = 2;
 }
@@ -2298,8 +2308,10 @@ ANJ_UNIT_TEST(dm_integration,
                       "\x44\x11\x11\x01"; // changed, msg_id token
     verify_payload(expected, sizeof(expected) - 1, &msg);
 
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_TRANSACTION_SUCCESS);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_TRANSACTION_SUCCESS);
 
     // /222/1/2/1
     ASSERT_EQ(obj_2_insts[0].resources[0].insts[0], ANJ_ID_INVALID);
@@ -2349,8 +2361,10 @@ ANJ_UNIT_TEST(dm_integration,
                       "\x44\x11\x11\x01"; // changed, msg_id token
     verify_payload(expected, sizeof(expected) - 1, &msg);
 
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_TRANSACTION_SUCCESS);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_TRANSACTION_SUCCESS);
 
     // /222/1/2/1
     ASSERT_EQ(obj_2_insts[0].resources[0].insts[0], ANJ_ID_INVALID);
@@ -2438,7 +2452,7 @@ ANJ_UNIT_TEST(dm_integration,
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
               DEFAULT_TRANSACTION_END_RESULT);
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
-              ANJ_DM_ERR_BAD_REQUEST);
+              ANJ_DM_TRANSACTION_FAILURE);
 
     // restore initial state
     obj_2_res_insts[0] = 1;
@@ -2446,7 +2460,7 @@ ANJ_UNIT_TEST(dm_integration,
 
 ANJ_UNIT_TEST(dm_integration,
               write_composite_delete_resource_instances_not_writable) {
-    obj_2_res.operation = ANJ_DM_RES_RM;
+    obj_2_res.kind = ANJ_DM_RES_RM;
 
     SET_UP();
     msg.operation = ANJ_OP_DM_WRITE_COMP;
@@ -2482,11 +2496,11 @@ ANJ_UNIT_TEST(dm_integration,
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
               DEFAULT_TRANSACTION_END_RESULT);
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
-              ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+              ANJ_DM_TRANSACTION_FAILURE);
 
     // restore initial state
     obj_2_res_insts[0] = 1;
-    obj_2_res.operation = ANJ_DM_RES_RWM;
+    obj_2_res.kind = ANJ_DM_RES_RWM;
 }
 
 ANJ_UNIT_TEST(dm_integration, write_composite_block) {
@@ -2549,9 +2563,15 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block) {
     ASSERT_EQ(write_value, 123);
     ASSERT_EQ(write_value2, 321);
     ASSERT_EQ(write_value3, 456);
+    ANJ_UNIT_ASSERT_EQUAL(
+            _anj_exchange_process(&exchange_ctx,
+                                  ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
+            ANJ_EXCHANGE_STATE_FINISHED);
 
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1], 0);
-    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2], 0);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+              ANJ_DM_TRANSACTION_SUCCESS);
+    ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+              ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
@@ -2612,11 +2632,15 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
                           ANJ_EXCHANGE_STATE_MSG_TO_SEND);
-
     char expected2[] = "\x61"              // ACK, tkl 1
                        "\x84\x11\x12\x01"; // not found, msg_id token
 
     verify_payload(expected2, sizeof(expected2) - 1, &msg);
+    ANJ_UNIT_ASSERT_EQUAL(
+            _anj_exchange_process(&exchange_ctx,
+                                  ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
+            ANJ_EXCHANGE_STATE_FINISHED);
+
     // it is user resposibility to restore previous values if transaction_end
     // indicates that an error has occurred
     ASSERT_EQ(write_value, 123);
@@ -2625,7 +2649,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
     ASSERT_EQ(write_value3, 0);
 
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
-              ANJ_DM_ERR_NOT_FOUND);
+              ANJ_DM_TRANSACTION_FAILURE);
     // transaction_end will not be called for object 2 because there will be
     // error before calling transaction_begin
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
@@ -2701,7 +2725,28 @@ ANJ_UNIT_TEST(dm_integration, delete_operation) {
                       "\x42\x11\x11\x01"; // deleted, msg_id token
     verify_payload(expected, sizeof(expected) - 1, &msg);
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[1].iid, ANJ_ID_INVALID);
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+                          ANJ_DM_TRANSACTION_SUCCESS);
     reset_obj_2_insts();
+}
+
+ANJ_UNIT_TEST(dm_integration, delete_operation_validation_failed) {
+    SET_UP();
+    validation_error = true;
+    obj_2_insts[0].iid = 0;
+    obj_2_insts[1].iid = 1;
+    msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
+    msg.operation = ANJ_OP_DM_DELETE;
+    msg.uri = ANJ_MAKE_INSTANCE_PATH(222, 0);
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x80\x11\x11\x01"; // bad request, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+    ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[1].iid, ANJ_ID_INVALID);
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+                          ANJ_DM_TRANSACTION_FAILURE);
+    reset_obj_2_insts();
+    validation_error = false;
 }
 
 ANJ_UNIT_TEST(dm_integration, write_update_operation) {
@@ -2716,6 +2761,8 @@ ANJ_UNIT_TEST(dm_integration, write_update_operation) {
                       "\x44\x11\x11\x01"; // changed, msg_id token
     verify_payload(expected, sizeof(expected) - 1, &msg);
     ANJ_UNIT_ASSERT_EQUAL(write_value, 42);
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, write_update_operation_block) {
@@ -2763,6 +2810,8 @@ ANJ_UNIT_TEST(dm_integration, write_update_operation_block) {
             "\x32\x33\x34\x35\x36\x37\x38\x39",
             24);
     ANJ_UNIT_ASSERT_EQUAL(strlen(res_4_buff), 24);
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, write_replace_operation) {
@@ -2777,6 +2826,8 @@ ANJ_UNIT_TEST(dm_integration, write_replace_operation) {
                       "\x44\x11\x11\x01"; // changed, msg_id token
     verify_payload(expected, sizeof(expected) - 1, &msg);
     ANJ_UNIT_ASSERT_EQUAL(write_value, 10);
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, write_replace_operation_on_resource_instance) {
@@ -2796,6 +2847,8 @@ ANJ_UNIT_TEST(dm_integration, write_replace_operation_on_resource_instance) {
 
     res_insts[0] = 1;
     res_insts[1] = 2;
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration,
@@ -2818,6 +2871,8 @@ ANJ_UNIT_TEST(dm_integration,
 
     res_insts[0] = 1;
     res_insts[1] = 2;
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, create_with_write) {
@@ -2836,6 +2891,8 @@ ANJ_UNIT_TEST(dm_integration, create_with_write) {
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[0].iid, 0);
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[1].iid, 1);
     reset_obj_2_insts();
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 // Coiote can send TLV message with only instance ID provided
@@ -2854,6 +2911,8 @@ ANJ_UNIT_TEST(dm_integration, create_with_empty_write) {
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[0].iid, 0);
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[1].iid, 1);
     reset_obj_2_insts();
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, create_with_write_no_iid_specify) {
@@ -2874,6 +2933,28 @@ ANJ_UNIT_TEST(dm_integration, create_with_write_no_iid_specify) {
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[0].iid, 0);
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[1].iid, 1);
     reset_obj_2_insts();
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+                          ANJ_DM_TRANSACTION_SUCCESS);
+}
+
+ANJ_UNIT_TEST(dm_integration,
+              create_with_write_no_iid_specify_validation_failed) {
+    validation_error = true;
+    SET_UP();
+    msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
+    msg.operation = ANJ_OP_DM_CREATE;
+    msg.uri = ANJ_MAKE_OBJECT_PATH(222);
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
+    msg.payload = (uint8_t *) "\xC1\x01\x2A";
+    msg.payload_size = 3;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x80\x11\x11\x01"; // bad request, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+    reset_obj_2_insts();
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+                          ANJ_DM_TRANSACTION_FAILURE);
+    validation_error = false;
 }
 
 ANJ_UNIT_TEST(dm_integration, create_without_payload) {
@@ -2893,6 +2974,8 @@ ANJ_UNIT_TEST(dm_integration, create_without_payload) {
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[0].iid, 0);
     ANJ_UNIT_ASSERT_EQUAL(obj_2_insts[1].iid, 1);
     reset_obj_2_insts();
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_2],
+                          ANJ_DM_TRANSACTION_SUCCESS);
 }
 
 ANJ_UNIT_TEST(dm_integration, format_error) {
@@ -2931,6 +3014,23 @@ ANJ_UNIT_TEST(dm_integration, validation_error) {
                       "\x80\x11\x11\x01"; // bad reqeust, msg_id token
     verify_payload(expected, sizeof(expected) - 1, &msg);
     validation_error = false;
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+                          ANJ_DM_TRANSACTION_FAILURE);
+}
+
+ANJ_UNIT_TEST(dm_integration, io_in_error) {
+    SET_UP();
+    msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
+    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+    msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 1);
+    msg.payload = (uint8_t *) "\xC8\x01\x2A";
+    msg.payload_size = 3;
+    PROCESS_REQUEST(false);
+    char expected[] = "\x61"              // ACK, tkl 1
+                      "\x80\x11\x11\x01"; // bad reqeust, msg_id token
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+    ANJ_UNIT_ASSERT_EQUAL(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
+                          ANJ_DM_TRANSACTION_FAILURE);
 }
 
 #ifdef ANJ_WITH_EXTERNAL_DATA
@@ -3086,7 +3186,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         verify_payload(expected, sizeof(expected) - 1, &msg);
 
         ANJ_UNIT_ASSERT_FALSE(closed);
-        _anj_exchange_terminate(&exchange_ctx);
+        _anj_exchange_terminate(&exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
         ANJ_UNIT_ASSERT_TRUE(closed);
     }
     // try send external string, external data handler fails the first time it

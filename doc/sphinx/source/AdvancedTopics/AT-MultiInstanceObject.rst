@@ -40,7 +40,7 @@ Implement the Object
 
     For details, see the :ref:`Multiple instance object generation<multi-instance-generator>` section.
 
-Object and Object Instances State
+Object and Object Instances state
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To store the state of each Object Instance separately, define two data structures:
@@ -86,7 +86,7 @@ Next, add a helper function to retrieve the instance based on the `iid` (**Insta
     }
 
 
-Read, write and execute Handlers
+Read, write and execute handlers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Each handler receives an `anj_iid_t iid` parameter, which now must be used to
@@ -163,7 +163,7 @@ access the correct instance.
     }
 
 
-Object definition and Initialization
+Object definition and initialization
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 First, define the `anj_dm_obj_inst_t` array for the Object Instances:
@@ -219,7 +219,7 @@ This means you need to back up the state of all writable resources **in all Obje
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-MultiInstanceObject/src/temperature_obj.c
-    :emphasize-lines: 7-9, 28-33
+    :emphasize-lines: 7-9, 33-36
 
     static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
         (void) anj;
@@ -241,18 +241,21 @@ This means you need to back up the state of all writable resources **in all Obje
         return 0;
     }
 
-    static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+    static void transaction_end(anj_t *anj,
+                                const anj_dm_obj_t *obj,
+                                anj_dm_transaction_result_t result) {
         (void) anj;
         (void) obj;
 
-        if (result) {
-            // restore cached data
-            temp_obj_ctx_t *ctx = get_ctx();
-            for (int i = 0; i < TEMP_OBJ_NUMBER_OF_INSTANCES; i++) {
-                temp_obj_inst_t *temp_inst = &ctx->temp_insts[i];
-                memcpy(temp_inst->application_type,
-                    temp_inst->application_type_cached,
-                    TEMP_OBJ_APPL_TYPE_MAX_SIZE);
-            }
+        if (result == ANJ_DM_TRANSACTION_SUCCESS) {
+            return;
+        }
+        // restore cached data
+        temp_obj_ctx_t *ctx = get_ctx();
+        for (int i = 0; i < TEMP_OBJ_NUMBER_OF_INSTANCES; i++) {
+            temp_obj_inst_t *temp_inst = &ctx->temp_insts[i];
+            memcpy(temp_inst->application_type,
+                temp_inst->application_type_cached,
+                TEMP_OBJ_APPL_TYPE_MAX_SIZE);
         }
     }

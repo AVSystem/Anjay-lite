@@ -16,7 +16,7 @@
 
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/lwm2m_send.h>
 #include <anj/utils.h>
 
@@ -41,7 +41,8 @@ int anj_send_new_request(anj_t *anj,
     }
     for (size_t i = 0; i < send_request->records_cnt; i++) {
         if (!anj_uri_path_has(&send_request->records[i].path, ANJ_ID_RID)) {
-            log(L_ERROR, "Invalid path");
+            // invalid path
+            log(L_ERROR, "Invalid Send request");
             return ANJ_SEND_ERR_DATA_NOT_VALID;
         }
 #    ifdef ANJ_WITH_LWM2M_CBOR
@@ -50,7 +51,8 @@ int anj_send_new_request(anj_t *anj,
             for (size_t j = i + 1; j < send_request->records_cnt; j++) {
                 if (anj_uri_path_equal(&send_request->records[i].path,
                                        &send_request->records[j].path)) {
-                    log(L_ERROR, "Duplicate path");
+                    // duplicate path
+                    log(L_ERROR, "Invalid Send request");
                     return ANJ_SEND_ERR_DATA_NOT_VALID;
                 }
             }
@@ -118,7 +120,8 @@ int anj_send_abort(anj_t *anj, uint16_t send_id) {
     if (ctx->active_exchange
             && (send_id == ANJ_SEND_ID_ALL || send_id == ctx->ids[0])) {
         // active exchange will be cleared in send_completion_callback
-        _anj_exchange_terminate(&anj->exchange_ctx);
+        _anj_exchange_terminate(&anj->exchange_ctx,
+                                _ANJ_EXCHANGE_ERROR_TERMINATED);
         log(L_INFO, "Aborted active Send request");
         // clear other requests if no specific ID is given
         if (send_id != ANJ_SEND_ID_ALL) {
@@ -224,7 +227,7 @@ static void send_completion_callback(void *arg_ptr,
     assert(ctx->active_exchange);
 
     int send_result;
-    if (!result) {
+    if (result == _ANJ_EXCHANGE_RESULT_SUCCESS) {
         log(L_INFO, "Send request completed successfully: %" PRIu16,
             ctx->ids[0]);
         send_result = ANJ_SEND_SUCCESS;
@@ -234,10 +237,22 @@ static void send_completion_callback(void *arg_ptr,
     } else if (result == _ANJ_EXCHANGE_ERROR_TIMEOUT) {
         log(L_DEBUG, "Send request timeout: %" PRIu16, ctx->ids[0]);
         send_result = ANJ_SEND_ERR_TIMEOUT;
+    } else if (result == _ANJ_EXCHANGE_ERROR_NETWORK) {
+        log(L_ERROR, "Send request network error: %" PRIu16, ctx->ids[0]);
+        send_result = ANJ_SEND_ERR_NETWORK;
+    } else if (result == _ANJ_EXCHANGE_ERROR_REQUEST
+               || result == _ANJ_EXCHANGE_ERROR_PROTOCOL) {
+        log(L_ERROR, "Send request internal error: %" PRIu16, ctx->ids[0]);
+        send_result = ANJ_SEND_ERR_INTERNAL;
     } else {
-        log(L_ERROR,
-            "Send request failed: %" PRIu16 " with %" PRIu8 " error code",
-            ctx->ids[0], result);
+        if (response && response->operation == ANJ_OP_RESPONSE) {
+            log(L_ERROR,
+                "Send request failed: %" PRIu16 " with %" PRIu8 " error code",
+                ctx->ids[0], response->msg_code);
+        } else {
+            // Server responded with RST
+            log(L_ERROR, "Server rejected request: %" PRIu16, ctx->ids[0]);
+        }
         send_result = ANJ_SEND_ERR_REJECTED;
     }
 

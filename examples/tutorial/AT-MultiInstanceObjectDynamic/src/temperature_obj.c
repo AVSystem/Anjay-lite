@@ -55,41 +55,41 @@ static const anj_dm_res_t RES[TEMPERATURE_RESOURCES_COUNT] = {
     [RID_MIN_MEASURED_VALUE_IDX] = {
         .rid = RID_MIN_MEASURED_VALUE,
         .type = ANJ_DATA_TYPE_DOUBLE,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_MAX_MEASURED_VALUE_IDX] = {
         .rid = RID_MAX_MEASURED_VALUE,
         .type = ANJ_DATA_TYPE_DOUBLE,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_MIN_RANGE_VALUE_IDX] = {
         .rid = RID_MIN_RANGE_VALUE,
         .type = ANJ_DATA_TYPE_DOUBLE,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_MAX_RANGE_VALUE_IDX] = {
         .rid = RID_MAX_RANGE_VALUE,
         .type = ANJ_DATA_TYPE_DOUBLE,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_RESET_MIN_MAX_MEASURED_VALUES_IDX] = {
         .rid = RID_RESET_MIN_MAX_MEASURED_VALUES,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     },
     [RID_SENSOR_VALUE_IDX] = {
         .rid = RID_SENSOR_VALUE,
         .type = ANJ_DATA_TYPE_DOUBLE,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_SENSOR_UNIT_IDX] = {
         .rid = RID_SENSOR_UNIT,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_R
+        .kind = ANJ_DM_RES_R
     },
     [RID_APPLICATION_TYPE_IDX] = {
         .rid = RID_APPLICATION_TYPE,
         .type = ANJ_DATA_TYPE_STRING,
-        .operation = ANJ_DM_RES_RW
+        .kind = ANJ_DM_RES_RW
     }
 };
 
@@ -273,17 +273,19 @@ static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result) {
     (void) anj;
     (void) obj;
 
-    if (result) {
-        // restore cached data
-        temp_obj_ctx_t *ctx = get_ctx();
-        memcpy(ctx->insts, ctx->insts_cached, sizeof(ctx->insts));
-        memcpy(ctx->temp_insts, ctx->temp_insts_cached,
-               sizeof(ctx->temp_insts));
+    if (result == ANJ_DM_TRANSACTION_SUCCESS) {
+        return;
     }
+    // restore cached data
+    temp_obj_ctx_t *ctx = get_ctx();
+    memcpy(ctx->insts, ctx->insts_cached, sizeof(ctx->insts));
+    memcpy(ctx->temp_insts, ctx->temp_insts_cached, sizeof(ctx->temp_insts));
 }
 
 // classic bubble sort for keeping the IID in the ascending order

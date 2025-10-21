@@ -23,7 +23,7 @@
 #include <string.h>
 
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "utils.h"
@@ -58,11 +58,11 @@ uint16_t _anj_determine_block_buffer_size(size_t buff_size) {
     if (buff_size < 16) {
         return 0;
     }
-    uint16_t size = 16;
+    size_t size = 16;
     while (size <= buff_size && size <= 1024) {
-        size <<= 1;
+        size = (uint16_t) (size << 1);
     }
-    return size >> 1;
+    return (uint16_t) (size >> 1);
 }
 
 bool anj_uri_path_increasing(const anj_uri_path_t *previous_path,
@@ -85,7 +85,8 @@ bool _anj_uri_path_to_security_or_oscore_obj(const anj_uri_path_t *path) {
     if (anj_uri_path_has(path, ANJ_ID_OID)
             && (path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_SECURITY
                 || path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_OSCORE)) {
-        anj_log(utils, L_ERROR, "Can't access this object");
+        anj_log(utils, L_ERROR,
+                "Access to Security and OSCORE Objects is prohibited");
         return true;
     }
     return false;
@@ -610,28 +611,6 @@ int anj_string_to_double_value(double *out_val,
 #endif // ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS
 }
 
-/**
- * Standard guarantees RAND_MAX to be at least 0x7fff so let's
- * use it as a base for random number generators.
- */
-#define _ANJ_RAND_MAX 0x7fff
-#define _ANJ_RAND32_ITERATIONS 3
-
-static int anj_rand_r(_anj_rand_seed_t *seed) {
-    return (*seed = *seed * 1103515245u + 12345u)
-           % (_anj_rand_seed_t) (_ANJ_RAND_MAX + 1);
-}
-
-uint32_t _anj_rand32_r(_anj_rand_seed_t *seed) {
-    uint32_t result = 0;
-    int i;
-    for (i = 0; i < _ANJ_RAND32_ITERATIONS; ++i) {
-        result *= (uint32_t) _ANJ_RAND_MAX + 1;
-        result += (uint32_t) anj_rand_r(seed);
-    }
-    return result;
-}
-
 #ifdef ANJ_PLATFORM_BIG_ENDIAN
 uint16_t _anj_convert_be16(uint16_t value) {
     return value;
@@ -725,6 +704,19 @@ static bool is_double_within_uint64_range(double value) {
 
 bool _anj_double_convertible_to_uint64(double value) {
     return nearbyint(value) == value && is_double_within_uint64_range(value);
+}
+
+char *_anj_coap_code_format(char (*buff)[5], uint32_t code) {
+    char *buf = buff[0];
+    uint32_t major = code >> ANJ_COAP_CODE_CLASS_SHIFT;
+    uint32_t minor = code & ANJ_COAP_CODE_DETAIL_MASK;
+    anj_uint32_to_string_value(buf, major);
+    buf[1] = '.';
+    char *minor_target = buf + 2;
+    minor_target[0] = '0';
+    anj_uint32_to_string_value(minor > 9 ? minor_target : (minor_target + 1),
+                               minor);
+    return buf;
 }
 
 #endif // ANJ_PLATFORM_BIG_ENDIAN

@@ -16,9 +16,8 @@
 
 #include <anj/coap_downloader.h>
 #include <anj/compat/net/anj_net_api.h>
-#include <anj/compat/time.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #include "coap/coap.h"
 #include "core/core_utils.h"
@@ -38,8 +37,7 @@ static int connect_with_server(anj_coap_downloader_t *ctx) {
                                ctx->binding,
                                &ctx->net_socket_cfg,
                                hostname,
-                               port,
-                               false);
+                               port);
 }
 
 static void exchange_completion(void *arg_ptr,
@@ -48,7 +46,7 @@ static void exchange_completion(void *arg_ptr,
     (void) response;
     anj_coap_downloader_t *ctx = (anj_coap_downloader_t *) arg_ptr;
 
-    if (!result) {
+    if (result == _ANJ_EXCHANGE_RESULT_SUCCESS) {
         ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHED;
         downloader_log(L_DEBUG, "Download finished successfully");
         return;
@@ -58,10 +56,16 @@ static void exchange_completion(void *arg_ptr,
         return; // already set by anj_coap_downloader_step
     }
     // For network error or termination a ctx->error_code is already set
+    // _ANJ_EXCHANGE_ERROR_REQUEST is not checked because
+    // exchange_write_payload always returns zero
     if (result == _ANJ_EXCHANGE_ERROR_TIMEOUT) {
         ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_TIMEOUT;
-    } else if (result) {
+    }
+    if (result == _ANJ_EXCHANGE_ERROR_SERVER_RESPONSE) {
         ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_INVALID_RESPONSE;
+    }
+    if (result == _ANJ_EXCHANGE_ERROR_PROTOCOL) {
+        ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_INTERNAL;
     }
 }
 
@@ -151,10 +155,12 @@ static int start_new_exchange(anj_coap_downloader_t *ctx) {
                                ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE,
                                &ctx->out_msg_len);
     if (res) {
-        _anj_exchange_terminate(&ctx->exchange_ctx);
+        _anj_exchange_terminate(&ctx->exchange_ctx,
+                                _ANJ_EXCHANGE_ERROR_PROTOCOL);
         downloader_log(L_ERROR, "anj_coap_encode_udp failed: %d", res);
+        return ANJ_COAP_DOWNLOADER_ERR_INTERNAL;
     }
-    return res;
+    return 0;
 }
 
 static int check_etag_mismatch(_anj_etag_t *etag,
@@ -198,7 +204,7 @@ static int handle_request(anj_coap_downloader_t *ctx) {
             }
             result = _anj_server_send(&ctx->connection_ctx, ctx->msg_buffer,
                                       ctx->out_msg_len);
-            if (anj_net_is_again(result)) {
+            if (anj_net_is_inprogress(result)) {
                 // check for send ACK timeout, error suggests network issue
                 exchange_state =
                         _anj_exchange_process(&ctx->exchange_ctx,
@@ -221,6 +227,9 @@ static int handle_request(anj_coap_downloader_t *ctx) {
             result = _anj_server_receive(&ctx->connection_ctx, ctx->msg_buffer,
                                          &msg_size,
                                          ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE);
+            if (anj_net_is_inprogress(result)) {
+                return result;
+            }
             if (anj_net_is_again(result)) {
                 // check for receive timeout, if occurred, it will be set in
                 // completion callback
@@ -285,7 +294,7 @@ void anj_coap_downloader_step(anj_coap_downloader_t *ctx) {
     case ANJ_COAP_DOWNLOADER_STATUS_STARTING: {
         handle_event_cb(ctx, ANJ_COAP_DOWNLOADER_STATUS_STARTING);
         int result = connect_with_server(ctx);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_inprogress(result)) {
             break;
         }
         if (!anj_net_is_ok(result)) {
@@ -306,13 +315,16 @@ void anj_coap_downloader_step(anj_coap_downloader_t *ctx) {
     }
     case ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING: {
         int result = handle_request(ctx);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
             break;
         }
         if (result) {
             ctx->error_code = result;
             downloader_log(L_ERROR, "Download failed with error: %d", result);
-            _anj_exchange_terminate(&ctx->exchange_ctx);
+            int reason = (result == ANJ_COAP_DOWNLOADER_ERR_NETWORK)
+                                 ? _ANJ_EXCHANGE_ERROR_NETWORK
+                                 : _ANJ_EXCHANGE_ERROR_PROTOCOL;
+            _anj_exchange_terminate(&ctx->exchange_ctx, reason);
         }
         ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHING;
         break;
@@ -320,7 +332,7 @@ void anj_coap_downloader_step(anj_coap_downloader_t *ctx) {
     case ANJ_COAP_DOWNLOADER_STATUS_FINISHING: {
         handle_event_cb(ctx, ANJ_COAP_DOWNLOADER_STATUS_FINISHING);
         int result = _anj_server_close(&ctx->connection_ctx, true);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_inprogress(result)) {
             break;
         }
         // set ctx->error_code if it is not set yet
@@ -332,7 +344,7 @@ void anj_coap_downloader_step(anj_coap_downloader_t *ctx) {
             ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FAILED;
         } else {
             ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHED;
-            downloader_log(L_DEBUG, "Download finished successfully");
+            downloader_log(L_INFO, "Download finished successfully");
         }
         break;
     }
@@ -359,10 +371,9 @@ int anj_coap_downloader_init(
     ctx->event_cb = config->event_cb;
     ctx->event_cb_arg = config->event_cb_arg;
 
-    if (config->net_socket_cfg) {
-        ctx->net_socket_cfg = *config->net_socket_cfg;
+    if (_anj_exchange_init(&ctx->exchange_ctx)) {
+        return ANJ_COAP_DOWNLOADER_ERR_INTERNAL;
     }
-    _anj_exchange_init(&ctx->exchange_ctx, (unsigned int) anj_time_real_now());
     if (config->udp_tx_params) {
         _anj_exchange_set_udp_tx_params(&ctx->exchange_ctx,
                                         config->udp_tx_params);
@@ -378,7 +389,9 @@ int anj_coap_downloader_get_error(anj_coap_downloader_t *ctx) {
     return ctx->error_code;
 }
 
-int anj_coap_downloader_start(anj_coap_downloader_t *ctx, const char *uri) {
+int anj_coap_downloader_start(anj_coap_downloader_t *ctx,
+                              const char *uri,
+                              const anj_net_config_t *net_config) {
     assert(ctx);
     assert(uri);
     if (ctx->status == ANJ_COAP_DOWNLOADER_STATUS_STARTING
@@ -390,8 +403,8 @@ int anj_coap_downloader_start(anj_coap_downloader_t *ctx, const char *uri) {
 
     downloader_log(L_INFO, "Starting CoAP download from %s", uri);
 
-    _anj_uri_components_t uri_components;
-    if (_anj_parse_uri_components(uri, false, &uri_components)) {
+    _anj_core_utils_uri_components_t uri_components;
+    if (_anj_core_utils_parse_uri_components(uri, false, &uri_components)) {
         downloader_log(L_ERROR, "Invalid URI scheme");
         return ANJ_COAP_DOWNLOADER_ERR_INVALID_URI;
     }
@@ -400,6 +413,17 @@ int anj_coap_downloader_start(anj_coap_downloader_t *ctx, const char *uri) {
     ctx->host_len = uri_components.host_len;
     ctx->port = uri_components.port;
     ctx->port_len = uri_components.port_len;
+
+    if (!net_config
+            && (uri_components.binding_type == ANJ_NET_BINDING_DTLS
+                || uri_components.binding_type == ANJ_NET_BINDING_TLS)) {
+        downloader_log(L_ERROR, "No network configuration for secure CoAP");
+        return ANJ_COAP_DOWNLOADER_ERR_INVALID_CONFIGURATION;
+    }
+
+    if (net_config) {
+        ctx->net_socket_cfg = *net_config;
+    }
 
     ctx->uri = uri;
     ctx->error_code = 0;
@@ -419,7 +443,7 @@ void anj_coap_downloader_terminate(anj_coap_downloader_t *ctx) {
     downloader_log(L_INFO, "Terminating CoAP download");
     ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_TERMINATED;
     ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHING;
-    _anj_exchange_terminate(&ctx->exchange_ctx);
+    _anj_exchange_terminate(&ctx->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
 }
 
 #endif // ANJ_WITH_COAP_DOWNLOADER

@@ -28,13 +28,13 @@ which forces you to:
 
 In such cases you can use the ``ANJ_DATA_TYPE_EXTERNAL_BYTES`` /
 ``ANJ_DATA_TYPE_EXTERNAL_STRING`` data types instead. They allow you to define
-a callback that Anjay Lite calls when it needs to read the next bytes of the
-resource's value, so the value can be write in separate chunks directly to
+a callback that Anjay Lite calls to read successive chunks of the resource
+value, so the value can be write in separate chunks directly to
 internal Anjay Lite buffer.
 
 .. note::
-    This data type change should be invisible from the LwM2M Server`s
-    perspective, although the payload may be formatted differently.
+    This change is transparent to the LwM2M Server, although payload encoding
+    may differ.
     Specifically, for CBOR-based content formats (CBOR, SenML CBOR, LwM2M CBOR,
     and SenML-ETCH CBOR) the server must support `Indefinite-Length Byte Strings
     and Indefinite-Length Text Strings.
@@ -45,11 +45,11 @@ internal Anjay Lite buffer.
     `examples/tutorial/AT-ExternalDataTypes` in the Anjay Lite source directory
     and is based on `examples/tutorial/BC-MandatoryObjects` example.
 
-Read resource value from file
------------------------------
+Read a resource value from a file
+---------------------------------
 
 One practical use case for these data types is reading a resource value from a
-file or from the microcontroller's external memory. In this example, you will
+file or from the microcontroller's external memory. In this example, you
 implement the `BinaryAppDataContainer
 <https://devtoolkit.openmobilealliance.org/OEditor/LWMOView?url=https%3a%2f%2fraw.githubusercontent.com%2fOpenMobileAlliance%2flwm2m-registry%2fprod%2f19.xml>`_
 object with a `Opaque` Data resource. The value will be streamed from the
@@ -81,54 +81,50 @@ Set up external data callbacks
 
 To handle ``ANJ_DATA_TYPE_EXTERNAL_BYTES``, you need to define three callbacks:
 
-- a function to read data from an external source
-- a function to open the external source before reading
-- a function to close the source once reading is done or an error occurs
+- a function to read data from an external source,
+- a function to open the external source before reading starts, and
+- a function to close the source once reading ends or an error occurs.
 
 **Read callback: anj_get_external_data_t**
 
-The callback for reading the data must conform to the following description and
-function pointer typedef:
+The read callback must follow this interface:
 
 .. highlight:: c
 .. snippet-source:: include_public/anj/defs.h
 
     /**
-     * A handler used to retrieve string or binary data from an external source.
-     *
-     * This function is called when the resource's data type is set to
-     * @ref ANJ_DATA_TYPE_EXTERNAL_BYTES or @ref ANJ_DATA_TYPE_EXTERNAL_STRING.
-     * It may be called multiple times to retrieve subsequent data chunks.
-     *
-     * @note If this function returns @ref ANJ_IO_NEED_NEXT_CALL, the entire buffer
-     *       is considered filled. In that case, the value of @p inout_size must
-     *       remains unchanged.
-     *
-     * @note The @p offset parameter indicates the absolute position (in bytes)
-     *       from the beginning of the resource data. The implementation must ensure
-     *       that the copied data chunk corresponds to this offset, i.e., write
-     *       exactly @p *inout_size bytes from position @p offset. The library
-     *       guarantees sequential calls with increasing offsets and no overlaps.
-     *
-     * @param        buffer       Pointer to the buffer where data should be copied.
-     * @param[inout] inout_size   On input: size of the @p buffer.
-     *                            On output: number of bytes actually written.
-     * @param        offset       Offset (in bytes) from the beginning of the data.
-     * @param        user_args    User-defined context pointer provided by the
-     *                            application.
-     *
-     * @return
-     * - 0 on success,
-     * - a negative value if an error occurred,
-     * - or @ref ANJ_IO_NEED_NEXT_CALL if the function should be invoked again
-     *   to continue reading the remaining data.
-     */
+    * Callback to read a chunk of external data.
+    *
+    * Called by the library when encoding a resource whose type is
+    * @ref ANJ_DATA_TYPE_EXTERNAL_BYTES or @ref ANJ_DATA_TYPE_EXTERNAL_STRING.
+    * It may be invoked multiple times until the entire resource value
+    * has been streamed.
+    *
+    * The library guarantees sequential calls with monotonically increasing
+    * @p offset and no overlaps.
+    *
+    * @param buffer      Output buffer to be filled with data.
+    * @param[in,out] inout_size
+    *                    - On input: size of @p buffer in bytes.
+    *                    - On output: number of bytes actually written.
+    * @param offset      Absolute offset (in bytes) from the beginning of
+    *                    the resource value.
+    * @param user_args   Application-defined pointer passed unchanged to
+    *                    every callback.
+    *
+    * @return
+    * - 0 if the end of the resource was reached (all data provided),
+    * - a negative value on error,
+    * - @ref ANJ_IO_NEED_NEXT_CALL if more data remains.
+    *   In this case, the implementation must have filled the entire buffer
+    *   (i.e., left @p inout_size unchanged).
+    */
     typedef int anj_get_external_data_t(void *buffer,
                                         size_t *inout_size,
                                         size_t offset,
                                         void *user_args);
 
-In our case, the callback looks as follows:
+In this tutorial, the callback is:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-ExternalDataTypes/src/main.c
@@ -175,8 +171,7 @@ definition is shown below:
         int fd;
     } file_external_data_args = { -1 };
 
-It simply contains a file descriptor that is shared by every callback involved
-in handling the resource.
+This structure only holds a file descriptor that all callbacks share.
 
 The ``while`` loop is required because ``pread`` might read fewer bytes than
 requested in its ``count`` parameter, and, as specified for
@@ -192,24 +187,22 @@ The second callback initializes the external data source before reading:
 .. snippet-source:: include_public/anj/defs.h
 
     /**
-     * This callback is invoked before any invocation of the @ref
-     * anj_get_external_data_t callback. It should be used to initialize the
-     * external data source.
-     *
-     * @param        user_args    User-defined context pointer provided by the
-     *                            application.
-     *
-     * @note If this callback returns an error, the @ref anj_close_external_data_t
-     * callback will not be invoked.
-     *
-     * @return
-     * - 0 on success,
-     * - a negative value if an error occurred
-     */
+    * Callback to initialize the external data source.
+    *
+    * Invoked once before the first call to @ref anj_get_external_data_t.
+    * Can be used to open files, initialize peripherals, or allocate state.
+    *
+    * @param user_args  Application-defined pointer.
+    *
+    * @return
+    * - 0 on success,
+    * - a negative value if initialization failed (in which case
+    *   @ref anj_close_external_data_t will not be called).
+    */
     typedef int anj_open_external_data_t(void *user_args);
 
-In our case it will open the file (the file's path is specified by the
-``FILE_PATH`` macro):
+In this example, the callback opens the file. The file path is defined by the
+``FILE_PATH`` macro:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-ExternalDataTypes/src/main.c
@@ -238,18 +231,17 @@ called after all data have been read or when an error occurs:
 .. snippet-source:: include_public/anj/defs.h
 
     /**
-     * This callback will be called when the @ref anj_get_external_data_t callback
-     * returns a value different than @ref ANJ_IO_NEED_NEXT_CALL or when an error
-     * occurs while reading external data; such errors can originate either inside
-     * the library itself or during communication with the server - for example,
-     * if a timeout occurs or the server terminates the transfer.
-     *
-     * @param        user_args    User-defined context pointer provided by the
-     *                            application.
-     */
+    * Callback to clean up the external data source.
+    *
+    * Invoked after reading completes (successfully or with error),
+    * unless @ref anj_open_external_data_t failed.
+    * Can be used to close file descriptors, release memory, or reset state.
+    *
+    * @param user_args  Application-defined pointer.
+    */
     typedef void anj_close_external_data_t(void *user_args);
 
-In our case it will close the file:
+In this example, the callback closes the file:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-ExternalDataTypes/src/main.c
@@ -296,13 +288,13 @@ is called during the Read operation:
     }
 
 .. note::
-    The ``anj_open_external_data_t`` and ``anj_close_external_data_t`` are
-    optional. You can skip them if not needed.
+    The ``anj_open_external_data_t`` and ``anj_close_external_data_t`` callbacks
+    are optional. You can skip them if not needed.
 
-Add install function
-^^^^^^^^^^^^^^^^^^^^
+Add an install function
+^^^^^^^^^^^^^^^^^^^^^^^
 
-The following function defines and installs the ``BinaryAppDataContainer`` object:
+Define and install the ``BinaryAppDataContainer`` object:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-ExternalDataTypes/src/main.c
@@ -318,7 +310,7 @@ The following function defines and installs the ``BinaryAppDataContainer`` objec
         // Definition of resource
         static const anj_dm_res_t res = {
             .rid = 0,
-            .operation = ANJ_DM_RES_RM,
+            .kind = ANJ_DM_RES_RM,
             .type = ANJ_DATA_TYPE_EXTERNAL_BYTES,
             .insts = insts,
             .max_inst_count = 1
@@ -343,11 +335,11 @@ The following function defines and installs the ``BinaryAppDataContainer`` objec
     }
 
 .. note::
-    For more information on how to add an object in Anjay Lite, check
+    For more information on how to add an object in Anjay Lite, see
     :doc:`this <../BasicClient/BC-BasicObjectImplementation>` article.
 
-Call install function
-^^^^^^^^^^^^^^^^^^^^^
+Call the install function
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Finally, call the install function from ``main``:
 
@@ -363,4 +355,4 @@ Finally, call the install function from ``main``:
     }
 
 .. note::
-    Due to the large file size, the transfer may take a while.
+    Large files may take a long time to transfer.

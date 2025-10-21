@@ -16,7 +16,7 @@
 #include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "dm_core.h"
@@ -25,14 +25,13 @@
 int _anj_dm_begin_execute_op(anj_t *anj, const anj_uri_path_t *base_path) {
     assert(anj && base_path && anj_uri_path_is(base_path, ANJ_ID_RID));
     _anj_dm_data_model_t *dm = &anj->dm;
-    dm->result = _anj_dm_get_entity_ptrs(dm, base_path, &dm->entity_ptrs);
-    if (dm->result) {
-        return dm->result;
+    int result = _anj_dm_get_entity_ptrs(dm, base_path, &dm->entity_ptrs);
+    if (result) {
+        return result;
     }
-    if (dm->entity_ptrs.res->operation != ANJ_DM_RES_E) {
+    if (dm->entity_ptrs.res->kind != ANJ_DM_RES_E) {
         dm_log(L_ERROR, "Resource is not executable");
-        dm->result = ANJ_DM_ERR_METHOD_NOT_ALLOWED;
-        return dm->result;
+        return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
     return 0;
 }
@@ -42,13 +41,13 @@ int _anj_dm_execute(anj_t *anj,
                     size_t execute_arg_len) {
     assert(anj);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress && !dm->result);
-    dm->result = dm->entity_ptrs.obj->handlers->res_execute(
+    assert(dm->op_in_progress);
+    int result = dm->entity_ptrs.obj->handlers->res_execute(
             anj, dm->entity_ptrs.obj, dm->entity_ptrs.inst->iid,
             dm->entity_ptrs.res->rid, execute_arg, execute_arg_len);
-    if (dm->result) {
+    if (result) {
         dm_log(L_ERROR, "res_execute handler failed.");
-        return dm->result;
+        return result;
     }
     return 0;
 }

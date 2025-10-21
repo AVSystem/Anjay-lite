@@ -11,7 +11,7 @@
 #define _FIRMWARE_UPDATE_H_
 
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #define log(...) anj_log(fota_example_log, __VA_ARGS__)
 

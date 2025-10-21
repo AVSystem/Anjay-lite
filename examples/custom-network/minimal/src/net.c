@@ -120,7 +120,7 @@ int anj_udp_send(anj_net_ctx_t *ctx_,
     errno = 0;
     ssize_t result = send(ctx->sockfd, buf, length, 0);
     if (result < 0) {
-        return would_block(errno) ? ANJ_NET_EAGAIN : NET_GENERAL_ERROR;
+        return would_block(errno) ? ANJ_NET_EINPROGRESS : NET_GENERAL_ERROR;
     }
     *bytes_sent = (size_t) result;
     if (*bytes_sent < length) {
@@ -138,7 +138,11 @@ int anj_udp_recv(anj_net_ctx_t *ctx_,
     errno = 0;
     ssize_t result = recv(ctx->sockfd, buf, length, 0);
     if (result < 0) {
-        return would_block(errno) ? ANJ_NET_EAGAIN : NET_GENERAL_ERROR;
+        // in anj_net api, recv differentiates between EAGAIN and EINPROGRESS
+        if (errno == EAGAIN) {
+            return ANJ_NET_EAGAIN;
+        }
+        return would_block(errno) ? ANJ_NET_EINPROGRESS : NET_GENERAL_ERROR;
     }
     *bytes_received = (size_t) result;
     if (*bytes_received == length) {
@@ -195,7 +199,7 @@ int anj_udp_get_state(anj_net_ctx_t *ctx_, anj_net_socket_state_t *out_value) {
     return ANJ_NET_OK;
 }
 
-int anj_udp_reuse_last_port(anj_net_ctx_t *ctx) {
-    (void) ctx;
-    return ANJ_NET_ENOTSUP;
+int anj_udp_queue_mode_rx_off(anj_net_ctx_t *ctx_) {
+    (void) ctx_;
+    return ANJ_NET_OK;
 }

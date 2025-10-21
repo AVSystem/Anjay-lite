@@ -11,11 +11,13 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <string.h>
 
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 
 #include "../dm/dm_integration.h"
 #include "register.h"
@@ -43,7 +45,7 @@ static void request_completion_callback(void *arg_ptr,
                                         const _anj_coap_msg_t *response,
                                         int result) {
     _anj_register_ctx_t *ctx = (_anj_register_ctx_t *) arg_ptr;
-    if (result) {
+    if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
         register_log(L_ERROR, "Operation failed with result %d", result);
         ctx->internal_state = REGISTER_INTERNAL_STATE_ERROR;
     } else {
@@ -124,7 +126,7 @@ void _anj_register_register(anj_t *anj,
 }
 
 void _anj_register_update(anj_t *anj,
-                          const uint32_t *lifetime,
+                          const anj_time_duration_t *lifetime,
                           bool with_payload,
                           _anj_coap_msg_t *out_msg,
                           _anj_exchange_handlers_t *out_handlers) {

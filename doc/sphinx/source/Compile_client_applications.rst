@@ -6,7 +6,7 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Compile client applications
+Compile Client Applications
 ===========================
 
 This guide explains how to set up your environment, integrate Anjay Lite into
@@ -14,14 +14,13 @@ your application, and build and run tests on Linux systems.
 
 .. note::
 
-   This guide is intended for Linux only and has been verified on Ubuntu 22.04
-   and Ubuntu 24.04.
+   This guide applies to Linux systems only and has been verified on Ubuntu
+   22.04 and Ubuntu 24.04.
 
-Prepare the Environment
+Prepare the environment
 -----------------------
 
-To prevent issues related to external dependencies, install all required
-dependencies by running the following command:
+To avoid dependency issues, install all required packages with:
 
 .. code-block:: bash
 
@@ -38,49 +37,46 @@ or memory analysis.
 
 .. _integrating-anjay-lite:
 
-Integrate Anjay Lite into a Custom Application
+Integrate Anjay Lite into a custom application
 ----------------------------------------------
 
-Before building and integrating Anjay Lite, it may be necessary to adjust its
-compile-time configuration depending on the target platform and desired feature
-set. Anjay Lite is designed to be flexible and modular, and many of its features
-can be enabled or disabled.
+Before building and integrating Anjay Lite, review and adjust its compile-time
+configuration to match the target platform and required features.
+Anjay Lite is modular and flexible — many features can be enabled or disabled
+as needed.
 
 Anjay Lite uses a configuration header to control which features and components
-are included during compilation. The default template is provided as
-:file:`anj_config.h.in`. There are two ways to provide this configuration:
+are included during compilation. A default template is provided as
+:file:`anj_config.h.in`. You can configure it in two ways:
 
-- Use CMake for automatic configuration:
+- **Automatic (CMake-based):**
 
-  - If you integrate Anjay Lite using :code:`find_package`, the
-    configuration file will be generated automatically by CMake. You can
-    customize it by setting relevant ``ANJ_*`` variables in your
+  - If you integrate Anjay Lite using :code:`find_package`, CMake generates the
+    configuration file automatically.
+    Customize it by setting relevant ``ANJ_*`` variables in your
     :file:`CMakeLists.txt` before calling :code:`find_package`. This
     approach requires no manual editing of the ``.in`` file.
 
-- Configure manually:
+- **Manual configuration:**
 
-  If you're not using :code:`find_package`, or building Anjay Lite as part of a
-  larger cross-platform project, you can configure Anjay Lite manually:
+  When not using :code:`find_package` or when building as part of a larger
+  cross-platform project: you can configure Anjay Lite manually:
 
-    - Copy the :file:`include_public/anj/anj_config.h.in` file to the
-      ``config/`` directory, and rename it to :file:`config/anj/anj_config.h`.
+  - Copy the :file:`include_public/anj/anj_config.h.in` file to the
+    ``config/`` directory, and rename it to :file:`config/anj/anj_config.h`.
 
-    - Open the file and:
+  - Open the file and:
 
-      - Replace ``#cmakedefine *_SOME_FEATURE`` with ``#define *_SOME_FEATURE``
-        to enable a feature.
+    - Replace ``#cmakedefine *_SOME_FEATURE`` with ``#define *_SOME_FEATURE``
+      to enable a feature.
+    - Remove or comment the line to disable a feature.
+    - Replace any ``@PLACEHOLDER@`` values.
 
-      - Remove or comment the line to disable a feature.
+  - Add the ``config/`` directory to your include path.
 
-      - Replace any ``@PLACEHOLDER@`` values.
-
-    - Add the ``config/`` directory to your include path.
-
-Each configuration option is documented inline, with comments explaining its
-purpose and possible values. Adjusting these options allows the library to be
-tailored for different environments, from full-featured POSIX systems to
-minimal bare-metal platforms.
+Each configuration option is documented inline, explaining its purpose and
+possible values. Adjusting these options lets you tailor the library for
+different targets—from full-featured POSIX systems to minimal bare-metal setups.
 
 Build on Linux
 ^^^^^^^^^^^^^^
@@ -127,12 +123,12 @@ build an application with Anjay Lite using a custom configuration:
                          anj_extra_warning_flags)
 
 .. note::
-    ``anj_extra_warning_flags`` is a CMake **INTERFACE** target that, when the
-    compiler is GCC or Clang, injects an extended set of warning flags without
-    producing any binaries. Anjay links to it only when the CMake option
-    ``ANJ_WITH_EXTRA_WARNINGS`` is enabled (this option is ON by default). You
-    can simply add ``anj_extra_warning_flags`` to ``target_link_libraries`` if
-    you want compile your sources with the same flags, but it is not required.
+   ``anj_extra_warning_flags`` is a CMake **INTERFACE** target that injects
+   extended warning flags when using GCC or Clang.
+   It doesn't produce binaries and is linked automatically when the
+   ``ANJ_WITH_EXTRA_WARNINGS`` option (ON by default) is enabled. You
+   can simply add ``anj_extra_warning_flags`` to ``target_link_libraries`` if
+   you want compile your sources with the same flags, but it is not required.
 
 Now you can simply build your application:
 
@@ -199,7 +195,7 @@ target build system.
          │   │   └── anj_config.h
          ├── anjay_lite/
          └── <build_artifacts>
-         
+
    .. tab-item:: CMake without find_package
 
       Before running this example, it is required to have a directory structure
@@ -216,7 +212,7 @@ target build system.
          └── anjay_lite/
 
       .. note::
-         
+
          The configuration files have to be provided manually. See
          :ref:`integrating-anjay-lite` for details.
 
@@ -277,14 +273,14 @@ target build system.
          cmake ..
          make -j
 
-Build and running Tests
------------------------
+Build and run tests
+-------------------
 
 Anjay Lite provides a collection of example applications that serve as practical
 starting points for developing your own solutions. It also includes a
 comprehensive test suite to support integration and debugging efforts.
 
-Build Tests
+Build tests
 ^^^^^^^^^^^
 
 To build all tests, run the following commands from the project root directory:
@@ -312,11 +308,11 @@ from their respective directories. For example, to build tests for the
 All compiled tests binaries are placed in the ``build/`` directory, each within
 its corresponding subdirectory.
 
-Run Tests
+Run tests
 ^^^^^^^^^
 
-After completing the build process, you can run the tests from within the
-``build/`` directory by executing the compiled binaries. For example:
+After building, run tests from the ``build/`` directory by executing
+the compiled binaries. For example:
 
 .. code-block:: bash
 
@@ -329,10 +325,10 @@ the ``_with_valgrind`` suffix:
 
    make core_tests_with_valgrind
 
-Next Steps
+Next steps
 ----------
 
 Your development environment is now set up, and all example applications and
-tests have been successfully built and executed. You can continue by exploring
-specific features, object implementations, or integration workflows described in
-the subsequent sections of this documentation.
+tests have been successfully built and executed. Continue by exploring
+specific features, object implementations, or integration workflows described
+in the subsequent sections of this documentation.

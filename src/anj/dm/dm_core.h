@@ -18,7 +18,7 @@
 #    include <anj/defs.h>
 #    include <anj/dm/core.h>
 #    include <anj/dm/defs.h>
-#    include <anj/log/log.h>
+#    include <anj/log.h>
 
 #    define dm_log(...) anj_log(dm, __VA_ARGS__)
 
@@ -88,18 +88,18 @@ int _anj_dm_check_obj_instance(const anj_dm_obj_t *obj,
 int _anj_dm_check_obj(const anj_dm_obj_t *obj);
 #    endif // NDEBUG
 
-static inline bool
-_anj_dm_is_multi_instance_resource(anj_dm_res_operation_t op) {
-    return op == ANJ_DM_RES_RM || op == ANJ_DM_RES_WM || op == ANJ_DM_RES_RWM;
+static inline bool _anj_dm_is_multi_instance_resource(anj_dm_res_kind_t kind) {
+    return kind == ANJ_DM_RES_RM || kind == ANJ_DM_RES_WM
+           || kind == ANJ_DM_RES_RWM;
 }
 
 const anj_dm_obj_t *_anj_dm_find_obj(_anj_dm_data_model_t *dm, anj_oid_t oid);
 
 bool _anj_dm_res_inst_exists(const anj_dm_res_t *res, anj_riid_t riid);
 
-bool _anj_dm_is_readable_resource(anj_dm_res_operation_t op);
+bool _anj_dm_is_readable_resource(anj_dm_res_kind_t kind);
 
-bool _anj_dm_is_writable_resource(anj_dm_res_operation_t op, bool is_bootstrap);
+bool _anj_dm_is_writable_resource(anj_dm_res_kind_t kind, bool is_bootstrap);
 
 uint16_t _anj_dm_count_res_insts(const anj_dm_res_t *res);
 

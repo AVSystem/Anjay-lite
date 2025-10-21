@@ -70,12 +70,6 @@ extern "C" {
 #define _ANJ_MAKE_URI_PATH(...) \
     ((anj_uri_path_t) _ANJ_URI_PATH_INITIALIZER(__VA_ARGS__))
 
-/**
- * @anj_internal_api_do_not_use
- * Type used as a PRNG seed.
- */
-typedef unsigned int _anj_rand_seed_t;
-
 #ifdef __cplusplus
 }
 #endif

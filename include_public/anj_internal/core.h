@@ -59,18 +59,21 @@ typedef struct anj_struct {
     _anj_dm_data_model_t dm;
     _anj_register_ctx_t register_ctx;
     _anj_server_connection_ctx_t connection_ctx;
+#ifdef ANJ_WITH_SECURITY
+    void *crypto_ctx;
+#endif // ANJ_WITH_SECURITY
 
     anj_net_config_t net_socket_cfg;
     const char *endpoint_name;
     bool queue_mode_enabled;
-    uint64_t queue_mode_timeout_ms;
+    anj_time_duration_t queue_mode_timeout;
     anj_connection_status_callback_t *conn_status_cb;
     void *conn_status_cb_arg;
 
 #ifdef ANJ_WITH_BOOTSTRAP
     _anj_bootstrap_ctx_t bootstrap_ctx;
     uint16_t bootstrap_retry_count;
-    uint32_t bootstrap_retry_timeout;
+    anj_time_duration_t bootstrap_retry_timeout;
 #endif // ANJ_WITH_BOOTSTRAP
 
 #ifdef ANJ_WITH_OBSERVE
@@ -109,8 +112,8 @@ typedef struct anj_struct {
 
     struct {
         bool disable_triggered;
-        uint64_t enable_time;
-        uint64_t enable_time_user_triggered;
+        anj_time_real_t enable_time;
+        anj_time_real_t enable_time_user_triggered;
         bool registration_update_triggered;
         bool bootstrap_request_triggered;
         bool restart_triggered;
@@ -120,21 +123,22 @@ typedef struct anj_struct {
             struct {
                 uint8_t bootstrap_state;
                 uint16_t bootstrap_retry_attempt;
-                uint64_t bootstrap_timeout;
+                anj_time_monotonic_t bootstrap_timeout;
             } bootstrap;
 #endif // ANJ_WITH_BOOTSTRAP
             struct {
                 uint16_t retry_count;
                 uint16_t retry_seq_count;
-                uint64_t retry_timeout;
+                anj_time_monotonic_t retry_timeout;
                 uint8_t registration_state;
             } registration;
             struct {
-                uint64_t next_update_time;
-                uint64_t queue_start_time;
+                anj_time_real_t next_update_time;
+                anj_time_real_t queue_start_time;
                 bool update_with_lifetime;
                 bool update_with_payload;
                 uint8_t internal_state;
+                bool transition_forced;
             } registered;
         } details;
     } server_state;
@@ -142,7 +146,8 @@ typedef struct anj_struct {
     struct {
         uint16_t ssid;
         anj_iid_t iid;
-        uint32_t lifetime;
+        /* lifetime in seconds */
+        anj_time_duration_t lifetime;
         anj_communication_retry_res_t retry_res;
         bool bootstrap_on_registration_failure;
 #ifdef ANJ_WITH_LWM2M_SEND
@@ -159,7 +164,7 @@ typedef struct anj_struct {
         char port[ANJ_U16_STR_MAX_LEN + 1];
         anj_net_binding_type_t type;
 #ifdef ANJ_WITH_BOOTSTRAP
-        uint32_t client_hold_off_time;
+        anj_time_duration_t client_hold_off_time;
 #endif // ANJ_WITH_BOOTSTRAP
     } security_instance;
 

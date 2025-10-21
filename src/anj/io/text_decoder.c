@@ -481,6 +481,7 @@ int _anj_text_decoder_get_entry_count(_anj_io_in_ctx_t *ctx,
                                       size_t *out_count) {
     assert(ctx);
     assert(out_count);
+    (void) ctx;
     *out_count = 1;
     return 0;
 }

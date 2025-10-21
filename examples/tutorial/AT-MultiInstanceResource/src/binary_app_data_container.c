@@ -41,7 +41,7 @@ static binary_app_data_container_inst_t
 static const anj_dm_res_t RES_DATA = {
     .rid = RID_DATA,
     .type = ANJ_DATA_TYPE_BYTES,
-    .operation = ANJ_DM_RES_RWM,
+    .kind = ANJ_DM_RES_RWM,
     .insts = res_insts,
     .max_inst_count = DATA_RES_INST_COUNT,
 };
@@ -118,10 +118,12 @@ static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result) {
     (void) anj;
     (void) obj;
-    if (!result) {
+    if (result == ANJ_DM_TRANSACTION_SUCCESS) {
         return;
     }
     memcpy(bin_data_insts, bin_data_insts_cached, sizeof(bin_data_insts));

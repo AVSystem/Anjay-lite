@@ -53,7 +53,7 @@ function(add_standalone_target NAME PATH WITH_VALGRIND)
       -DCMAKE_EXE_LINKER_FLAGS="${unescaped_exe_linker_flags}"
       ${COMMAND_LINE_FLAGS}
     COMMAND ${CMAKE_COMMAND} --build . --target ${NAME} -- -j${NPROC}
-    WORKING_DIRECTORY "${workdir}" 
+    WORKING_DIRECTORY "${workdir}"
     POST_BUILD)
 
   if(WITH_VALGRIND AND VALGRIND_EXECUTABLE)
@@ -82,18 +82,23 @@ add_standalone_target(coap_tests tests/anj/coap ON)
 add_standalone_target(net_tests tests/anj/net ON)
 add_standalone_target(core_tests tests/anj/core ON)
 add_standalone_target(downloader_tests tests/anj/downloader ON)
+add_standalone_target(time_api_tests tests/anj/time ON)
+add_standalone_target(log_tests tests/anj/log ON)
 
 # examples
 add_standalone_target(anjay_lite_firmware_update examples/tutorial/firmware-update OFF)
 add_standalone_target(anjay_lite_firmware_update_pull examples/tutorial/firmware-update-coap-downloader OFF)
+add_standalone_target(anjay_lite_secure_firmware_update_pull examples/tutorial/firmware-update-coaps-downloader OFF)
 
 add_standalone_target(anjay_lite_bc_initialization examples/tutorial/BC-Initialization OFF)
 add_standalone_target(anjay_lite_bc_mandatory_objects examples/tutorial/BC-MandatoryObjects OFF)
+add_standalone_target(anjay_lite_bc_security examples/tutorial/BC-Security OFF)
 add_standalone_target(anjay_lite_bc_object_impl examples/tutorial/BC-BasicObjectImplementation OFF)
 add_standalone_target(anjay_lite_bc_notifications examples/tutorial/BC-Notifications OFF)
 add_standalone_target(anjay_lite_bc_send examples/tutorial/BC-Send OFF)
 
 add_standalone_target(anjay_lite_at_bootstrap examples/tutorial/AT-Bootstrap OFF)
+add_standalone_target(anjay_lite_at_persistence examples/tutorial/AT-Persistence OFF)
 add_standalone_target(anjay_lite_at_queue_mode examples/tutorial/AT-QueueMode OFF)
 add_standalone_target(anjay_lite_at_multi_instance_object examples/tutorial/AT-MultiInstanceObject OFF)
 add_standalone_target(anjay_lite_at_multi_instance_object_dynamic examples/tutorial/AT-MultiInstanceObjectDynamic OFF)
@@ -101,9 +106,6 @@ add_standalone_target(anjay_lite_at_multi_instance_resource examples/tutorial/AT
 add_standalone_target(anjay_lite_at_multi_instance_resource_dynamic examples/tutorial/AT-MultiInstanceResourceDynamic OFF)
 
 add_standalone_target(anjay_lite_minimal_network_api examples/custom-network/minimal OFF)
-add_standalone_target(anjay_lite_reuse_port examples/custom-network/reuse-port OFF)
-
-add_standalone_target(anjay_lite_mbedtls_build examples/tutorial/mbedtls-build OFF)
 
 # Sphinx and doxygen documentation
 add_subdirectory(doc)
@@ -119,4 +121,4 @@ add_standalone_target(codegen_add_object_tests tests/codegen/add_object OFF)
 add_custom_target(init_header_check
   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_SOURCE_DIR}/tests/init_header_check/run_check.cmake"
   WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-)
+  )

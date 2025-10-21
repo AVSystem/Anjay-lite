@@ -26,8 +26,8 @@ typedef enum {
     // Next step should be processed immediately.
     _ANJ_CORE_NEXT_ACTION_CONTINUE,
     // @ref anj_core_step should return to the user code. This flag means that
-    // network layer returned ANJ_NET_EAGAIN or event loop is waiting for an
-    // event.
+    // network layer returned one of ANJ_NET_EAGAIN, ANJ_NET_EINPROGRESS or
+    // event loop is waiting for an event.
     _ANJ_CORE_NEXT_ACTION_LEAVE
 } _anj_core_next_action_t;
 

@@ -17,6 +17,7 @@
 
 #    include <anj/core.h>
 #    include <anj/defs.h>
+#    include <anj/time.h>
 
 #    ifdef ANJ_WITH_OBSERVE
 
@@ -49,7 +50,7 @@ typedef enum {
  * // Using of this API is strongly associated with exchange module.
  * _anj_exchange_ctx_t exchange_ctx;
  * _anj_exchange_handlers_t out_handlers;
- * _anj_exchange_init(&exchange_ctx, 0);
+ * _anj_exchange_init(&exchange_ctx);
  * // Below handlers are provided by the user, refer to handlers documentation
  * // for more information.
  * _anj_observe_init(&anj);
@@ -272,7 +273,7 @@ int _anj_observe_get_attr_storage(anj_t *anj,
 int anj_observe_time_to_next_notification(
         anj_t *anj,
         const _anj_observe_server_state_t *server_state,
-        uint64_t *time_to_next_notification);
+        anj_time_duration_t *time_to_next_notification);
 
 /**
  * Notifies the observe module that data model changed. Depending on the

@@ -17,7 +17,8 @@
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #include "../dm/dm_integration.h"
@@ -31,17 +32,23 @@
 
 static void get_min_max_period(_anj_attr_notification_t *effective_attr,
                                const _anj_observe_server_state_t *server_state,
-                               uint32_t *max_period,
-                               uint32_t *min_period) {
-    *min_period = effective_attr->has_min_period
-                          ? effective_attr->min_period
-                          : server_state->default_min_period;
-    *max_period = effective_attr->has_max_period
-                          ? effective_attr->max_period
-                          : server_state->default_max_period;
+                               anj_time_duration_t *max_period,
+                               anj_time_duration_t *min_period) {
+    *min_period =
+            effective_attr->has_min_period
+                    ? anj_time_duration_new(effective_attr->min_period,
+                                            ANJ_TIME_UNIT_S)
+                    : anj_time_duration_new(server_state->default_min_period,
+                                            ANJ_TIME_UNIT_S);
+    *max_period =
+            effective_attr->has_max_period
+                    ? anj_time_duration_new(effective_attr->max_period,
+                                            ANJ_TIME_UNIT_S)
+                    : anj_time_duration_new(server_state->default_max_period,
+                                            ANJ_TIME_UNIT_S);
 
-    if (*min_period > *max_period) {
-        *max_period = 0;
+    if (anj_time_duration_gt(*min_period, *max_period)) {
+        *max_period = ANJ_TIME_DURATION_ZERO;
     }
 }
 
@@ -55,7 +62,7 @@ static int read_resource_value(anj_t *anj,
     if ((result = _anj_dm_observe_read_resource(
                  anj, &current_res_value, current_res_type, &res_multi,
                  &ctx->processing_observation->path))) {
-        observe_log(L_WARNING, "Can not read targeted resource value");
+        observe_log(L_WARNING, "Can't read resource");
         _anj_observe_remove_observation(ctx);
         return result;
     } else {
@@ -152,8 +159,8 @@ static void anj_exchange_completion(void *arg_ptr,
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
     assert(ctx->in_progress_type == MSG_TYPE_NOTIFY);
     ctx->already_processed = 0;
-    if (result) {
-        _anj_dm_observe_terminate_operation(anj);
+    _anj_dm_observe_finalize_operation(anj, result);
+    if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
         _anj_observe_remove_observation(ctx);
         observe_log(L_ERROR, "Failed to send notification");
     } else {
@@ -210,8 +217,9 @@ static int create_notification(anj_t *anj,
     out_msg->operation = ANJ_OP_INF_NON_CON_NOTIFY;
 #    endif // ANJ_WITH_LWM2M12
     // send a confirmable notification at least once every 24 hours
-    if (anj_time_real_now()
-            >= ctx->processing_observation->next_conf_notify_timestamp) {
+    if (anj_time_real_geq(
+                anj_time_real_now(),
+                ctx->processing_observation->next_conf_notify_timestamp)) {
         out_msg->operation = ANJ_OP_INF_CON_NOTIFY;
     }
 
@@ -230,14 +238,14 @@ static int create_notification(anj_t *anj,
     return 0;
 }
 
-static uint64_t
+static anj_time_real_t
 calculate_next_notify_check_timestamp(_anj_observe_observation_t *observation,
-                                      uint32_t max_period) {
-    if (max_period == 0) {
-        return ANJ_TIME_UNDEFINED;
+                                      anj_time_duration_t max_period) {
+    if (anj_time_duration_eq(max_period, ANJ_TIME_DURATION_ZERO)) {
+        return ANJ_TIME_REAL_INVALID;
     }
 
-    return observation->last_notify_timestamp + max_period * 1000;
+    return anj_time_real_add(observation->last_notify_timestamp, max_period);
 }
 
 static int
@@ -245,18 +253,18 @@ observe_process_or_get_time(anj_t *anj,
                             _anj_exchange_handlers_t *out_handlers,
                             const _anj_observe_server_state_t *server_state,
                             _anj_coap_msg_t *out_msg,
-                            uint64_t *time_to_next_notif,
+                            anj_time_duration_t *time_to_next_notif,
                             bool get_time) {
-    uint32_t min_period;
-    uint32_t max_period;
-    uint64_t elapsed_time;
-    uint64_t current_time = anj_time_real_now();
-    uint64_t tmp_time_to_next_notif;
-    uint64_t next_notify_check_timestamp;
+    anj_time_duration_t min_period;
+    anj_time_duration_t max_period;
+    anj_time_duration_t elapsed_time;
+    anj_time_real_t current_time = anj_time_real_now();
+    anj_time_duration_t tmp_time_to_next_notif;
+    anj_time_real_t next_notify_check_timestamp;
     int ret_val = 0;
 
     if (get_time) {
-        *time_to_next_notif = ANJ_TIME_UNDEFINED;
+        *time_to_next_notif = ANJ_TIME_DURATION_INVALID;
     }
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
     for (size_t i = 0; i < ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER; i++) {
@@ -269,9 +277,11 @@ observe_process_or_get_time(anj_t *anj,
         /* If this condition is met, it means that the system time has been
          * modified, and for this reason, we send a notification regardless of
          * the attributes */
-        if (current_time < ctx->processing_observation->last_notify_timestamp) {
+        if (anj_time_real_lt(
+                    current_time,
+                    ctx->processing_observation->last_notify_timestamp)) {
             if (get_time) {
-                *time_to_next_notif = 0;
+                *time_to_next_notif = ANJ_TIME_DURATION_ZERO;
             } else {
                 ret_val = create_notification(anj, out_handlers, server_state,
                                               out_msg);
@@ -285,40 +295,46 @@ observe_process_or_get_time(anj_t *anj,
         next_notify_check_timestamp = calculate_next_notify_check_timestamp(
                 ctx->processing_observation, max_period);
 
-        if (get_time && next_notify_check_timestamp != ANJ_TIME_UNDEFINED) {
-            if (current_time > next_notify_check_timestamp) {
-                tmp_time_to_next_notif = 0;
+        if (get_time && anj_time_real_is_valid(next_notify_check_timestamp)) {
+            if (anj_time_real_gt(current_time, next_notify_check_timestamp)) {
+                tmp_time_to_next_notif = ANJ_TIME_DURATION_ZERO;
             } else {
                 tmp_time_to_next_notif =
-                        next_notify_check_timestamp - current_time;
+                        anj_time_real_diff(next_notify_check_timestamp,
+                                           current_time);
             }
 
-            if (*time_to_next_notif > tmp_time_to_next_notif) {
+            if (!anj_time_duration_lt(*time_to_next_notif,
+                                      tmp_time_to_next_notif)) {
                 *time_to_next_notif = tmp_time_to_next_notif;
             }
         }
 
-        elapsed_time = (current_time
-                        - ctx->processing_observation->last_notify_timestamp)
-                       / 1000;
+        elapsed_time = anj_time_real_diff(
+                current_time,
+                ctx->processing_observation->last_notify_timestamp);
 
-        if (min_period > elapsed_time) {
+        if (anj_time_duration_gt(min_period, elapsed_time)) {
             if (get_time && ctx->processing_observation->notification_to_send) {
-                tmp_time_to_next_notif = min_period * 1000
-                                         - (current_time
-                                            - ctx->processing_observation
-                                                      ->last_notify_timestamp);
-                if (*time_to_next_notif > tmp_time_to_next_notif) {
+
+                tmp_time_to_next_notif = anj_time_duration_sub(
+                        min_period,
+                        anj_time_real_diff(current_time,
+                                           ctx->processing_observation
+                                                   ->last_notify_timestamp));
+                if (!anj_time_duration_lt(*time_to_next_notif,
+                                          tmp_time_to_next_notif)) {
                     *time_to_next_notif = tmp_time_to_next_notif;
                 }
             }
             continue;
         }
 
-        if ((max_period && max_period <= elapsed_time)
+        if ((!anj_time_duration_eq(max_period, ANJ_TIME_DURATION_ZERO)
+             && anj_time_duration_leq(max_period, elapsed_time))
                 || ctx->processing_observation->notification_to_send) {
             if (get_time) {
-                *time_to_next_notif = 0;
+                *time_to_next_notif = ANJ_TIME_DURATION_ZERO;
             } else {
                 ret_val = create_notification(anj, out_handlers, server_state,
                                               out_msg);
@@ -343,7 +359,7 @@ int _anj_observe_process(anj_t *anj,
 int anj_observe_time_to_next_notification(
         anj_t *anj,
         const _anj_observe_server_state_t *server_state,
-        uint64_t *time_to_next_notification) {
+        anj_time_duration_t *time_to_next_notification) {
     assert(anj && server_state && time_to_next_notification);
     assert(server_state->ssid > 0 && server_state->ssid < UINT16_MAX);
 
@@ -357,67 +373,36 @@ int anj_observe_time_to_next_notification(
     return ret;
 }
 
-// a > b
-static bool
-observation_value_greater_than_value(const _anj_observation_res_val_t *a,
-                                     const double *b,
-                                     const anj_data_type_t *type) {
-    switch (*type) {
+static double observation_value_to_double(const _anj_observation_res_val_t *val,
+                                          anj_data_type_t type) {
+    switch (type) {
+#    ifdef ANJ_WITH_LWM2M12
+    case ANJ_DATA_TYPE_BOOL:
+        return 0.0;
+#    endif // ANJ_WITH_LWM2M12
     case ANJ_DATA_TYPE_INT:
-        return (double) a->int_value > *b;
+        return (double) val->int_value;
     case ANJ_DATA_TYPE_UINT:
-        return (double) a->uint_value > *b;
+        return (double) val->uint_value;
     case ANJ_DATA_TYPE_DOUBLE:
-        return a->double_value > *b;
+        return val->double_value;
     default:
         ANJ_UNREACHABLE("incorrect data type");
+        return 0.0;
     }
 }
 
-// a > b
-static bool
-value_greater_than_observation_value(const double *a,
-                                     const _anj_observation_res_val_t *b,
-                                     const anj_data_type_t *type) {
-    switch (*type) {
-    case ANJ_DATA_TYPE_INT:
-        return (double) b->int_value < *a;
-    case ANJ_DATA_TYPE_UINT:
-        return (double) b->uint_value < *a;
-    case ANJ_DATA_TYPE_DOUBLE:
-        return b->double_value < *a;
-    default:
-        ANJ_UNREACHABLE("incorrect data type");
-    }
+// abs(a - b) >= c
+inline static bool observation_value_difference_greater_or_equal_to_value(
+        const double *a, const double *b, const double *c) {
+    return SUB_ABS(*a, *b) >= *c;
 }
 
-// abs(a - b) >= b
-static bool observation_value_difference_greater_or_equal_to_value(
-        const _anj_observation_res_val_t *a,
-        const _anj_observation_res_val_t *b,
-        const double *c,
-        const anj_data_type_t *type) {
-    switch (*type) {
-    case ANJ_DATA_TYPE_INT:
-        return (double) SUB_ABS(a->int_value, b->int_value) >= *c;
-    case ANJ_DATA_TYPE_UINT:
-        return (double) SUB_ABS(a->uint_value, b->uint_value) >= *c;
-    case ANJ_DATA_TYPE_DOUBLE:
-        return SUB_ABS(a->double_value, b->double_value) >= *c;
-    default:
-        ANJ_UNREACHABLE("incorrect data type");
-    }
-}
-
-static bool do_observation_value_crossed_threshold(
-        const _anj_observation_res_val_t *prev_val,
-        const _anj_observation_res_val_t *curr_val,
-        const double *th,
-        const anj_data_type_t *type) {
-    return (observation_value_greater_than_value(prev_val, th, type)
-            && value_greater_than_observation_value(th, curr_val, type))
-           || (observation_value_greater_than_value(curr_val, th, type)
-               && value_greater_than_observation_value(th, prev_val, type));
+static bool do_observation_value_crossed_threshold(const double *prev_val,
+                                                   const double *curr_val,
+                                                   const double *th) {
+    return (*prev_val <= *th && *curr_val > *th)
+           || (*prev_val >= *th && *curr_val < *th);
 }
 
 #    define ATTRIBUTES_NOT_MET -1
@@ -446,10 +431,15 @@ static int check_attributes(anj_t *anj,
             }
         }
 
+        double last_sent_value =
+                observation_value_to_double(&observation->last_sent_value,
+                                            *current_res_type);
+        double current_value = observation_value_to_double(current_observe_val,
+                                                           *current_res_type);
+
         if (!((attr->has_less_than
                && do_observation_value_crossed_threshold(
-                          &observation->last_sent_value, current_observe_val,
-                          &attr->less_than, current_res_type))
+                          &last_sent_value, &current_value, &attr->less_than))
               ||
 #    ifdef ANJ_WITH_LWM2M12
               (attr->has_edge
@@ -460,13 +450,12 @@ static int check_attributes(anj_t *anj,
               ||
 #    endif // ANJ_WITH_LWM2M12
               (attr->has_greater_than
-               && do_observation_value_crossed_threshold(
-                          &observation->last_sent_value, current_observe_val,
-                          &attr->greater_than, current_res_type))
+               && do_observation_value_crossed_threshold(&last_sent_value,
+                                                         &current_value,
+                                                         &attr->greater_than))
               || (attr->has_step
                   && observation_value_difference_greater_or_equal_to_value(
-                             &observation->last_sent_value, current_observe_val,
-                             &attr->step, current_res_type)))) {
+                             &last_sent_value, &current_value, &attr->step)))) {
             return ATTRIBUTES_NOT_MET;
         }
     }

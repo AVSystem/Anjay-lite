@@ -18,7 +18,7 @@
 #include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "../core/core.h"
@@ -26,15 +26,15 @@
 #include "dm_core.h"
 #include "dm_io.h"
 
-bool _anj_dm_is_readable_resource(anj_dm_res_operation_t op) {
-    return op == ANJ_DM_RES_R || op == ANJ_DM_RES_RM || op == ANJ_DM_RES_RW
-           || op == ANJ_DM_RES_RWM;
+bool _anj_dm_is_readable_resource(anj_dm_res_kind_t kind) {
+    return kind == ANJ_DM_RES_R || kind == ANJ_DM_RES_RM
+           || kind == ANJ_DM_RES_RW || kind == ANJ_DM_RES_RWM;
 }
 
-bool _anj_dm_is_writable_resource(anj_dm_res_operation_t op,
-                                  bool is_bootstrap) {
-    return op == ANJ_DM_RES_W || op == ANJ_DM_RES_RW || op == ANJ_DM_RES_WM
-           || op == ANJ_DM_RES_RWM || (is_bootstrap && op != ANJ_DM_RES_E);
+bool _anj_dm_is_writable_resource(anj_dm_res_kind_t kind, bool is_bootstrap) {
+    return kind == ANJ_DM_RES_W || kind == ANJ_DM_RES_RW
+           || kind == ANJ_DM_RES_WM || kind == ANJ_DM_RES_RWM
+           || (is_bootstrap && kind != ANJ_DM_RES_E);
 }
 
 uint16_t _anj_dm_count_res_insts(const anj_dm_res_t *res) {
@@ -105,28 +105,6 @@ bool _anj_dm_res_inst_exists(const anj_dm_res_t *res, anj_riid_t riid) {
     return false;
 }
 
-static int finish_ongoing_operation(anj_t *anj) {
-    _anj_dm_data_model_t *dm = &anj->dm;
-    if (dm->is_transactional) {
-        for (uint16_t idx = 0; idx < dm->objs_count && !dm->result; idx++) {
-            const anj_dm_obj_t *obj = dm->objs[idx];
-            if (dm->in_transaction[idx]
-                    && obj->handlers->transaction_validate) {
-                dm->result = obj->handlers->transaction_validate(anj, obj);
-            }
-        }
-        for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
-            const anj_dm_obj_t *obj = dm->objs[idx];
-            if (dm->in_transaction[idx] && obj->handlers->transaction_end) {
-                obj->handlers->transaction_end(anj, obj, dm->result);
-            }
-            dm->in_transaction[idx] = false;
-        }
-    }
-    dm->op_in_progress = false;
-    return dm->result;
-}
-
 int _anj_dm_call_transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     if (obj->handlers->transaction_begin) {
         return obj->handlers->transaction_begin(anj, obj);
@@ -184,7 +162,7 @@ int _anj_dm_get_obj_ptrs(const anj_dm_obj_t *obj,
     if (!anj_uri_path_has(path, ANJ_ID_RIID)) {
         goto finalize;
     }
-    if (!_anj_dm_is_multi_instance_resource(res->operation)) {
+    if (!_anj_dm_is_multi_instance_resource(res->kind)) {
         dm_log(L_ERROR, "Resource is not multi-instance");
         return ANJ_DM_ERR_NOT_FOUND;
     }
@@ -228,12 +206,10 @@ int _anj_dm_operation_begin(anj_t *anj,
     dm->bootstrap_operation = is_bootstrap_request;
     dm->is_transactional = false;
     dm->op_in_progress = true;
-    dm->result = 0;
 
     if (!is_bootstrap_request) {
         if (path != NULL && _anj_uri_path_to_security_or_oscore_obj(path)) {
-            dm->result = ANJ_DM_ERR_UNAUTHORIZED;
-            return dm->result;
+            return ANJ_DM_ERR_UNAUTHORIZED;
         }
     }
 
@@ -285,10 +261,35 @@ int _anj_dm_operation_begin(anj_t *anj,
     return _ANJ_DM_ERR_INPUT_ARG;
 }
 
-int _anj_dm_operation_end(anj_t *anj) {
+int _anj_dm_operation_validate(anj_t *anj) {
     assert(anj);
-    assert(anj->dm.op_in_progress);
-    return finish_ongoing_operation(anj);
+    _anj_dm_data_model_t *dm = &anj->dm;
+    assert(dm->op_in_progress);
+    assert(dm->is_transactional);
+    int res = 0;
+    for (uint16_t idx = 0; idx < dm->objs_count && !res; idx++) {
+        const anj_dm_obj_t *obj = dm->objs[idx];
+        if (dm->in_transaction[idx] && obj->handlers->transaction_validate) {
+            res = obj->handlers->transaction_validate(anj, obj);
+        }
+    }
+    return res;
+}
+
+void _anj_dm_operation_end(anj_t *anj, anj_dm_transaction_result_t result) {
+    assert(anj);
+    _anj_dm_data_model_t *dm = &anj->dm;
+    assert(dm->op_in_progress);
+    if (dm->is_transactional) {
+        for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
+            const anj_dm_obj_t *obj = dm->objs[idx];
+            if (dm->in_transaction[idx] && obj->handlers->transaction_end) {
+                obj->handlers->transaction_end(anj, obj, result);
+            }
+            dm->in_transaction[idx] = false;
+        }
+    }
+    dm->op_in_progress = false;
 }
 
 void _anj_dm_initialize(anj_t *anj) {
@@ -299,15 +300,15 @@ void _anj_dm_initialize(anj_t *anj) {
 #ifndef NDEBUG
 static int check_res(const anj_dm_obj_t *obj, const anj_dm_res_t *res) {
     // handlers check
-    if ((res->operation == ANJ_DM_RES_E && !obj->handlers->res_execute)
-            || (_anj_dm_is_readable_resource(res->operation)
+    if ((res->kind == ANJ_DM_RES_E && !obj->handlers->res_execute)
+            || (_anj_dm_is_readable_resource(res->kind)
                 && !obj->handlers->res_read)
-            || (_anj_dm_is_writable_resource(res->operation, false)
+            || (_anj_dm_is_writable_resource(res->kind, false)
                 && !obj->handlers->res_write)) {
         goto res_error;
     }
     // resource type check
-    if (res->operation != ANJ_DM_RES_E
+    if (res->kind != ANJ_DM_RES_E
             && !(res->type == ANJ_DATA_TYPE_BYTES
                  || res->type == ANJ_DATA_TYPE_STRING
                  || res->type == ANJ_DATA_TYPE_INT
@@ -323,8 +324,7 @@ static int check_res(const anj_dm_obj_t *obj, const anj_dm_res_t *res) {
                  )) {
         goto res_error;
     }
-    if (_anj_dm_is_multi_instance_resource(res->operation)
-            && res->max_inst_count) {
+    if (_anj_dm_is_multi_instance_resource(res->kind) && res->max_inst_count) {
         if (!res->insts) {
             goto res_error;
         }
@@ -513,20 +513,3 @@ int anj_dm_write_string_chunked(const anj_res_value_t *value,
     }
     return 0;
 }
-
-#ifdef ANJ_WITH_BOOTSTRAP
-void anj_dm_bootstrap_cleanup(anj_t *anj) {
-    assert(anj);
-    assert(!anj->dm.op_in_progress);
-    // Return code is not checked, because from Bootstrap API perspective, it is
-    // not relevant. This function call means that the bootstrap process is
-    // failed anyway. Bootstrap-Delete operation on object level will delete all
-    // non-bootstrap instances.
-    _anj_dm_operation_begin(anj, ANJ_OP_DM_DELETE, true,
-                            &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SECURITY));
-    _anj_dm_operation_end(anj);
-    _anj_dm_operation_begin(anj, ANJ_OP_DM_DELETE, true,
-                            &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SERVER));
-    _anj_dm_operation_end(anj);
-}
-#endif // ANJ_WITH_BOOTSTRAP

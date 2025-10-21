@@ -87,7 +87,6 @@ typedef struct {
         _anj_dm_read_ctx_t read_ctx;
     } op_ctx;
     _anj_dm_entity_ptrs_t entity_ptrs;
-    int result;
     bool bootstrap_operation;
     bool is_transactional;
     size_t op_count;

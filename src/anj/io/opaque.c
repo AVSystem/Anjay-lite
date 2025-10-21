@@ -84,7 +84,7 @@ int _anj_opaque_get_extended_data_payload(void *out_buff,
                                           size_t *inout_copied_bytes,
                                           _anj_io_buff_t *ctx,
                                           const anj_io_out_entry_t *entry) {
-    size_t bytes_to_copy;
+    size_t bytes_to_copy = 0;
 
     switch (entry->type) {
 
@@ -196,6 +196,7 @@ int _anj_opaque_decoder_get_entry_count(_anj_io_in_ctx_t *ctx,
                                         size_t *out_count) {
     assert(ctx);
     assert(out_count);
+    (void) ctx;
     *out_count = 1;
     return 0;
 }

@@ -54,47 +54,51 @@ static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
     return 0;
 }
 
-static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+static void transaction_end(anj_t *anj,
+                            const anj_dm_obj_t *obj,
+                            anj_dm_transaction_result_t result) {
 
     {{ obj.name_snake }}_obj_ctx_t *ctx = get_ctx(obj);
 
-    if (result) {
+    if (result == ANJ_DM_TRANSACTION_SUCCESS) {
+        return;
+    }
+
 {% if dynamic_object_instances and multiple_insts %}
-        // Restore backup of object instance IDs
-        memcpy(ctx->obj_insts_ids,
-               ctx->obj_insts_ids_cached,
-               sizeof(ctx->obj_insts_ids));
-        memcpy(ctx->obj_insts, ctx->obj_insts_cached, sizeof(ctx->obj_insts));
+    // Restore backup of object instance IDs
+    memcpy(ctx->obj_insts_ids,
+            ctx->obj_insts_ids_cached,
+            sizeof(ctx->obj_insts_ids));
+    memcpy(ctx->obj_insts, ctx->obj_insts_cached, sizeof(ctx->obj_insts));
 {% endif %}
 
 {% if obj.has_any_multiple_resources and dynamic_resources_instances %}
 {% if multiple_insts %}
-        for (uint16_t i = 0; i < {{ m.obj_inst_count_def }}; i++) {
-            anj_iid_t iid = ctx->obj_insts_ids[i].iid;
-            {{ obj.name_snake }}_obj_inst_t *inst = get_obj_inst(obj, iid);
-            if (inst != NULL) {
+    for (uint16_t i = 0; i < {{ m.obj_inst_count_def }}; i++) {
+        anj_iid_t iid = ctx->obj_insts_ids[i].iid;
+        {{ obj.name_snake }}_obj_inst_t *inst = get_obj_inst(obj, iid);
+        if (inst != NULL) {
 {% for res in obj.resources if res.multiple %}
-                // Restore backup of instance IDs
-                memcpy(inst->{{ res.name_snake }}_res_insts_ids,
-                       inst->{{ res.name_snake }}_res_insts_ids_cached,
-                       sizeof(inst->{{ res.name_snake }}_res_insts_ids));
-                memcpy(inst->{{ res.name_snake }}_res_insts,
-                       inst->{{ res.name_snake }}_res_insts_cached,
-                       sizeof(inst->{{ res.name_snake }}_res_insts));
+            // Restore backup of instance IDs
+            memcpy(inst->{{ res.name_snake }}_res_insts_ids,
+                    inst->{{ res.name_snake }}_res_insts_ids_cached,
+                    sizeof(inst->{{ res.name_snake }}_res_insts_ids));
+            memcpy(inst->{{ res.name_snake }}_res_insts,
+                    inst->{{ res.name_snake }}_res_insts_cached,
+                    sizeof(inst->{{ res.name_snake }}_res_insts));
 {% endfor %}
-            }
         }
+    }
 {% else %}
 {% for res in obj.resources if res.multiple %}
-        memcpy({{ res.name_snake }}_res_insts_ids,
-               {{ res.name_snake }}_res_insts_ids_cached,
-               sizeof({{ res.name_snake }}_res_insts_ids));
-        memcpy({{ res.name_snake }}_res_insts,
-               {{ res.name_snake }}_res_insts_cached,
-               sizeof({{ res.name_snake }}_res_insts));
+    memcpy({{ res.name_snake }}_res_insts_ids,
+            {{ res.name_snake }}_res_insts_ids_cached,
+            sizeof({{ res.name_snake }}_res_insts_ids));
+    memcpy({{ res.name_snake }}_res_insts,
+            {{ res.name_snake }}_res_insts_cached,
+            sizeof({{ res.name_snake }}_res_insts));
 {% endfor %}
 {% endif %}
 {% endif %}
-        // TODO: Restore backup of the object state
-    }
+    // TODO: Restore backup of the object state
 }

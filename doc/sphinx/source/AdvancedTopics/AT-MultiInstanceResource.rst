@@ -36,8 +36,8 @@ This allows for efficient storage and retrieval of multiple values under a singl
  
     For details, see the :ref:`Multiple resource instances generation<multi-resource-instances-generator>` section. 
 
-Implement Static Resource
--------------------------
+Implement a static resource
+---------------------------
 
 **Define the resource structure**
 
@@ -78,7 +78,7 @@ At the end, define a single object instance that includes the resource.
     static const anj_dm_res_t RES_DATA = {
         .rid = RID_DATA,
         .type = ANJ_DATA_TYPE_BYTES,
-        .operation = ANJ_DM_RES_RWM,
+        .kind = ANJ_DM_RES_RWM,
         .insts = res_insts,
         .max_inst_count = DATA_RES_INST_COUNT,
     };
@@ -200,10 +200,12 @@ enabling rollback if a write fails. If the write operation is unsuccessful, `tra
         return 0;
     }
 
-    static void transaction_end(anj_t *anj, const anj_dm_obj_t *obj, int result) {
+    static void transaction_end(anj_t *anj,
+                                const anj_dm_obj_t *obj,
+                                anj_dm_transaction_result_t result) {
         (void) anj;
         (void) obj;
-        if (!result) {
+        if (result == ANJ_DM_TRANSACTION_SUCCESS) {
             return;
         }
         memcpy(bin_data_insts, bin_data_insts_cached, sizeof(bin_data_insts));
@@ -242,7 +244,7 @@ Use this pointer when calling the `anj_dm_add_obj` function to register the obje
         return &OBJ;
     }
 
-Conclusion
+Next steps
 ----------
 
 This example demonstrates how to implement a static multiple-instance resource with minimal runtime overhead.

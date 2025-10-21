@@ -34,7 +34,9 @@ libanj.a
 /anjay_lite_bc_initialization
 /anjay_lite_bc_mandatory_objects
 /anjay_lite_bc_send
+/anjay_lite_bc_security
 /anjay_lite_at_bootstrap
+/anjay_lite_at_persistence
 /anjay_lite_firmware_update
 /dm_tests
 /io_tests

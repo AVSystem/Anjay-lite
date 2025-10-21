@@ -94,11 +94,27 @@ define_overridable_option(ANJ_LWM2M_SEND_QUEUE_SIZE STRING 1 "Max LwM2M SEND mes
 
 # compat layer configuration
 define_overridable_option(ANJ_WITH_TIME_POSIX_COMPAT BOOL ON "Enable POSIX-compliant integration of time API")
+define_overridable_option(ANJ_WITH_RNG_POSIX_COMPAT BOOL ON "Enable POSIX-compliant integration of RNG API")
 define_overridable_option(ANJ_WITH_SOCKET_POSIX_COMPAT BOOL ON "Enable POSIX-compliant integration of socket API")
 define_overridable_option(ANJ_NET_WITH_IPV4 BOOL ON "Enable communication over IPv4")
 define_overridable_option(ANJ_NET_WITH_IPV6 BOOL OFF "Enable communication over IPv6")
 define_overridable_option(ANJ_NET_WITH_UDP BOOL ON "Enable communication over UDP")
 define_overridable_option(ANJ_NET_WITH_TCP BOOL OFF "Enable communication over TCP")
+define_overridable_option(ANJ_NET_WITH_DTLS BOOL OFF "Enable communication over DTLS")
+define_overridable_option(ANJ_WITH_CRYPTO_STORAGE_DEFAULT BOOL OFF "Enable default implementation of crypto storage API")
+define_overridable_option(ANJ_WITH_MBEDTLS BOOL OFF "Enable MbedTLS support")
+define_overridable_option(ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN STRING 128 "Max PSK Identity length")
+define_overridable_option(ANJ_MBEDTLS_TLS_VERSION STRING "MBEDTLS_SSL_VERSION_TLS1_2" "(D)TLS version supported by client, supported values are 
+                                                                                       MBEDTLS_SSL_VERSION_TLS1_2 and MBEDTLS_SSL_VERSION_TLS1_3")
+define_overridable_option(ANJ_MBEDTLS_ALLOWED_CIPHERSUITES STRING "MBEDTLS_TLS_PSK_WITH_AES_128_CCM_8,MBEDTLS_TLS_PSK_WITH_AES_256_CCM_8"
+                                                                                     "List of allowed ciphersuites for MbedTLS")
+define_overridable_option(ANJ_MBEDTLS_HS_INITIAL_TIMEOUT_VALUE_MS STRING 1000 "Initial handshake timeout value in milliseconds")
+define_overridable_option(ANJ_MBEDTLS_HS_MAXIMUM_TIMEOUT_VALUE_MS STRING 60000 "Maximum handshake timeout value in milliseconds")
+
+# security configuration
+define_overridable_option(ANJ_WITH_SECURITY BOOL OFF "Enable security support")
+define_overridable_option(ANJ_WITH_CERTIFICATES BOOL OFF "Enable certificates support")
+define_overridable_option(ANJ_WITH_EXTERNAL_CRYPTO_STORAGE BOOL OFF "Enable external crypto storage API")
 
 # data formats configuration
 define_overridable_option(ANJ_WITH_CBOR BOOL ON "Enable CBOR format support")
@@ -131,17 +147,17 @@ define_overridable_option(ANJ_LOG_FORMATTER_BUF_SIZE STRING 512 "Log formatting 
 define_overridable_option(ANJ_LOG_HANDLER_OUTPUT_STDERR BOOL ON "Output log messages to stderr")
 define_overridable_option(ANJ_LOG_HANDLER_OUTPUT_ALT BOOL OFF "Use user-defined log output function")
 define_overridable_option(ANJ_LOG_STRIP_CONSTANTS BOOL OFF "Replace disposable logs (ANJ_LOG_DISPOSABLE) with a space string")
-define_overridable_option(ANJ_LOG_DEBUG_FORMAT_CONSTRAINTS_CHECK BOOL ON "Enable format string constraints validation for logs")
 define_overridable_option(ANJ_LOG_LEVEL_DEFAULT STRING L_INFO "Default log level threshold")
 define_overridable_option(ANJ_LOG_FILTERING_CONFIG_HEADER STRING "" "Path to header with per-module log level overrides")
+
+# persistence configuration
+define_overridable_option(ANJ_WITH_PERSISTENCE BOOL OFF "Enable Persistence support")
 
 # other configuration
 define_overridable_option(ANJ_WITH_LWM2M12 BOOL ON "Enable LwM2M protocol version 1.2 support")
 define_overridable_option(ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS BOOL ON "Enable custom string<->number conversion function")
 define_overridable_option(ANJ_PLATFORM_BIG_ENDIAN BOOL OFF "Define platform endianess as big endian")
 
-# MbedTLS configuration
-define_overridable_option(ANJ_WITH_MBEDTLS BOOL OFF "Enable MbedTLS support")
 define_overridable_option(MBEDTLS_VERSION STRING "" "MbedTLS version to use when MBEDTLS_ROOT_DIR is not set, default is 3.6.0")
 define_overridable_option(MBEDTLS_ROOT_DIR STRING "" "Path to MbedTLS root directory (if not set, MbedTLS will be fetched from GitHub)")
 

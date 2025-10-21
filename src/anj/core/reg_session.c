@@ -19,7 +19,8 @@
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #ifdef ANJ_WITH_OBSERVE
@@ -42,25 +43,36 @@
 
 #define _ANJ_REG_SESSION_NEW_EXCHANGE 1
 
-static uint64_t calculate_next_update(anj_t *anj) {
-    if (anj->server_instance.lifetime == 0) {
+static anj_time_real_t calculate_next_update(anj_t *anj) {
+    if (anj_time_duration_eq(anj->server_instance.lifetime,
+                             ANJ_TIME_DURATION_ZERO)) {
         // "...If the value is set to 0, the lifetime is infinite."
-        return ANJ_TIME_UNDEFINED;
+        return ANJ_TIME_REAL_INVALID;
     }
-    uint64_t max_transmit_wait_s = _anj_server_calculate_max_transmit_wait(
-                                           &anj->exchange_ctx.tx_params)
-                                   / 1000;
-    uint64_t timeout_s = (uint64_t) ANJ_MAX(
-            anj->server_instance.lifetime - (int64_t) max_transmit_wait_s,
-            anj->server_instance.lifetime / 2);
-    return anj_time_real_now() + timeout_s * 1000;
+    const anj_time_duration_t max_transmit_wait =
+            _anj_server_calculate_max_transmit_wait(
+                    &anj->exchange_ctx.tx_params);
+
+    anj_time_duration_t timeout;
+    const anj_time_duration_t lifetime_transmit_wait =
+            anj_time_duration_sub(anj->server_instance.lifetime,
+                                  max_transmit_wait);
+    const anj_time_duration_t half_lifetime =
+            anj_time_duration_div(anj->server_instance.lifetime, 2);
+    if (anj_time_duration_gt(lifetime_transmit_wait, half_lifetime)) {
+        timeout = lifetime_transmit_wait;
+    } else {
+        timeout = half_lifetime;
+    }
+
+    return anj_time_real_add(anj_time_real_now(), timeout);
 }
 
 static void refresh_queue_mode_timeout(anj_t *anj) {
     anj->server_state.details.registered.queue_start_time =
-            anj->queue_mode_enabled
-                    ? (anj_time_real_now() + anj->queue_mode_timeout_ms)
-                    : ANJ_TIME_UNDEFINED;
+            anj->queue_mode_enabled ? anj_time_real_add(anj_time_real_now(),
+                                                        anj->queue_mode_timeout)
+                                    : ANJ_TIME_REAL_INVALID;
 }
 
 void _anj_reg_session_init(anj_t *anj) {
@@ -73,8 +85,8 @@ void _anj_reg_session_init(anj_t *anj) {
     anj->server_state.details.registered.update_with_lifetime = false;
     anj->server_state.details.registered.update_with_payload = false;
     _anj_core_state_transition_clear(anj);
-    anj->server_state.enable_time = 0;
-    anj->server_state.enable_time_user_triggered = 0;
+    anj->server_state.enable_time = ANJ_TIME_REAL_ZERO;
+    anj->server_state.enable_time_user_triggered = ANJ_TIME_REAL_ZERO;
     refresh_queue_mode_timeout(anj);
 }
 
@@ -124,8 +136,7 @@ static void update_observe_parameters(anj_t *anj) {
         anj->server_instance.observe_state.default_con =
                 (res_val.int_value == 1);
     } else if (res != ANJ_DM_ERR_NOT_FOUND) {
-        log(L_ERROR,
-            "Could not read default defualt notification mode resource");
+        log(L_ERROR, "Could not read default notification mode resource");
     }
 #    endif // ANJ_WITH_LWM2M12
 }
@@ -142,7 +153,8 @@ static void get_lifetime(anj_t *anj) {
         log(L_ERROR, "Could not read lifetime resource");
     } else {
         // in case of error, the value is not changed
-        anj->server_instance.lifetime = (uint32_t) res_val.int_value;
+        anj->server_instance.lifetime =
+                anj_time_duration_new(res_val.int_value, ANJ_TIME_UNIT_S);
     }
 }
 
@@ -248,7 +260,7 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     case ANJ_OP_COAP_PING_UDP:
         break; // PING is handled by the exchange module
     default: {
-        log(L_WARNING, "Invalid %d", (int) msg.operation);
+        log(L_WARNING, "Invalid operation: %d", (int) msg.operation);
         return 0;
     }
     }
@@ -264,8 +276,8 @@ static int handle_registration_update(anj_t *anj) {
     // "When any of the parameters listed in Table: 6.2.2.-1 Update Parameters
     // changes, the LwM2M Client MUST send an "Update" operation to the LwM2M
     // Server"
-    if (anj_time_real_now()
-                    < anj->server_state.details.registered.next_update_time
+    if (!anj_time_real_gt(anj_time_real_now(),
+                          anj->server_state.details.registered.next_update_time)
             && !anj->server_state.details.registered.update_with_lifetime
             && !anj->server_state.details.registered.update_with_payload
             && !anj->server_state.registration_update_triggered) {
@@ -276,8 +288,8 @@ static int handle_registration_update(anj_t *anj) {
             calculate_next_update(anj);
     anj->server_state.registration_update_triggered = false;
 
-    uint32_t update_msg_lifetime = anj->server_instance.lifetime;
-    uint32_t *lifetime =
+    anj_time_duration_t update_msg_lifetime = anj->server_instance.lifetime;
+    anj_time_duration_t *lifetime =
             anj->server_state.details.registered.update_with_lifetime
                     ? &update_msg_lifetime
                     : NULL;
@@ -366,17 +378,23 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
         int res;
         if (_anj_core_state_transition_forced(anj)) {
             res = try_send_deregistrer(anj);
+            anj->server_state.details.registered.transition_forced = true;
             anj->server_state.details.registered.internal_state =
                     get_new_state_for_new_exchange(
                             anj->server_state.details.registered.internal_state,
                             res);
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
+        } else {
+            anj->server_state.details.registered.transition_forced = false;
         }
 
         // check for new requests
         size_t msg_size;
         res = _anj_server_receive(&anj->connection_ctx, anj->in_buffer,
                                   &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
+        if (anj_net_is_inprogress(res)) {
+            return _ANJ_CORE_NEXT_ACTION_LEAVE;
+        }
         if (anj_net_is_ok(res)) {
             // new message received, if decode fails or not recognized - drop
             res = handle_incoming_message(anj, msg_size);
@@ -444,8 +462,9 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
         if (anj->queue_mode_enabled
                 && anj->server_state.details.registered.internal_state
                                != _ANJ_SRV_MAN_STATE_QUEUE_MODE_IN_PROGRESS
-                && anj_time_real_now() > anj->server_state.details.registered
-                                                 .queue_start_time) {
+                && anj_time_real_gt(anj_time_real_now(),
+                                    anj->server_state.details.registered
+                                            .queue_start_time)) {
             anj->server_state.details.registered.internal_state =
                     _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS;
             *out_status = ANJ_CONN_STATUS_ENTERING_QUEUE_MODE;
@@ -458,45 +477,32 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
     }
 
     case _ANJ_SRV_MAN_STATE_EXITING_QUEUE_MODE_IN_PROGRESS: {
-        int res = _anj_server_connect(&anj->connection_ctx,
-                                      anj->security_instance.type,
-                                      &anj->net_socket_cfg,
-                                      anj->security_instance.server_uri,
-                                      anj->security_instance.port,
-                                      true);
-        if (anj_net_is_again(res)) {
-            return _ANJ_CORE_NEXT_ACTION_LEAVE;
-        }
-        if (anj_net_is_ok(res)) {
-            // there are 2 scenarios of exiting queue mode:
-            //  - new client initiatied exchange
-            //  - forced state transition
-            anj->server_state.details.registered.internal_state =
-                    _anj_core_state_transition_forced(anj)
-                            ? _ANJ_SRV_MAN_STATE_IDLE_IN_PROGRESS
-                            : _ANJ_SRV_MAN_STATE_EXCHANGE_IN_PROGRESS;
-            *out_status = ANJ_CONN_STATUS_REGISTERED;
-        } else {
-            anj->server_state.details.registered.internal_state =
-                    _ANJ_SRV_MAN_STATE_DISCONNECT_IN_PROGRESS;
-            log(L_ERROR, "Connection error: %d", res);
-        }
+        // there are 2 scenarios of exiting queue mode:
+        //  - new exchange initiated by client
+        //  - forced state transition
+        anj->server_state.details.registered.internal_state =
+                _anj_core_state_transition_forced(anj)
+                        ? _ANJ_SRV_MAN_STATE_IDLE_IN_PROGRESS
+                        : _ANJ_SRV_MAN_STATE_EXCHANGE_IN_PROGRESS;
+        *out_status = ANJ_CONN_STATUS_REGISTERED;
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }
 
     case _ANJ_SRV_MAN_STATE_EXCHANGE_IN_PROGRESS: {
         int res = _anj_server_handle_request(anj);
-        if (anj_net_is_again(res)) {
+        if (anj_net_is_again(res) || anj_net_is_inprogress(res)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
-        // _anj_register_operation_status() value is important only in case of
-        // Update/Deregister operation, in other cases
-        // _anj_register_operation_status() always returns
-        // _ANJ_REGISTER_OPERATION_FINISHED
+        // _anj_register_operation_status() matters only for Update and
+        // Deregister. For other operations it always returns
+        // _ANJ_REGISTER_OPERATION_FINISHED. We can't check
+        // _anj_core_state_transition_forced() here, because if an Execute
+        // triggered a forced transition, we still need to go through the IDLE
+        // state to properly send the Deregister request.
         if (res
                 || _anj_register_operation_status(anj)
                                != _ANJ_REGISTER_OPERATION_FINISHED
-                || _anj_core_state_transition_forced(anj)) {
+                || anj->server_state.details.registered.transition_forced) {
             anj->server_state.details.registered.internal_state =
                     _ANJ_SRV_MAN_STATE_DISCONNECT_IN_PROGRESS;
         } else {
@@ -508,15 +514,35 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }
 
-    case _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS:
+    case _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS: {
+        int res = _anj_server_queue_mode_rx_off(&anj->connection_ctx);
+        if (anj_net_is_inprogress(res)) {
+            return _ANJ_CORE_NEXT_ACTION_LEAVE;
+        }
+        if (!anj_net_is_ok(res)) {
+            anj->server_state.details.registered.internal_state =
+                    _ANJ_SRV_MAN_STATE_DISCONNECT_IN_PROGRESS;
+            log(L_ERROR, "Error while turning RX off: %d", res);
+            return _ANJ_CORE_NEXT_ACTION_CONTINUE;
+        }
+        anj->server_state.details.registered.internal_state =
+                _ANJ_SRV_MAN_STATE_QUEUE_MODE_IN_PROGRESS;
+        *out_status = ANJ_CONN_STATUS_QUEUE_MODE;
+        log(L_DEBUG, "Queue mode started");
+        return _ANJ_CORE_NEXT_ACTION_CONTINUE;
+    }
+
     case _ANJ_SRV_MAN_STATE_DISCONNECT_IN_PROGRESS: {
-        _anj_exchange_terminate(&anj->exchange_ctx);
+        // in case of forced state transition we want to terminate the
+        // exchange if any is in progress
+        _anj_exchange_terminate(&anj->exchange_ctx,
+                                _ANJ_EXCHANGE_ERROR_TERMINATED);
         // bootstrap or restart request is the only case when we want to clean
         // up the connection
         bool with_cleanup = anj->server_state.bootstrap_request_triggered
                             || anj->server_state.restart_triggered;
         int res = _anj_server_close(&anj->connection_ctx, with_cleanup);
-        if (anj_net_is_again(res)) {
+        if (anj_net_is_inprogress(res)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         // priority of the state transition is:
@@ -532,18 +558,7 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
             _anj_core_state_transition_clear(anj);
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
         }
-
-        // queue is allowed only if the connection is closed properly
-        if (anj->server_state.details.registered.internal_state
-                        == _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS
-                && !res) {
-            anj->server_state.details.registered.internal_state =
-                    _ANJ_SRV_MAN_STATE_QUEUE_MODE_IN_PROGRESS;
-            *out_status = ANJ_CONN_STATUS_QUEUE_MODE;
-            log(L_DEBUG, "Queue mode started");
-        } else {
-            *out_status = ANJ_CONN_STATUS_REGISTERING;
-        }
+        *out_status = ANJ_CONN_STATUS_REGISTERING;
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }
     }
@@ -554,11 +569,17 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
 _anj_core_next_action_t
 _anj_reg_session_process_suspended(anj_t *anj, anj_conn_status_t *out_status) {
     assert(anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED);
-    uint64_t enable_time = ANJ_MAX(anj->server_state.enable_time_user_triggered,
-                                   anj->server_state.enable_time);
-    if (enable_time <= anj_time_real_now()) {
-        anj->server_state.enable_time = 0;
-        anj->server_state.enable_time_user_triggered = 0;
+    anj_time_real_t enable_time;
+    if (anj_time_real_gt(anj->server_state.enable_time_user_triggered,
+                         anj->server_state.enable_time)) {
+        enable_time = anj->server_state.enable_time_user_triggered;
+    } else {
+        enable_time = anj->server_state.enable_time;
+    }
+
+    if (anj_time_real_leq(enable_time, anj_time_real_now())) {
+        anj->server_state.enable_time = ANJ_TIME_REAL_ZERO;
+        anj->server_state.enable_time_user_triggered = ANJ_TIME_REAL_ZERO;
         *out_status = ANJ_CONN_STATUS_INITIAL;
         log(L_INFO, "Server leaving suspended state");
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;

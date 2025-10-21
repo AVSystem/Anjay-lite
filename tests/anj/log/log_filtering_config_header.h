@@ -7,11 +7,5 @@
  * See the attached LICENSE file for details.
  */
 
-#ifndef EXCHANGE_INTERNAL_H
-#define EXCHANGE_INTERNAL_H
-
-#include <stdint.h>
-
-void set_mock_time(uint64_t time);
-
-#endif // EXCHANGE_INTERNAL_H
+#define ANJ_LOG_LEVEL_FOR_MODULE_lower_the_default_level L_DEBUG
+#define ANJ_LOG_LEVEL_FOR_MODULE_increase_the_default_level L_WARNING

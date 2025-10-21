@@ -20,7 +20,8 @@ Contents:
       BasicClient
       AdvancedTopics
       FirmwareUpdateTutorial
-      BetaLimitationsandWorkarounds
+      CompilationImpact
+      KnownIssues
       PortingGuideForNonPOSIXPlatforms
       Integrations
       Tools

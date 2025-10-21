@@ -14,6 +14,8 @@
 #    error "Internal header must not be included directly"
 #endif // ANJ_INTERNAL_INCLUDE_EXCHANGE
 
+#include <anj/time.h>
+
 #define ANJ_INTERNAL_INCLUDE_UTILS
 #include <anj_internal/utils.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_UTILS
@@ -25,6 +27,59 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**
+ * Used for block transfers. The buffer is too small to fit the whole payload.
+ */
+#define _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED 1
+
+/**
+ * Completion code in @ref _anj_exchange_completion_t when the exchange
+ * finished successfully.
+ */
+#define _ANJ_EXCHANGE_RESULT_SUCCESS 0
+
+/**
+ * Completion code when the exchange ended due to a timeout.
+ */
+#define _ANJ_EXCHANGE_ERROR_TIMEOUT -1
+
+/**
+ * Completion code when the exchange ended due to an error response
+ * from the server (e.g. ACK with error code or RST).
+ */
+#define _ANJ_EXCHANGE_ERROR_SERVER_RESPONSE -2
+
+/**
+ * Completion code when the exchange ended due to an error reported
+ * while processing the request.
+ *
+ * This may happen in two cases:
+ * - a failure occurs while starting to handle a request,
+ * - a user callback (e.g., @ref _anj_exchange_read_payload_t or
+ *   @ref _anj_exchange_write_payload_t) returned an error.
+ */
+#define _ANJ_EXCHANGE_ERROR_REQUEST -3
+
+/**
+ * Completion code when the exchange ended due to a network error.
+ * Should be set via @ref _anj_exchange_terminate in such cases.
+ */
+#define _ANJ_EXCHANGE_ERROR_NETWORK -4
+
+/**
+ * Completion code when the exchange was terminated due to a protocol processing
+ * error (e.g. failure while decoding an incoming message, etag mismatch).
+ * Should be set via @ref _anj_exchange_terminate in such cases.
+ */
+#define _ANJ_EXCHANGE_ERROR_PROTOCOL -5
+
+/**
+ * Generic completion code when the exchange was terminated due to user request
+ * (e.g. connection reset). Should be set via @ref _anj_exchange_terminate in
+ * such cases.
+ */
+#define _ANJ_EXCHANGE_ERROR_TERMINATED -6
 
 /**
  *  @anj_internal_api_do_not_use
@@ -119,21 +174,18 @@ _anj_exchange_read_payload_t(void *arg_ptr,
 /**
  * @anj_internal_api_do_not_use
  * A handler called by exchange module to notify about completion of the
- * exchange. In case of timeout @p result is set to @ref
- * _ANJ_EXCHANGE_ERROR_TIMEOUT. For exchange cancellation
- * @p result is set to @ref _ANJ_EXCHANGE_ERROR_TERMINATED. If LwM2M server
- * responded with error code, the error code is passed in @p result, and @p
- * response is NULL.
+ * exchange. @p result provides information if the exchange was successful or
+ * if it failed.
  *
  * @note: This callback for Separate Response mode is called before last Empty
  *        ACK is sent.
  *
  * @param arg_ptr   Additional user data passed when the function is called.
  * @param response  Final server response message, provided only for client
- *                  initiated exchanges (confirmable) and if the exchange is not
- *                  finished with an error.
- * @param result    Result of the exchange, 0 on success, a ANJ_COAP_CODE_*
- *                  code or ANJ_EXCHANGE_ERROR_* in case of error.
+ *                  initiated exchanges (confirmable) and if answer was
+ *                  received. NULL otherwise.
+ * @param result    Result of the exchange, @ref _ANJ_EXCHANGE_RESULT_SUCCESS
+ *                  on success, a _ANJ_EXCHANGE_ERROR_* value in case of error.
  */
 typedef void _anj_exchange_completion_t(void *arg_ptr,
                                         const _anj_coap_msg_t *response,
@@ -157,7 +209,7 @@ typedef struct {
  * Single cache entry for messages older than the latest one
  */
 typedef struct {
-    uint64_t expiration_time;
+    anj_time_real_t expiration_time;
     uint16_t mid;
 } _anj_exchange_cache_msg_non_recent_t;
 
@@ -166,7 +218,7 @@ typedef struct {
  * Single cache entry for the latest message
  */
 typedef struct {
-    uint64_t expiration_time;
+    anj_time_real_t expiration_time;
     _anj_coap_msg_t response;
     uint8_t payload[ANJ_OUT_PAYLOAD_BUFFER_SIZE];
 } _anj_exchange_cache_msg_recent_t;
@@ -199,16 +251,12 @@ typedef struct {
     bool request_prepared;
     uint32_t block_number;
 
-    uint64_t server_exchange_timeout;
+    anj_time_duration_t server_exchange_timeout;
     anj_exchange_udp_tx_params_t tx_params;
     uint16_t retry_count;
-    uint64_t send_confirmation_timeout_timestamp_ms;
-    uint64_t timeout_timestamp_ms;
-    uint64_t timeout_ms;
-    // based on pseudo-random number generator, used for token generation and
-    // for timeout calculation - subsequent requests should have different
-    // timeout values
-    _anj_rand_seed_t rand_seed;
+    anj_time_monotonic_t send_confirmation_timeout_timestamp;
+    anj_time_monotonic_t timeout_timestamp;
+    anj_time_duration_t timeout;
 
     uint16_t msg_id;
 

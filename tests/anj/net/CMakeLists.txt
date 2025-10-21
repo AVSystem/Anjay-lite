@@ -23,6 +23,7 @@ set(ANJ_NET_WITH_IPV6 ON)
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
+target_compile_options(anj PRIVATE -Wall -Wextra -Werror)
 
 file(GLOB net_tests_sources "*.c")
 add_executable(net_tests ${net_tests_sources})

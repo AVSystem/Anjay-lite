@@ -6,7 +6,7 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Advanced topics
+Advanced Topics
 ===============
 
 .. toctree::
@@ -14,9 +14,11 @@ Advanced topics
 
    AdvancedTopics/AT-ClientLogic
    AdvancedTopics/AT-Bootstrap
+   AdvancedTopics/AT-Persistence
    AdvancedTopics/AT-ExternalDataTypes
    AdvancedTopics/AT-QueueMode
    AdvancedTopics/AT-MultiInstanceObject
    AdvancedTopics/AT-MultiInstanceObjectDynamic
    AdvancedTopics/AT-MultiInstanceResource
    AdvancedTopics/AT-MultiInstanceResourceDynamic
+   AdvancedTopics/AT-Logger

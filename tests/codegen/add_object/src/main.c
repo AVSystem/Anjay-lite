@@ -15,7 +15,7 @@
 #include <unistd.h>
 
 #include <anj/core.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #include "some_obj.h"
 

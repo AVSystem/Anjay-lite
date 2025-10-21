@@ -17,20 +17,18 @@
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #include "../coap/coap.h"
 #include "../dm/dm_integration.h"
-#include "../exchange.h"
 #include "../io/io.h"
 #include "../utils.h"
 #include "observe.h"
 #include "observe_internal.h"
 
 #ifdef ANJ_WITH_OBSERVE
-
-#    define ONE_DAY_MS 86400000
 
 static uint8_t map_err_to_coap_code(int error_code) {
     switch (error_code) {
@@ -93,7 +91,7 @@ static void get_observation_paths_for_composite(anj_t *anj) {
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
 
 void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
-                                    uint64_t timestamp,
+                                    anj_time_real_t timestamp,
                                     bool confirmable) {
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     const _anj_observe_observation_t *first_observation =
@@ -103,7 +101,8 @@ void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
         ctx->processing_observation->last_notify_timestamp = timestamp;
         if (confirmable) {
             ctx->processing_observation->next_conf_notify_timestamp =
-                    timestamp + ONE_DAY_MS;
+                    anj_time_real_add(timestamp, anj_time_duration_new(
+                                                         1, ANJ_TIME_UNIT_DAY));
         }
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         if (ctx->processing_observation->prev) {
@@ -169,11 +168,9 @@ int _anj_observe_check_if_value_condition_attributes_should_be_disabled(
                                                   &res_multi,
                                                   &observation->path))) {
             if (res_multi && anj_uri_path_is(&observation->path, ANJ_ID_RID)) {
-                observe_log(
-                        L_WARNING,
-                        "Change Value Condition attributes are not supported "
-                        "for multi-instance resources. These attributes will "
-                        "be removed from effective attributes");
+                observe_log(L_WARNING,
+                            "Attributes not supported for multi-instance "
+                            "resources");
                 attr->has_step = false;
                 attr->has_greater_than = false;
                 attr->has_less_than = false;
@@ -185,7 +182,7 @@ int _anj_observe_check_if_value_condition_attributes_should_be_disabled(
                         &observation->last_sent_value, &res_value, &res_type);
             }
         } else {
-            observe_log(L_WARNING, "Can not read targeted resource value");
+            observe_log(L_WARNING, "Can't read resource");
             return res;
         }
     }
@@ -303,7 +300,7 @@ static int observation_check_existence(_anj_observe_ctx_t *ctx,
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         bool composite = observation->prev;
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
-        observe_log(L_INFO, "Observation already exists");
+        observe_log(L_DEBUG, "Observation already exists");
         if ((!anj_uri_path_equal(&observation->path, &request->uri)
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
              && !composite
@@ -489,8 +486,9 @@ static void anj_exchange_completion(void *arg_ptr,
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
     assert(ctx->in_progress_type == MSG_TYPE_OBSERVE_RESPONSE
            || ctx->in_progress_type == MSG_TYPE_CANCEL_OBSERVE_RESPONSE);
-    if (result) {
-        _anj_dm_observe_terminate_operation(anj);
+    ctx->already_processed = 0;
+    _anj_dm_observe_finalize_operation(anj, result);
+    if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
         if (ctx->in_progress_type == MSG_TYPE_OBSERVE_RESPONSE) {
             observe_log(L_ERROR, "Failed to add observation: %d", result);
             if (ctx->processing_observation) {
@@ -671,7 +669,7 @@ static int parse_request(anj_t *anj,
         ctx->token = &request->token;
         ctx->processing_observation = find_observation(ctx, ssid, ctx->token);
         if (!ctx->processing_observation) {
-            observe_log(L_ERROR, "Observation does not exist");
+            observe_log(L_WARNING, "Observation does not exist");
             result = ANJ_COAP_CODE_NOT_FOUND;
             break;
         }

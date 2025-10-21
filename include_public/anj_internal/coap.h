@@ -14,6 +14,8 @@
 #    error "Internal header must not be included directly"
 #endif // ANJ_INTERNAL_INCLUDE_COAP
 
+#include <anj/time.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -150,7 +152,7 @@ typedef struct {
     bool has_sms_number;
 
     const char *endpoint;
-    uint32_t lifetime;
+    anj_time_duration_t lifetime;
     const char *lwm2m_ver;
     const char *binding;
     const char *sms_number;

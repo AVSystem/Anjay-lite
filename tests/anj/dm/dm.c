@@ -140,12 +140,12 @@ static int res_execute(anj_t *anj,
 static anj_dm_res_t inst_1_res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_W,
+        .kind = ANJ_DM_RES_W,
         .type = ANJ_DATA_TYPE_INT
     }
 };
@@ -155,35 +155,35 @@ static anj_riid_t res_insts[] = { 1, 2 };
 static anj_dm_res_t inst_2_res[] = {
     {
         .rid = 0,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_W,
+        .kind = ANJ_DM_RES_W,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 2,
-        .operation = ANJ_DM_RES_RWM,
+        .kind = ANJ_DM_RES_RWM,
         .type = ANJ_DATA_TYPE_INT,
         .max_inst_count = 2,
         .insts = res_insts
     },
     {
         .rid = 3,
-        .operation = ANJ_DM_RES_WM,
+        .kind = ANJ_DM_RES_WM,
         .type = ANJ_DATA_TYPE_INT,
         .max_inst_count = 0,
     },
     {
         .rid = 4,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT
     },
     {
         .rid = 5,
-        .operation = ANJ_DM_RES_E
+        .kind = ANJ_DM_RES_E
     }
 };
 

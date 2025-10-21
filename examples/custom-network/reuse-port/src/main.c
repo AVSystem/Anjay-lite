@@ -1,1 +1,0 @@
-../../../tutorial/BC-MandatoryObjects/src/main.c

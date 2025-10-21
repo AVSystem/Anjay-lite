@@ -71,39 +71,39 @@ static anj_dm_handlers_t handlers = {
 static anj_dm_res_t inst_0_res[] = {
     {
         .rid = 1,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_DOUBLE,
     },
     {
         .rid = 2,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_BOOL,
     },
     {
         .rid = 3,
-        .operation = ANJ_DM_RES_RM,
+        .kind = ANJ_DM_RES_RM,
         .type = ANJ_DATA_TYPE_INT,
         .max_inst_count = 1,
         .insts = (anj_riid_t[]){ 0 }
     },
     {
         .rid = 4,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT,
     },
     {
         .rid = 5,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_STRING,
     },
     {
         .rid = 6,
-        .operation = ANJ_DM_RES_R,
+        .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_UINT,
     },
     {
         .rid = 7,
-        .operation = ANJ_DM_RES_W,
+        .kind = ANJ_DM_RES_W,
         .type = ANJ_DATA_TYPE_UINT,
     }
 };
@@ -246,7 +246,7 @@ static void compare_attr(_anj_attr_notification_t *attr1,
         };                                                                    \
         _anj_exchange_ctx_t exchange_ctx;                                     \
         _anj_exchange_handlers_t out_handlers = { 0 };                        \
-        _anj_exchange_init(&exchange_ctx, 0);                                 \
+        _anj_exchange_init(&exchange_ctx);                                    \
         _anj_coap_msg_t inout_msg = {                                         \
             .operation = ANJ_OP_DM_WRITE_ATTR,                                \
             .uri = Path,                                                      \

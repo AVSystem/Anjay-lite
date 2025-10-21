@@ -26,8 +26,10 @@ set(ANJ_WITH_LWM2M_CBOR OFF)
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
+target_compile_options(anj PRIVATE -Wall -Wextra -Werror)
 
-file(GLOB observe_tests_sources "*.c")
+file(GLOB observe_tests_sources "*.c" "../mock/*.c")
+
 add_executable(observe_tests ${observe_tests_sources})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../framework"

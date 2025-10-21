@@ -16,6 +16,7 @@
 
 #    include <anj/core.h>
 #    include <anj/defs.h>
+#    include <anj/time.h>
 
 #    ifdef ANJ_WITH_BOOTSTRAP
 
@@ -26,13 +27,13 @@
  * @param anj      Anjay object to operate on.
  * @param endpoint Endpoint Client Name, string is not copied, so it must be
  *                 valid during the whole lifetime of the context.
- * @param timeout  Bootstrap timeout in seconds. If the timeout is exceeded,
+ * @param lifetime  Bootstrap timeout. If the timeout is exceeded,
  *                 Bootstrap process will be finished with @ref
  *                 _ANJ_BOOTSTRAP_ERR_BOOTSTRAP_TIMEOUT error code.
  */
 void _anj_bootstrap_ctx_init(anj_t *anj,
                              const char *endpoint,
-                             uint32_t timeout);
+                             anj_time_duration_t lifetime);
 
 /**
  * Processes Client Initiated Bootstrap. Before calling this function, the

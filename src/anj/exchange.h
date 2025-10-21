@@ -12,12 +12,13 @@
 #ifndef SRC_ANJ_EXCHANGE_H
 #    define SRC_ANJ_EXCHANGE_H
 
+#    include <anj/time.h>
 #    include <stdbool.h>
 #    include <stddef.h>
 #    include <stdint.h>
 
 #    include <anj/defs.h>
-#    include <anj/log/log.h>
+#    include <anj/log.h>
 
 #    define ANJ_INTERNAL_INCLUDE_EXCHANGE
 #    include <anj_internal/exchange.h> // IWYU pragma: export
@@ -25,23 +26,6 @@
 // IWYU pragma: no_include "anj_internal/exchange.h"
 
 #    define exchange_log(...) anj_log(exchange, __VA_ARGS__)
-
-/**
- * Used for block transfers. The buffer is too small to fit the whole payload.
- */
-#    define _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED 1
-
-/**
- * Error code provided in @ref _anj_exchange_completion_t when the exchange was
- * finished by @ref _anj_exchange_terminate call.
- */
-#    define _ANJ_EXCHANGE_ERROR_TERMINATED -1
-
-/**
- * Error code provided in @ref _anj_exchange_completion_t when the exchange is
- * finished due to timeout.
- */
-#    define _ANJ_EXCHANGE_ERROR_TIMEOUT -2
 
 /**
  * From RFC7252: "PROCESSING_DELAY is the time a node takes to turn around a
@@ -56,30 +40,15 @@
  * The purpose of this delay is to break the exchange if send function blocks
  * for too long (possible error in the implementation of network layer).
  */
-#    define _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS 2000
-
-/**
- * Default maximum time of the CoAP exchange. For LwM2M server requests, this is
- * the time to wait for the next block, the default value can be changed using
- * @ref _anj_exchange_set_server_request_timeout.
- */
-#    define _ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT_MS 50000
+#    define _ANJ_EXCHANGE_COAP_PROCESSING_DELAY \
+        anj_time_duration_new(2, ANJ_TIME_UNIT_S)
 
 /**
  * See https://tools.ietf.org/html/rfc7252#section-4.8.2
  * Unit: seconds
  */
-#    define _ANJ_EXCHANGE_COAP_MAX_LATENCY 100
-
-/**
- * Default CoAP transmission parameters (RFC 7252).
- */
-#    define _ANJ_EXCHANGE_UDP_TX_PARAMS_DEFAULT \
-        (anj_exchange_udp_tx_params_t) {        \
-            .ack_timeout_ms = 2000,             \
-            .ack_random_factor = 1.5,           \
-            .max_retransmit = 4                 \
-        }
+#    define _ANJ_EXCHANGE_COAP_MAX_LATENCY \
+        anj_time_duration_new(100, ANJ_TIME_UNIT_S)
 
 /**
  * Type of event related to the exchange module.
@@ -218,12 +187,16 @@ _anj_exchange_state_t _anj_exchange_process(_anj_exchange_ctx_t *ctx,
 
 /**
  * Terminates the exchange and stop the ongoing operation. In result
- * @ref _anj_exchange_completion_t will be called with @ref
- * _ANJ_EXCHANGE_ERROR_TERMINATED error code.
+ * @ref _anj_exchange_completion_t will be called with @p reason as the
+ * argument. If the exchange is already finished, this function does nothing.
  *
- * @param ctx  Exchange context.
+ * @param ctx     Exchange context.
+ * @param reason  Reason of termination. Possible values:
+ *               - @ref _ANJ_EXCHANGE_ERROR_NETWORK,
+ *               - @ref _ANJ_EXCHANGE_ERROR_PROTOCOL,
+ *               - @ref _ANJ_EXCHANGE_ERROR_TERMINATED.
  */
-void _anj_exchange_terminate(_anj_exchange_ctx_t *ctx);
+void _anj_exchange_terminate(_anj_exchange_ctx_t *ctx, int reason);
 
 /**
  * Check if there is an ongoing exchange. Only one exchange can be processed at
@@ -266,25 +239,24 @@ int _anj_exchange_set_udp_tx_params(_anj_exchange_ctx_t *ctx,
 /**
  * Sets the maximum time of the CoAP exchange - this is the time to wait for the
  * next block of the LwM2M Server request. The default value is @ref
- * _ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT_MS. If the time is exceeded, the
+ * ANJ_EXCHANGE_SERVER_REQUEST_TIMEOUT. If the time is exceeded, the
  * exchange will be canceled.
  *
  * @param ctx                     Exchange context,
- * @param server_exchange_timeout Maximum time of the CoAP exchange in
- *                                milliseconds.
+ * @param server_exchange_timeout Maximum time of the CoAP exchange
  */
-void _anj_exchange_set_server_request_timeout(_anj_exchange_ctx_t *ctx,
-                                              uint64_t server_exchange_timeout);
+void _anj_exchange_set_server_request_timeout(
+        _anj_exchange_ctx_t *ctx, anj_time_duration_t server_exchange_timeout);
 
 /**
  * Initializes the exchange module context. Should be called once for each
  * context. Specific exchange context is related with one server connection.
  *
- * @param ctx          Exchange context,
- * @param random_seed  PRNG seed value, used in CoAP token generation and in
- *                     timeout calculation process.
+ * @param ctx Exchange context
+ *
+ * @returns 0 on success, negative value in case of error.
  */
-void _anj_exchange_init(_anj_exchange_ctx_t *ctx, unsigned int random_seed);
+int _anj_exchange_init(_anj_exchange_ctx_t *ctx);
 
 #    ifdef ANJ_WITH_CACHE
 void _anj_exchange_setup_cache(_anj_exchange_ctx_t *ctx,

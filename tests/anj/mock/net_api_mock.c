@@ -16,14 +16,6 @@
 
 #include "net_api_mock.h"
 
-#define HANLDE_RETURN_WITH_AGAIN_AND_COUNT(Mock, Fun) \
-    Mock->call_count[Fun]++;                          \
-    if (Mock->net_eagain_calls > 0) {                 \
-        Mock->net_eagain_calls--;                     \
-        return ANJ_NET_EAGAIN;                        \
-    }                                                 \
-    return Mock->call_result[Fun]
-
 #define HANLDE_RETURN_AND_COUNT(Mock, Fun) \
     Mock->call_count[Fun]++;               \
     return Mock->call_result[Fun]
@@ -65,7 +57,7 @@ int anj_udp_send(anj_net_ctx_t *ctx,
     }
     *bytes_sent = 0;
     mock->call_count[ANJ_NET_FUN_SEND]++;
-    if (mock->bytes_to_send > 0) {
+    if (mock->bytes_to_send > 0 && !mock->call_result[ANJ_NET_FUN_SEND]) {
         if (mock->bytes_sent && mock->dont_overwrite_buffer) {
             return ANJ_NET_OK;
         }
@@ -113,50 +105,35 @@ int anj_udp_connect(anj_net_ctx_t *ctx,
     strcpy(mock->hostname, hostname);
     strcpy(mock->port, port);
     if (mock->call_result[ANJ_NET_FUN_CONNECT] == ANJ_NET_OK
-            && mock->net_eagain_calls == 0) {
+            && mock->call_result[ANJ_NET_FUN_CONNECT] == 0) {
         mock->state = ANJ_NET_SOCKET_STATE_CONNECTED;
     }
-    HANLDE_RETURN_WITH_AGAIN_AND_COUNT(mock, ANJ_NET_FUN_CONNECT);
+    HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_CONNECT);
 }
 
 int anj_udp_shutdown(anj_net_ctx_t *ctx) {
     net_api_mock_t *mock = (net_api_mock_t *) ctx;
-    if (mock->net_eagain_calls == 0) {
+    if (mock->call_result[ANJ_NET_FUN_SHUTDOWN] != ANJ_NET_EINPROGRESS) {
         mock->state = ANJ_NET_SOCKET_STATE_SHUTDOWN;
     }
-    HANLDE_RETURN_WITH_AGAIN_AND_COUNT(mock, ANJ_NET_FUN_SHUTDOWN);
+    HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_SHUTDOWN);
 }
 
 int anj_udp_close(anj_net_ctx_t *ctx) {
     net_api_mock_t *mock = (net_api_mock_t *) ctx;
-    if (mock->net_eagain_calls == 0) {
+    if (mock->call_result[ANJ_NET_FUN_CLOSE] != ANJ_NET_EINPROGRESS) {
         mock->state = ANJ_NET_SOCKET_STATE_CLOSED;
     }
-    HANLDE_RETURN_WITH_AGAIN_AND_COUNT(mock, ANJ_NET_FUN_CLOSE);
+    HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_CLOSE);
 }
 
 int anj_udp_cleanup_ctx(anj_net_ctx_t **ctx) {
     net_api_mock_t *mock = (net_api_mock_t *) *ctx;
-    if (mock->net_eagain_calls == 0
-            && mock->call_result[ANJ_NET_FUN_CLEANUP] != ANJ_NET_EAGAIN) {
+    if (mock->call_result[ANJ_NET_FUN_CLEANUP] != ANJ_NET_EINPROGRESS) {
         mock->state = ANJ_NET_SOCKET_STATE_CLOSED;
         *ctx = NULL;
     }
-    HANLDE_RETURN_WITH_AGAIN_AND_COUNT(mock, ANJ_NET_FUN_CLEANUP);
-}
-
-int anj_udp_get_bytes_received(anj_net_ctx_t *ctx, uint64_t *out_value) {
-    net_api_mock_t *mock = (net_api_mock_t *) ctx;
-    // not used in tests
-    *out_value = 0;
-    HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_GET_BYTES_RECEIVED);
-}
-
-int anj_udp_get_bytes_sent(anj_net_ctx_t *ctx, uint64_t *out_value) {
-    net_api_mock_t *mock = (net_api_mock_t *) ctx;
-    // not used in tests
-    *out_value = 0;
-    HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_GET_BYTES_SENT);
+    HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_CLEANUP);
 }
 
 int anj_udp_get_state(anj_net_ctx_t *ctx, anj_net_socket_state_t *out_value) {
@@ -171,10 +148,7 @@ int anj_udp_get_inner_mtu(anj_net_ctx_t *ctx, int32_t *out_value) {
     HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_GET_INNER_MTU);
 }
 
-int anj_udp_reuse_last_port(anj_net_ctx_t *ctx) {
+int anj_udp_queue_mode_rx_off(anj_net_ctx_t *ctx) {
     net_api_mock_t *mock = (net_api_mock_t *) ctx;
-    if (mock->net_eagain_calls == 0) {
-        mock->state = ANJ_NET_SOCKET_STATE_BOUND;
-    }
-    HANLDE_RETURN_WITH_AGAIN_AND_COUNT(mock, ANJ_NET_FUN_REUSE_LAST_PORT);
+    HANLDE_RETURN_AND_COUNT(mock, ANJ_NET_FUN_QUEUE_MODE_RX_OFF);
 }

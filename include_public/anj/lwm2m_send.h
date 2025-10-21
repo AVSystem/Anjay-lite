@@ -9,6 +9,16 @@
 
 #include <anj/init.h>
 
+/**
+ * @file
+ * @brief Public API for composing and queuing LwM2M Send messages.
+ *
+ * The Send operation allows a client to proactively transmit Resource values to
+ * the LwM2M Server (without a preceding request). Requests are queued and sent
+ * when a registration session is active and no higher-priority CoAP exchange
+ * is in progress.
+ */
+
 #ifndef ANJ_LWM2M_SEND_H
 #    define ANJ_LWM2M_SEND_H
 
@@ -20,64 +30,101 @@ extern "C" {
 
 #    ifdef ANJ_WITH_LWM2M_SEND
 
+/**
+ * Special ID that matches all queued/active Send requests.
+ *
+ * @see anj_send_abort
+ */
 #        define ANJ_SEND_ID_ALL UINT16_MAX
 
-/**
- * Result passed to #anj_send_finished_handler_t: Server confirmed successful
- * message delivery.
+/** @defgroup anj_send_errors LwM2M Send error codes
+ * Error and result values reported by the Send API.
+ * @{
  */
+
+/** Delivery succeeded (acknowledged by the Server). */
 #        define ANJ_SEND_SUCCESS 0
 
 /**
- * Result passed to #anj_send_finished_handler_t: No response from Server was
- * received in expected time.
+ * Timed out.
+ *
+ * This error indicates that the Send request could not be completed within
+ * the expected time window. It may occur in two situations:
+ *
+ * - The Server did not acknowledge or respond within the retransmission
+ *   limits defined by the CoAP transmission parameters.
+ * - The Client could not hand off the request to the transport layer within
+ *   an implementation-defined processing delay (e.g., due to a blocked or
+ *   unresponsive network stack). In this case, the message may never have been
+ *   sent to the Server.
+ *
+ * In both cases, the Send operation is considered failed.
  */
 #        define ANJ_SEND_ERR_TIMEOUT -1
 
 /**
- * Result passed to #anj_send_finished_handler_t: Sending the message was
- * aborted. There are several reasons why this might happen:
- * - the message was cancelled by the user by calling @ref anj_send_abort
- * - because of a network error or other unexpected condition (e,g. Mute Send
- *   resource changed),
- * - registration session ended.
+ * Delivery aborted.
+ *
+ * Possible causes include:
+ * - Explicit cancellation via @ref anj_send_abort,
+ * - Network error,
+ * - Value of Mute Send Resource is set to true,
+ * - Registration session ended.
  */
 #        define ANJ_SEND_ERR_ABORT -2
 
 /**
- * Result passed to #anj_send_finished_handler_t: Server rejected the message
- * and response with 4.xx code.
+ * Delivery failed due to a CoAP-level error.
+ *
+ * Returned when the exchange completes with a non-success CoAP status
+ * (e.g., server responds 4.xx/5.xx, sends RST), or when the client's
+ * processing produces a CoAP error code (e.g., failure while preparing or
+ * handling the payload that maps to a CoAP error). Not used for timeouts
+ * or explicit aborts; those are reported as @ref ANJ_SEND_ERR_TIMEOUT and
+ * @ref ANJ_SEND_ERR_ABORT respectively.
  */
 #        define ANJ_SEND_ERR_REJECTED -3
 
 /**
- * Can be returned by @ref anj_send_abort if no request with given ID was found.
+ * @ref anj_send_finished_handler_t : Network error occurred while sending the
+ * message.
  */
-#        define ANJ_SEND_ERR_NO_REQUEST_FOUND -4
+#        define ANJ_SEND_ERR_NETWORK -4
 
 /**
- * Can be returned by @ref anj_send_new_request if there is no space for new
- * request - @ref ANJ_LWM2M_SEND_QUEUE_SIZE has been reached.
+ * @ref anj_send_finished_handler_t : Internal error occurred while sending the
+ * message.
  */
-#        define ANJ_SEND_ERR_NO_SPACE -5
+#        define ANJ_SEND_ERR_INTERNAL -5
+
+/** @ref anj_send_abort : no request with the given ID was found. */
+#        define ANJ_SEND_ERR_NO_REQUEST_FOUND -6
 
 /**
- * Can be returned by @ref anj_send_new_request if request can't be sent in
- * current state of the library:
- *      - library is not in @ref ANJ_CONN_STATUS_REGISTERED or
- *        @ref ANJ_CONN_STATUS_QUEUE_MODE state,
- *      - Mute Send resource is set to true.
+ * @ref anj_send_new_request : queue full (see @ref ANJ_LWM2M_SEND_QUEUE_SIZE).
  */
-#        define ANJ_SEND_ERR_NOT_ALLOWED -6
+#        define ANJ_SEND_ERR_NO_SPACE -7
 
 /**
- * Can be returned by @ref anj_send_new_request because provided data is not
- * valid.
+ * @ref anj_send_new_request : request cannot be sent in the current state:
+ * - client is not in @ref ANJ_CONN_STATUS_REGISTERED or
+ *   @ref ANJ_CONN_STATUS_QUEUE_MODE, or
+ * - Mute Send is set to true.
  */
-#        define ANJ_SEND_ERR_DATA_NOT_VALID -7
+#        define ANJ_SEND_ERR_NOT_ALLOWED -8
+
+/** @ref anj_send_new_request : provided data is invalid. */
+#        define ANJ_SEND_ERR_DATA_NOT_VALID -9
+
+/**@}*/ /* end of anj_send_errors */
 
 /**
- * Content format of the message payload to be sent.
+ * Content format of the Send payload.
+ *
+ * Requires the corresponding build-time support to be enabled.
+ * - **SenML CBOR** supports timestamps (useful for time series).
+ * - **LwM2M CBOR** is typically more compact; **paths must be unique** within
+ *   one payload (duplicate paths are invalid even if timestamps differ).
  */
 typedef enum {
 #        ifdef ANJ_WITH_SENML_CBOR
@@ -89,17 +136,12 @@ typedef enum {
 } anj_send_content_format_t;
 
 /**
- * A handler called if acknowledgement for LwM2M Send operation is received from
- * the Server or message delivery fails.
+ * Completion handler for a Send request.
  *
- * @param anjay   Anjay object for which the Send operation was attempted.
- * @param send_id ID of the Send operation that was attempted.
- * @param result  Result of the Send message delivery attempt. May be one of:
- *                   - @ref ANJ_SEND_SUCCESS,
- *                   - @ref ANJ_SEND_ERR_TIMEOUT,
- *                   - @ref ANJ_SEND_ERR_ABORT,
- *                   - @ref ANJ_SEND_ERR_REJECTED.
- * @param data    Data defined by user passed into the handler.
+ * @param anjay   Anjay object.
+ * @param send_id ID of the Send request.
+ * @param result  One of @ref anj_send_errors.
+ * @param data    User pointer from @ref anj_send_request_t::data.
  */
 typedef void anj_send_finished_handler_t(anj_t *anjay,
                                          uint16_t send_id,
@@ -107,96 +149,88 @@ typedef void anj_send_finished_handler_t(anj_t *anjay,
                                          void *data);
 
 /**
- * Structure representing a single LwM2M Send message to be sent.
+ * LwM2M Send message to be queued.
  */
 typedef struct {
-    /**
-     * Array of records to be sent.
-     */
+    /** Array of records (entries) to include in the payload. */
     const anj_io_out_entry_t *records;
-    /**
-     * Number of records in the @ref records array.
-     */
+
+    /** Number of elements in @ref records. */
     size_t records_cnt;
+
     /**
-     * Handler called after the final attempt to deliver the message,
-     * regardless of success or failure.
+     * Handler invoked on success, or after the final delivery attempt.
      */
     anj_send_finished_handler_t *finished_handler;
-    /**
-     * Data to be passed to the @ref finished_handler.
-     */
+
+    /** Opaque user pointer passed to @ref finished_handler. */
     void *data;
-    /**
-     * Content format of the payload.
-     */
+
+    /** Content format used to encode the payload. */
     anj_send_content_format_t content_format;
 } anj_send_request_t;
 
 /**
- * Registers a new LwM2M Send request to be sent.
+ * Queue a new LwM2M Send request.
  *
- * If this function returns 0, the finish handler will be called with the result
- * of the operation. A Send request is allowed only if a registration session is
- * active. The request will be processed when possible — if there is no ongoing
- * exchange, only Update messages have higher priority.
+ * If this function returns 0, the request is queued and the finish handler
+ * will be called with the final result. The request is processed when:
+ * - a registration session is active, and
+ * - no higher-priority CoAP exchange is in progress.
  *
- * If multiple Send requests are queued, the oldest one is sent first.
- * Only one Send request is processed at a time.
+ * When multiple requests are queued, they are processed FIFO; only one Send
+ * request is processed at a time.
  *
- * @note Only SenML CBOR provides support for timestamps.
+ * @note **Timestamps:** Only SenML CBOR supports timestamps. In non-SenML
+ *       formats, @ref anj_io_out_entry_t::timestamp is ignored.
  *
- * @note If @p send_request contains multiple records with the same
- *       path listed more than once, the request will fail when encoded as
- *       LwM2M CBOR — even if the records have different timestamps.
+ * @note **Duplicate paths when using LwM2M CBOR:** LwM2M CBOR uses a CBOR map
+ *       keyed by paths; keys must be unique. A request with duplicate paths is
+ *       invalid, even if timestamps differ.
  *
- *       This is because LwM2M CBOR maps resource paths to keys in a CBOR map,
- *       which requires keys (i.e., paths) to be unique. Having duplicate
- *       paths in the encoded structure is invalid and not supported.
+ * @note The @p send_request object is **not copied**. All referenced memory
+ *       (including the @ref anj_send_request_t::records array) must remain
+ *       valid and unchanged until the operation completes and the finish
+ *       handler returns.
  *
- * @note The @p send_request structure is not copied internally.
- *       The pointer must remain valid and unchanged until the send operation
- *       completes and the associated finish handler has been called.
+ * @param      anj          Anjay object.
+ * @param      send_request Description of the message to send (must remain
+ *                          valid until completion).
+ * @param[out] out_send_id  If non-NULL, receives the assigned Send request ID
+ *                          (valid until the finish handler is invoked).
  *
- * @param      anj          Anjay object to operate on.
- * @param      send_request Structure representing the message to be sent.
- *                          Must remain valid until the operation is finished.
- * @param[out] out_send_id  Pointer to a variable where the ID of the new Send
- *                          operation will be stored. May be NULL if the ID is
- *                          not needed. The ID remains valid until the
- *                          associated @ref anj_send_finished_handler_t is
- *                          invoked.
- *
- * @returns 0 on success, a negative value in case of an error:
- *          - @ref ANJ_SEND_ERR_NO_SPACE if there is no space for new request,
- *          - @ref ANJ_SEND_ERR_NOT_ALLOWED if the request can't be sent in
- *            current state of the library,
- *          - @ref ANJ_SEND_ERR_DATA_NOT_VALID if provided data is not valid.
+ * @return 0 on success, otherwise one of @ref anj_send_errors :
+ *         - @ref ANJ_SEND_ERR_NO_SPACE
+ *         - @ref ANJ_SEND_ERR_NOT_ALLOWED
+ *         - @ref ANJ_SEND_ERR_DATA_NOT_VALID
  */
 int anj_send_new_request(anj_t *anj,
                          const anj_send_request_t *send_request,
                          uint16_t *out_send_id);
 
 /**
- * Aborts a LwM2M Send request with given ID. If the request is still in the
- * queue to be sent, it will be removed. If the request is already being sent,
- * the exchange will be cancelled first. For both cases @ref ANJ_SEND_ERR_ABORT
- * will be passed to the @ref anj_send_finished_handler_t as a result.
+ * Abort a queued or in-flight Send request.
  *
- * @param anj     Anjay object to operate on.
- * @param send_id ID of the Send operation to be aborted.
- *                If @ref ANJ_SEND_ID_ALL is passed, all pending requests will
- *                be aborted.
+ * - If the request is queued, it is removed from the queue.
+ * - If the request is in progress, the exchange is cancelled.
  *
- * @returns 0 on success, @ref ANJ_SEND_ERR_NO_REQUEST_FOUND if no request with
- *          given ID was found, @ref ANJ_SEND_ERR_ABORT if aborting is already
- *          in progress.
+ * In both cases, @ref ANJ_SEND_ERR_ABORT is reported to the completion handler.
+ *
+ * @param anj     Anjay object.
+ * @param send_id ID of the Send request to abort. Use @ref ANJ_SEND_ID_ALL to
+ *                abort all pending requests.
+ *
+ * @return 0 on success; @ref ANJ_SEND_ERR_NO_REQUEST_FOUND if no matching
+ *         request exists; @ref ANJ_SEND_ERR_ABORT if abort is already in
+ *         progress.
  */
 int anj_send_abort(anj_t *anj, uint16_t send_id);
 
+/** @cond */
 #        define ANJ_INTERNAL_INCLUDE_SEND
 #        include <anj_internal/lwm2m_send.h>
 #        undef ANJ_INTERNAL_INCLUDE_SEND
+/** @endcond */
 
 #    endif // ANJ_WITH_LWM2M_SEND
 

@@ -184,7 +184,7 @@ FULL_PATH_NAMES        = YES
 # will be relative from the directory where doxygen is started.
 # This tag requires that the tag FULL_PATH_NAMES is set to YES.
 
-STRIP_FROM_PATH        =
+STRIP_FROM_PATH        = doc/build/anj
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of the
 # path mentioned in the documentation of a class, which tells the reader which
@@ -901,7 +901,7 @@ WARN_IF_UNDOC_ENUM_VAL = NO
 # Possible values are: NO, YES, FAIL_ON_WARNINGS and FAIL_ON_WARNINGS_PRINT.
 # The default value is: NO.
 
-WARN_AS_ERROR          = NO
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
 
 # The WARN_FORMAT tag determines the format of the warning messages that doxygen
 # can produce. The string should contain the $file, $line, and $text tags, which
@@ -944,7 +944,7 @@ WARN_LOGFILE           =
 # Note: If this tag is empty the current directory is searched.
 
 INPUT                  = include_public/anj \
-                         doc/build/anj_config.h
+                         doc/build/anj
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -2371,7 +2371,7 @@ SEARCH_INCLUDES        = YES
 # RECURSIVE has no effect here.
 # This tag requires that the tag SEARCH_INCLUDES is set to YES.
 
-INCLUDE_PATH           =
+INCLUDE_PATH           = include_public doc/build
 
 # You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard
 # patterns (like *.h and *.hpp) to filter out the header-files in the
@@ -2389,74 +2389,7 @@ INCLUDE_FILE_PATTERNS  =
 # recursively expanded use the := operator instead of the = operator.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-PREDEFINED             = ANJ_IN_MSG_BUFFER_SIZE \
-                         ANJ_OUT_MSG_BUFFER_SIZE \
-                         ANJ_OUT_PAYLOAD_BUFFER_SIZE \
-                         ANJ_DM_MAX_OBJECTS_NUMBER \
-                         ANJ_WITH_COMPOSITE_OPERATIONS \
-                         ANJ_DM_MAX_COMP_READ_ENTRIES \
-                         ANJ_WITH_DEFAULT_DEVICE_OBJ \
-                         ANJ_WITH_DEFAULT_SECURITY_OBJ \
-                         ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE \
-                         ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE \
-                         ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE \
-                         ANJ_WITH_DEFAULT_SERVER_OBJ \
-                         ANJ_WITH_DEFAULT_FOTA_OBJ \
-                         ANJ_FOTA_WITH_PULL_METHOD \
-                         ANJ_FOTA_WITH_PUSH_METHOD \
-                         ANJ_FOTA_WITH_COAP \
-                         ANJ_FOTA_WITH_COAPS \
-                         ANJ_FOTA_WITH_HTTP \
-                         ANJ_FOTA_WITH_HTTPS \
-                         ANJ_FOTA_WITH_COAP_TCP \
-                         ANJ_FOTA_WITH_COAPS_TCP \
-                         ANJ_WITH_OBSERVE \
-                         ANJ_WITH_OBSERVE_COMPOSITE \
-                         ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER \
-                         ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER \
-                         ANJ_WITH_BOOTSTRAP \
-                         ANJ_WITH_BOOTSTRAP_DISCOVER \
-                         ANJ_WITH_DISCOVER \
-                         ANJ_WITH_DISCOVER_ATTR \
-                         ANJ_WITH_LWM2M_SEND \
-                         ANJ_LWM2M_SEND_QUEUE_SIZE \
-                         ANJ_WITH_TIME_POSIX_COMPAT \
-                         ANJ_WITH_SOCKET_POSIX_COMPAT \
-                         ANJ_NET_WITH_IPV4 \
-                         ANJ_NET_WITH_IPV6 \
-                         ANJ_NET_WITH_UDP \
-                         ANJ_NET_WITH_TCP \
-                         ANJ_WITH_EXTERNAL_DATA \
-                         ANJ_WITH_CBOR \
-                         ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS \
-                         ANJ_WITH_CBOR_DECODE_HALF_FLOAT \
-                         ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES \
-                         ANJ_WITH_CBOR_DECODE_STRING_TIME \
-                         ANJ_WITH_LWM2M_CBOR \
-                         ANJ_WITH_SENML_CBOR \
-                         ANJ_WITH_PLAINTEXT \
-                         ANJ_WITH_OPAQUE \
-                         ANJ_WITH_TLV \
-                         ANJ_COAP_WITH_UDP \
-                         ANJ_COAP_WITH_TCP \
-                         ANJ_COAP_MAX_OPTIONS_NUMBER \
-                         ANJ_COAP_MAX_ATTR_OPTION_SIZE \
-                         ANJ_COAP_MAX_LOCATION_PATHS_NUMBER \
-                         ANJ_COAP_MAX_LOCATION_PATH_SIZE \
-                         ANJ_LOG_FULL \
-                         ANJ_LOG_ALT_IMPL_HEADER \
-                         ANJ_LOG_FORMATTER_PRINTF \
-                         ANJ_LOG_FORMATTER_BUF_SIZE \
-                         ANJ_LOG_HANDLER_OUTPUT_STDERR \
-                         ANJ_LOG_HANDLER_OUTPUT_ALT \
-                         ANJ_LOG_STRIP_CONSTANTS \
-                         ANJ_LOG_DEBUG_FORMAT_CONSTRAINTS_CHECK \
-                         ANJ_LOG_LEVEL_DEFAULT \
-                         ANJ_LOG_FILTERING_CONFIG_HEADER \
-                         ANJ_WITH_LWM2M12 \
-                         ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS \
-                         ANJ_PLATFORM_BIG_ENDIAN \
-                         ANJ_LOG_ENABLED
+PREDEFINED             =
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The
@@ -2888,6 +2821,14 @@ MSCGEN_TOOL            =
 
 MSCFILE_DIRS           =
 
-ALIASES += anj_internal_api_do_not_use="**INTERNAL API**: This symbol is used\
-internally by the Anjay Lite library. Do not modify its definition or access\
-its fields directly. It is not part of the public API. <br><hr>"
+ALIASES += anj_internal_api_do_not_use="@warning **INTERNAL API**: This symbol\
+is used internally by the Anjay Lite library. Do not modify its definition or\
+access its fields directly. It is not part of the public API."
+
+ALIASES += anj_internal_fields_do_not_use="@warning **INTERNAL FIELDS**: This\
+type contains fields used internally by the Anjay Lite library. Do not access\
+them directly. They are not part of the public API."
+
+ALIASES += lwm2m_core="<a href=\"https://www.openmobilealliance.org/release/LightweightM2M/V1_2_2-20240613-A/OMA-TS-LightweightM2M_Core-V1_2_2-20240613-A.pdf\">OMA LwM2M Core Specification v1.2.2 \[OMA-TS-LightweightM2M_Core-V1_2_2-20240613-A\]</a>"
+
+ALIASES += lwm2m_transport="<a href=\"https://www.openmobilealliance.org/release/LightweightM2M/V1_2_2-20240613-A/OMA-TS-LightweightM2M_Transport-V1_2_2-20240613-A.pdf\">OMA LwM2M Transport Bindings Specification v1.2.2 \[OMA-TS-LightweightM2M_Transport-V1_2_2-20240613-A\]</a>"

@@ -26,6 +26,7 @@ set(ANJ_COAP_MAX_ATTR_OPTION_SIZE 50)
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
+target_compile_options(anj PRIVATE -Wall -Wextra -Werror)
 
 file(GLOB io_tests_sources "*.c")
 add_executable(io_tests ${io_tests_sources})

@@ -18,7 +18,7 @@
 #include <anj/dm/device_object.h>
 #include <anj/dm/security_object.h>
 #include <anj/dm/server_object.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #define log(...) anj_log(example_log, __VA_ARGS__)
 

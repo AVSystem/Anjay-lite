@@ -9,6 +9,17 @@
 
 #include <anj/init.h>
 
+/**
+ * @file
+ * @brief Network backend interface for Non-IP transport.
+ *
+ * Declares the Non-IP variant of the generic @ref anj_net_api.h
+ * functions (create, connect, send, recv, shutdown, etc.).
+ *
+ * These symbols are defined only if @c ANJ_NET_WITH_NON_IP_BINDING is enabled.
+ * They provide the Non-IP binding used by @ref anj_net_wrapper.h for dispatch.
+ */
+
 #ifndef ANJ_NON_IP_H
 #    define ANJ_NON_IP_H
 
@@ -16,7 +27,7 @@
 extern "C" {
 #    endif
 
-#    ifdef ANJ_WITH_NON_IP_BINDING
+#    ifdef ANJ_NET_WITH_NON_IP_BINDING
 #        include <anj/compat/net/anj_net_api.h>
 
 anj_net_get_system_socket_t anj_non_ip_get_system_socket;
@@ -33,7 +44,7 @@ anj_net_get_bytes_sent_t anj_non_ip_get_bytes_sent;
 anj_net_get_inner_mtu_t anj_non_ip_get_inner_mtu;
 anj_net_get_state_t anj_non_ip_get_state;
 
-#    endif // ANJ_WITH_NON_IP_BINDING
+#    endif // ANJ_NET_WITH_NON_IP_BINDING
 
 #    ifdef __cplusplus
 }

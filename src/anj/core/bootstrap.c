@@ -16,7 +16,8 @@
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 
 #include "../coap/coap.h"
 #include "../dm/dm_integration.h"
@@ -30,7 +31,7 @@ static void bootstrap_finish_completion_callback(
         void *arg_ptr, const _anj_coap_msg_t *response, int result) {
     (void) response;
     _anj_bootstrap_ctx_t *ctx = (_anj_bootstrap_ctx_t *) arg_ptr;
-    if (result) {
+    if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
         if (ctx->error_code != _ANJ_BOOTSTRAP_ERR_DATA_MODEL_VALIDATION) {
             ctx->error_code = _ANJ_BOOTSTRAP_ERR_EXCHANGE_ERROR;
         }
@@ -48,7 +49,7 @@ static void bootstrap_request_completion_callback(
     (void) response;
     _anj_bootstrap_ctx_t *ctx = (_anj_bootstrap_ctx_t *) arg_ptr;
 
-    if (result) {
+    if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
         ctx->error_code = _ANJ_BOOTSTRAP_ERR_EXCHANGE_ERROR;
         bootstrap_log(
                 L_ERROR, "Bootstrap-Request failed with result %d", result);
@@ -81,8 +82,9 @@ int _anj_bootstrap_process(anj_t *anj,
         ctx->in_progress = true;
         ctx->bootstrap_finish_handled = false;
         ctx->error_code = _ANJ_BOOTSTRAP_IN_PROGRESS;
-        ctx->lifetime = anj_time_real_now()
-                        + (uint64_t) ctx->bootstrap_finish_timeout * 1000;
+        ctx->bootstrap_finish_timeout =
+                anj_time_monotonic_add(anj_time_monotonic_now(),
+                                       ctx->bootstrap_lifetime);
 
         *out_handlers = (_anj_exchange_handlers_t) {
             .completion = bootstrap_request_completion_callback,
@@ -102,7 +104,8 @@ int _anj_bootstrap_process(anj_t *anj,
         ctx->in_progress = false;
         bootstrap_log(L_INFO, "Bootstrap finished successfully");
         return _ANJ_BOOTSTRAP_FINISHED;
-    } else if (anj_time_real_now() > ctx->lifetime) {
+    } else if (anj_time_monotonic_gt(anj_time_monotonic_now(),
+                                     ctx->bootstrap_finish_timeout)) {
         ctx->in_progress = false;
         ctx->error_code = _ANJ_BOOTSTRAP_ERR_BOOTSTRAP_TIMEOUT;
         bootstrap_log(L_ERROR, "Bootstrap timeout");
@@ -152,19 +155,20 @@ void _anj_bootstrap_timeout_reset(anj_t *anj) {
     assert(anj);
     _anj_bootstrap_ctx_t *ctx = &anj->bootstrap_ctx;
     assert(ctx->in_progress);
-    ctx->lifetime = anj_time_real_now()
-                    + (uint64_t) ctx->bootstrap_finish_timeout * 1000;
+    ctx->bootstrap_finish_timeout =
+            anj_time_monotonic_add(anj_time_monotonic_now(),
+                                   ctx->bootstrap_lifetime);
 }
 
 void _anj_bootstrap_ctx_init(anj_t *anj,
                              const char *endpoint,
-                             uint32_t timeout) {
+                             const anj_time_duration_t lifetime) {
     assert(anj && endpoint);
     _anj_bootstrap_ctx_t *ctx = &anj->bootstrap_ctx;
     memset(ctx, 0, sizeof(*ctx));
     ctx->in_progress = false;
     ctx->endpoint = endpoint;
-    ctx->bootstrap_finish_timeout = timeout;
+    ctx->bootstrap_lifetime = lifetime;
 }
 
 void _anj_bootstrap_reset(anj_t *anj) {

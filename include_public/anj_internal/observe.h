@@ -61,8 +61,8 @@ struct _anj_observe_observation_struct {
     // if effective_attr are not valid, the observation is not active
     bool observe_active;
 
-    uint64_t last_notify_timestamp;
-    uint64_t next_conf_notify_timestamp;
+    anj_time_real_t last_notify_timestamp;
+    anj_time_real_t next_conf_notify_timestamp;
 
     /* This field is used for the purpose of the "Change Value Conditions"
      * attributes handling. This value is written from data model when:
@@ -105,12 +105,18 @@ typedef struct anj_observe_server_state_struct {
 
     /** Value of Resource 2 of corresponding Server Object (/1/x/2) should
      * be used here. If this Resource doesn't exist, then use 0, which is the
-     * default value. */
+     * default value.
+     *
+     * Time unit: seconds
+     */
     uint32_t default_min_period;
 
     /** Value of Resource 3 of corresponding Server Object (/1/x/3) should
      * be used here. If this Resource doesn't exist, then use 0, which is
-     * default value meaning that pmax must be ignored. */
+     * the default value, meaning that pmax must be ignored.
+     *
+     * Time unit: seconds
+     */
     uint32_t default_max_period;
 
     /** Indicates if notification storage should be used. Value of Resource 6 of

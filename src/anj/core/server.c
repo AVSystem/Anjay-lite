@@ -18,7 +18,8 @@
 #include <anj/compat/net/anj_net_wrapper.h>
 #include <anj/core.h>
 #include <anj/defs.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
+#include <anj/time.h>
 #include <anj/utils.h>
 
 #include "../coap/coap.h"
@@ -31,50 +32,35 @@
 #define _ANJ_SERVER_GENERIC_ERROR -1
 
 static int net_again_is_error(int result) {
-    return result == ANJ_NET_EAGAIN ? _ANJ_SERVER_GENERIC_ERROR : result;
+    return ((result == ANJ_NET_EAGAIN) || result == ANJ_NET_EINPROGRESS)
+                   ? _ANJ_SERVER_GENERIC_ERROR
+                   : result;
 }
 
 int _anj_server_connect(_anj_server_connection_ctx_t *ctx,
                         anj_net_binding_type_t type,
                         const anj_net_config_t *net_socket_cfg,
                         const char *hostname,
-                        const char *port,
-                        bool reconnect) {
+                        const char *port) {
     assert(ctx && hostname && port && !ctx->send_in_progress);
     int result;
-    ctx->type = type;
 
     if (!ctx->net_ctx) {
         memset(ctx, 0, sizeof(*ctx));
-        result = anj_net_create_ctx(ctx->type, &ctx->net_ctx, net_socket_cfg);
+        result = anj_net_create_ctx(type, &ctx->net_ctx, net_socket_cfg);
         if (!anj_net_is_ok(result)) {
             log(L_ERROR, "Could not create socket: %d", result);
             return result;
         }
-        ctx->type = type;
         log(L_DEBUG, "Socket created successfully");
     }
+    ctx->type = type;
 
     anj_net_socket_state_t state;
     result = anj_net_get_state(ctx->type, ctx->net_ctx, &state);
     if (!anj_net_is_ok(result)) {
         log(L_ERROR, "Could not get socket state: %d", result);
         return net_again_is_error(result);
-    }
-    if (reconnect && state != ANJ_NET_SOCKET_STATE_BOUND
-            && state != ANJ_NET_SOCKET_STATE_CONNECTED) {
-        result = anj_net_reuse_last_port(ctx->type, ctx->net_ctx);
-        if (anj_net_is_again(result)) {
-            return result;
-        } else if (!anj_net_is_ok(result)) {
-            if (result != ANJ_NET_ENOTSUP) {
-                log(L_ERROR, "Reuse port try failed: %d", result);
-                return net_again_is_error(result);
-            } else {
-                log(L_DEBUG, "Reuse port not supported");
-            }
-        }
-        log(L_DEBUG, "Try to reconnect");
     }
 
     result = anj_net_connect(ctx->type, ctx->net_ctx, hostname, port);
@@ -89,7 +75,7 @@ int _anj_server_connect(_anj_server_connection_ctx_t *ctx,
             return net_again_is_error(result);
         }
         log(L_INFO, "Connected to %s:%s", hostname, port);
-    } else if (!anj_net_is_again(result)) {
+    } else if (!anj_net_is_inprogress(result)) {
         log(L_ERROR, "Connection failed: %d", result);
     }
     return result;
@@ -110,10 +96,9 @@ int _anj_server_close(_anj_server_connection_ctx_t *ctx, bool cleanup) {
     anj_net_socket_state_t state = ANJ_NET_SOCKET_STATE_CONNECTED;
     anj_net_get_state(ctx->type, ctx->net_ctx, &state);
 
-    if (state == ANJ_NET_SOCKET_STATE_CONNECTED
-            || state == ANJ_NET_SOCKET_STATE_BOUND) {
+    if (state == ANJ_NET_SOCKET_STATE_CONNECTED) {
         result = anj_net_shutdown(ctx->type, ctx->net_ctx);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_inprogress(result)) {
             return result;
         }
         log(L_TRACE, "Socket shutdown");
@@ -125,7 +110,7 @@ int _anj_server_close(_anj_server_connection_ctx_t *ctx, bool cleanup) {
             || (state == ANJ_NET_SOCKET_STATE_CLOSED && cleanup)) {
         result = cleanup ? anj_net_cleanup_ctx(ctx->type, &ctx->net_ctx)
                          : anj_net_close(ctx->type, ctx->net_ctx);
-        if (anj_net_is_again(result)) {
+        if (anj_net_is_inprogress(result)) {
             return result;
         }
         if (cleanup) {
@@ -158,10 +143,10 @@ int _anj_server_send(_anj_server_connection_ctx_t *ctx,
             ctx->bytes_sent = 0;
             ctx->send_in_progress = false;
         } else {
-            return ANJ_NET_EAGAIN;
+            return ANJ_NET_EINPROGRESS;
         }
         assert(ctx->bytes_sent <= length);
-    } else if (!anj_net_is_again(result)) {
+    } else if (!anj_net_is_inprogress(result)) {
         ctx->send_in_progress = false;
     }
     return result;
@@ -244,11 +229,13 @@ int _anj_server_handle_request(anj_t *anj) {
             result = _anj_server_send(&anj->connection_ctx, anj->out_buffer,
                                       anj->out_msg_len);
 
-            if (anj_net_is_again(result)) {
+            if (anj_net_is_inprogress(result)) {
                 return result;
             }
             anj->exchange_cache.handling_retransmission = false;
             if (result) {
+                _anj_exchange_terminate(&anj->exchange_ctx,
+                                        _ANJ_EXCHANGE_ERROR_NETWORK);
                 return result;
             }
         } else
@@ -265,12 +252,14 @@ int _anj_server_handle_request(anj_t *anj) {
                                               &anj->out_msg_len);
                 if (result) {
                     ANJ_CORE_LOG_COAP_ERROR(result);
+                    _anj_exchange_terminate(&anj->exchange_ctx,
+                                            _ANJ_EXCHANGE_ERROR_PROTOCOL);
                     return result;
                 }
             }
             result = _anj_server_send(&anj->connection_ctx, anj->out_buffer,
                                       anj->out_msg_len);
-            if (anj_net_is_again(result)) {
+            if (anj_net_is_inprogress(result)) {
                 // check for send ACK timeout, error suggests network issue
                 exchange_state =
                         _anj_exchange_process(&anj->exchange_ctx,
@@ -280,6 +269,8 @@ int _anj_server_handle_request(anj_t *anj) {
                 }
                 return result;
             } else if (result) {
+                _anj_exchange_terminate(&anj->exchange_ctx,
+                                        _ANJ_EXCHANGE_ERROR_NETWORK);
                 return result;
             }
             exchange_state =
@@ -292,7 +283,7 @@ int _anj_server_handle_request(anj_t *anj) {
             size_t msg_size;
             result = _anj_server_receive(&anj->connection_ctx, anj->in_buffer,
                                          &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
-            if (anj_net_is_again(result)) {
+            if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
                 // check for receive timeout
                 exchange_state =
                         _anj_exchange_process(&anj->exchange_ctx,
@@ -302,6 +293,8 @@ int _anj_server_handle_request(anj_t *anj) {
                     return result;
                 }
             } else if (result) {
+                _anj_exchange_terminate(&anj->exchange_ctx,
+                                        _ANJ_EXCHANGE_ERROR_NETWORK);
                 return result;
             } else {
                 result = _anj_coap_decode_udp(anj->in_buffer, msg_size, &msg);
@@ -341,7 +334,8 @@ static int encode_coap_msg(anj_t *anj, _anj_coap_msg_t *msg) {
     int res = _anj_coap_encode_udp(msg, anj->out_buffer,
                                    ANJ_OUT_MSG_BUFFER_SIZE, &anj->out_msg_len);
     if (res) {
-        _anj_exchange_terminate(&anj->exchange_ctx);
+        _anj_exchange_terminate(&anj->exchange_ctx,
+                                _ANJ_EXCHANGE_ERROR_PROTOCOL);
         ANJ_CORE_LOG_COAP_ERROR(res);
     }
     return res;
@@ -390,15 +384,20 @@ int _anj_server_prepare_server_request(anj_t *anj,
                                              payload_size);
     // _anj_exchange_new_server_request can't return different state
     assert(state == ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    (void) state;
     return encode_coap_msg(anj, request);
 }
 
-uint64_t _anj_server_calculate_max_transmit_wait(
+anj_time_duration_t _anj_server_calculate_max_transmit_wait(
         const anj_exchange_udp_tx_params_t *params) {
     // TODO: add TCP support
     // MAX_TRANSMIT_WAIT = ACK_TIMEOUT * ((2 ** (MAX_RETRANSMIT + 1)) - 1) *
     //                     ACK_RANDOM_FACTOR
-    return (uint64_t) (((double) params->ack_timeout_ms
-                        * (double) ((1 << (params->max_retransmit + 1)) - 1))
-                       * params->ack_random_factor);
+    return anj_time_duration_fmul(params->ack_timeout,
+                                  ((double) (1 << (params->max_retransmit + 1))
+                                   - 1) * params->ack_random_factor);
+}
+
+int _anj_server_queue_mode_rx_off(_anj_server_connection_ctx_t *ctx) {
+    return anj_net_queue_mode_rx_off(ctx->type, ctx->net_ctx);
 }

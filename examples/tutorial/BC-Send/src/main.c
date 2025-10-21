@@ -21,7 +21,7 @@
 #include <anj/dm/device_object.h>
 #include <anj/dm/security_object.h>
 #include <anj/dm/server_object.h>
-#include <anj/log/log.h>
+#include <anj/log.h>
 
 #include "temperature_obj.h"
 
@@ -134,7 +134,9 @@ int main(int argc, char *argv[]) {
     }
 
     anj_res_value_t value;
-    uint64_t next_read_time = anj_time_now() + 1000;
+    anj_time_monotonic_t next_read_time =
+            anj_time_monotonic_add(anj_time_monotonic_now(),
+                                   anj_time_duration_new(1, ANJ_TIME_UNIT_S));
     uint16_t send_id = 0;
     anj_io_out_entry_t records[MAX_RECORDS];
     fin_handler_data_t data = { 0 };
@@ -143,8 +145,10 @@ int main(int argc, char *argv[]) {
         anj_core_step(&anj);
         update_temperature_obj_value();
         usleep(50 * 1000);
-        if (next_read_time < anj_time_now()) {
-            next_read_time = anj_time_now() + 1000;
+        if (anj_time_monotonic_lt(next_read_time, anj_time_monotonic_now())) {
+            next_read_time = anj_time_monotonic_add(
+                    anj_time_monotonic_now(),
+                    anj_time_duration_new(1, ANJ_TIME_UNIT_S));
             if (data.record_idx < MAX_RECORDS) {
                 if (anj_dm_res_read(&anj,
                                     &ANJ_MAKE_RESOURCE_PATH(3303, 0, 5700),
@@ -156,7 +160,8 @@ int main(int argc, char *argv[]) {
                     records[data.record_idx].type = ANJ_DATA_TYPE_DOUBLE;
                     records[data.record_idx].value = value;
                     records[data.record_idx].timestamp =
-                            (double) anj_time_real_now() / 1000;
+                            anj_time_real_to_fscalar(anj_time_real_now(),
+                                                     ANJ_TIME_UNIT_S);
                     data.record_idx++;
                 }
             } else {

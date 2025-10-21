@@ -33,7 +33,7 @@
 // inner_mtu_value value will lead to block transfer for addtional objects in
 // payload
 #define _TEST_INIT(With_queue_mode, Queue_timeout)         \
-    set_mock_time(0);                                      \
+    mock_time_reset();                                     \
     net_api_mock_t mock = { 0 };                           \
     net_api_mock_ctx_init(&mock);                          \
     mock.inner_mtu_value = 110;                            \
@@ -41,7 +41,7 @@
     anj_configuration_t config = {                         \
         .endpoint_name = "name",                           \
         .queue_mode_enabled = With_queue_mode,             \
-        .queue_mode_timeout_ms = Queue_timeout             \
+        .queue_mode_timeout = Queue_timeout                \
     };                                                     \
     ANJ_UNIT_ASSERT_SUCCESS(anj_core_init(&anj, &config)); \
     anj_dm_security_obj_t sec_obj;                         \
@@ -49,7 +49,7 @@
     anj_dm_server_obj_t ser_obj;                           \
     anj_dm_server_obj_init(&ser_obj)
 
-#define TEST_INIT() _TEST_INIT(false, 0)
+#define TEST_INIT() _TEST_INIT(false, ANJ_TIME_DURATION_ZERO)
 #define TEST_INIT_WITH_QUEUE_MODE(Queue_timeout) _TEST_INIT(true, Queue_timeout)
 
 #define ADD_INSTANCES()                                                   \
@@ -65,7 +65,8 @@
     anj_dm_security_instance_init_t sec_inst = { \
         .server_uri = "coap://server.com:5683",  \
         .ssid = 2,                               \
-        .iid = &iid                              \
+        .iid = &iid,                             \
+        .security_mode = ANJ_DM_SECURITY_NOSEC,  \
     };                                           \
     anj_dm_server_instance_init_t ser_inst = {   \
         .ssid = 2,                               \
@@ -598,12 +599,12 @@ ANJ_UNIT_TEST(lwm2m_send, abort_ongoing_send) {
     anj_core_step(&anj);
     // wait for response
     anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_TRUE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
     // abort when waiting for response
     ANJ_UNIT_ASSERT_SUCCESS(anj_send_abort(&anj, ANJ_SEND_ID_ALL));
     FINAL_CHECK(1, ANJ_SEND_ERR_ABORT);
     anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     anj_core_server_obj_registration_update_trigger_executed(&anj);
     HANDLE_UPDATE();
@@ -612,12 +613,12 @@ ANJ_UNIT_TEST(lwm2m_send, abort_ongoing_send) {
     mock.bytes_to_send = 0;
     anj_core_step(&anj);
     anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_TRUE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
     // abort when sending
     ANJ_UNIT_ASSERT_SUCCESS(anj_send_abort(&anj, ANJ_SEND_ID_ALL));
     FINAL_CHECK(2, ANJ_SEND_ERR_ABORT);
     anj_core_step(&anj);
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 
     anj_core_server_obj_registration_update_trigger_executed(&anj);
     HANDLE_UPDATE();
@@ -642,12 +643,12 @@ ANJ_UNIT_TEST(lwm2m_send, network_error) {
 
     mock.call_result[ANJ_NET_FUN_SEND] = -14;
     // wait for close for the next anj_core_step call
-    mock.call_result[ANJ_NET_FUN_CLOSE] = ANJ_NET_EAGAIN;
+    mock.call_result[ANJ_NET_FUN_CLOSE] = ANJ_NET_EINPROGRESS;
     anj_core_step(&anj);
     mock.call_result[ANJ_NET_FUN_SEND] = 0;
     mock.call_result[ANJ_NET_FUN_CLOSE] = 0;
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
-    FINAL_CHECK(1, ANJ_SEND_ERR_ABORT);
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
+    FINAL_CHECK(1, ANJ_SEND_ERR_NETWORK);
 
     PROCESS_REGISTRATION();
     // check if send is still working
@@ -671,16 +672,43 @@ ANJ_UNIT_TEST(lwm2m_send, no_response_error) {
 
     mock.bytes_to_send = 500;
     anj_core_step(&anj);
-    uint64_t actual_time_s = 0;
-    set_mock_time(actual_time_s);
+    mock_time_reset();
     // there is 4 retries in default config
     for (int i = 0; i < 5; i++) {
-        actual_time_s += 100;
-        set_mock_time(actual_time_s);
+        mock_time_advance(anj_time_duration_new(100, ANJ_TIME_UNIT_S));
         ANJ_UNIT_ASSERT_EQUAL(g_send_id, 0);
         anj_core_step(&anj);
     }
     FINAL_CHECK(1, ANJ_SEND_ERR_TIMEOUT);
+}
+
+ANJ_UNIT_TEST(lwm2m_send, send_blocked_by_recv_einprogress) {
+    EXTENDED_INIT();
+    PROCESS_REGISTRATION();
+    g_send_id = 0;
+    anj_io_out_entry_t records[] = { default_record_1, default_record_2 };
+    anj_send_request_t send_req = {
+        .finished_handler = send_finished_handler,
+        .content_format = ANJ_SEND_CONTENT_FORMAT_SENML_CBOR,
+        .records_cnt = 2,
+        .records = records
+    };
+    ANJ_UNIT_ASSERT_SUCCESS(anj_send_new_request(&anj, &send_req, NULL));
+
+    // allow to send data
+    mock.bytes_to_send = 500;
+    // record current send count
+    int current_send_count = mock.call_count[ANJ_NET_FUN_SEND];
+    // simulate blocking operation in the underlying socket
+    mock.call_result[ANJ_NET_FUN_RECV] = ANJ_NET_EINPROGRESS;
+    // process the tick where Update is due
+    anj_core_step(&anj);
+    // no send attempt happened due to ANJ_NET_EINPROGRESS on recv
+    ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_SEND],
+                          current_send_count);
+
+    // send request still in the queue
+    ANJ_UNIT_ASSERT_EQUAL(anj.send_ctx.ids[0], 1);
 }
 
 ANJ_UNIT_TEST(lwm2m_send, send_with_io_ctx_error) {
@@ -705,7 +733,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_with_io_ctx_error) {
     anj_core_step(&anj);
     // error leads to reregistration so there is one _anj_server_send call
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_SEND], 1);
-    FINAL_CHECK(1, ANJ_SEND_ERR_REJECTED);
+    FINAL_CHECK(1, ANJ_SEND_ERR_INTERNAL);
 }
 
 static char send_error_response[] = "\x68"         // header v 0x01, Ack, tkl 8
@@ -1137,7 +1165,8 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
         verify_payload(expected, sizeof(expected) - 1, &msg);
 
         ANJ_UNIT_ASSERT_FALSE(closed);
-        _anj_exchange_terminate(&anj.exchange_ctx);
+        _anj_exchange_terminate(&anj.exchange_ctx,
+                                _ANJ_EXCHANGE_ERROR_TERMINATED);
         ANJ_UNIT_ASSERT_TRUE(closed);
     }
     // try send external string, receive reset

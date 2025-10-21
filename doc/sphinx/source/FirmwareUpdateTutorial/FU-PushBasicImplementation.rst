@@ -6,14 +6,22 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-Basic implementation
-====================
+FOTA Direct Push
+================
+
+.. important::
+   This tutorial describes the push-based firmware update method.
+   Use this method only when strictly required. During the update,
+   the client is fully blocked—it cannot handle notifications, send updates, or respond to any server requests.
+   For most scenarios, the **pull-based** approach is recommended. See :doc:`FU-PullBasicImplementation`.
 
 Project structure
 ^^^^^^^^^^^^^^^^^
 
 This tutorial demonstrates a basic implementation of the Firmware Update process
-with Anjay Lite. The tutorial source files are located in the
+with Anjay Lite using Push mode. This means that the firmware is uploaded 
+directly to the Package Resource (`/5/0/0`) and typically 
+uses block-wise transfer. The tutorial source files are located in the
 ``examples/tutorial/firmware-update`` directory. This example builds on the code
 presented in the :doc:`../BasicClient/BC-MandatoryObjects` chapter:
 
@@ -25,6 +33,17 @@ presented in the :doc:`../BasicClient/BC-MandatoryObjects` chapter:
         ├── firmware_update.c (new)
         ├── firmware_update.h (new)
         └── main.c
+
+Configure the library
+^^^^^^^^^^^^^^^^^^^^^
+
+Enable the following build options in either the ``CMakeLists.txt`` file or the ``anj_config.h`` file:
+
+* ``ANJ_WITH_DEFAULT_FOTA_OBJ=ON``: Enables the built-in Firmware Update Object.
+  Similar to other default objects such as Security or Server.
+
+* ``ANJ_FOTA_WITH_PUSH_METHOD=ON``: Enables Push mode in the Firmware Update functionality
+  in builtin Firmware Update Object.
 
 Install the Firmware Update Object
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -75,7 +94,7 @@ abstracted through the functions declared in ``firmware_update.h``:
     #define _FIRMWARE_UPDATE_H_
 
     #include <anj/defs.h>
-    #include <anj/log/log.h>
+    #include <anj/log.h>
 
     #define log(...) anj_log(fota_example_log, __VA_ARGS__)
 
@@ -99,6 +118,38 @@ abstracted through the functions declared in ``firmware_update.h``:
                                 const char *endpoint_name);
 
     #endif // _FIRMWARE_UPDATE_H_
+
+The ``fw_update_object_install()`` function initializes the internal state of the Firmware Update Object.
+It also checks if a firmware update has already been applied by looking for a marker file.
+If the marker is present, it sets the Update Result Resource (`/5/0/5`) to
+indicate a successful update using ``anj_dm_fw_update_object_set_update_result()``,
+allowing the server to verify the update status.
+
+.. highlight:: c
+.. snippet-source:: examples/tutorial/firmware-update/src/firmware_update.c
+    :emphasize-lines: 16,17
+
+    int fw_update_object_install(anj_t *anj,
+                                 const char *firmware_version,
+                                 const char *endpoint_name) {
+        firmware_update.firmware_version = firmware_version;
+        firmware_update.endpoint_name = endpoint_name;
+        firmware_update.waiting_for_reboot = false;
+
+        if (anj_dm_fw_update_object_install(anj, &fu_entity, &fu_handlers,
+                                            &firmware_update)) {
+            return -1;
+        }
+
+        if (access(FW_UPDATED_MARKER, F_OK) == 0) {
+            log(L_INFO, "Firmware Updated successfully");
+            unlink(FW_UPDATED_MARKER);
+            (void) anj_dm_fw_update_object_set_update_result(
+                    anj, &fu_entity, ANJ_DM_FW_UPDATE_RESULT_SUCCESS);
+        }
+
+        return 0;
+    }
 
 These are in turn called in the ``main.c``:
 

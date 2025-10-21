@@ -10,14 +10,15 @@
 #include <anj/init.h>
 
 #include <ctype.h>
-#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
-#include <anj/log/log.h>
+#include <anj/dm/security_object.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "../dm/dm_io.h"
@@ -29,9 +30,10 @@
 #define COAP_DEFAULT_BOOTSTRAP_PORT_STR "5693"
 #define COAPS_DEFAULT_BOOTSTRAP_PORT_STR "5694"
 
-int _anj_parse_uri_components(const char *uri,
-                              bool is_bootstrap,
-                              _anj_uri_components_t *out_uri_components) {
+int _anj_core_utils_parse_uri_components(
+        const char *uri,
+        bool is_bootstrap,
+        _anj_core_utils_uri_components_t *out_uri_components) {
     if (strncmp(uri, "coap://", sizeof("coap://") - 1) == 0) {
         out_uri_components->binding_type = ANJ_NET_BINDING_UDP;
         uri += sizeof("coap://") - 1;
@@ -94,7 +96,7 @@ int _anj_parse_uri_components(const char *uri,
     return 0;
 }
 
-int _anj_server_get_resolved_server_uri(anj_t *anj) {
+int _anj_core_utils_server_get_resolved_server_uri(anj_t *anj) {
     anj_res_value_t res_val;
     const anj_uri_path_t path =
             ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
@@ -104,11 +106,12 @@ int _anj_server_get_resolved_server_uri(anj_t *anj) {
         return -1;
     }
 
-    _anj_uri_components_t anj_uri_components;
-    if (_anj_parse_uri_components((const char *) res_val.bytes_or_string.data,
-                                  (anj->server_state.conn_status
-                                   == ANJ_CONN_STATUS_BOOTSTRAPPING),
-                                  &anj_uri_components)) {
+    _anj_core_utils_uri_components_t anj_uri_components;
+    if (_anj_core_utils_parse_uri_components(
+                (const char *) res_val.bytes_or_string.data,
+                (anj->server_state.conn_status
+                 == ANJ_CONN_STATUS_BOOTSTRAPPING),
+                &anj_uri_components)) {
         return -1;
     }
     anj->security_instance.type = anj_uri_components.binding_type;
@@ -123,24 +126,87 @@ int _anj_server_get_resolved_server_uri(anj_t *anj) {
     return 0;
 }
 
+#ifdef ANJ_WITH_SECURITY
+int _anj_core_utils_get_security_info(
+        anj_t *anj,
+        bool bootstrap_credentials,
+        anj_net_security_info_t *out_security_info) {
+    // TODO: only PSK is supported for now
+#    ifdef ANJ_WITH_CERTIFICATES
+#        error "Certificates support is not implemented yet"
+#    else  // ANJ_WITH_CERTIFICATES
+    out_security_info->mode = ANJ_NET_SECURITY_PSK;
+    return anj_dm_security_obj_get_psk(anj,
+                                       bootstrap_credentials,
+                                       &out_security_info->data.psk.identity,
+                                       &out_security_info->data.psk.key);
+#    endif // ANJ_WITH_CERTIFICATES
+}
+#endif // ANJ_WITH_SECURITY
+
 #ifndef NDEBUG
-int _anj_validate_security_resource_types(anj_t *anj) {
-    anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
-                                                 anj->security_instance.iid,
-                                                 SECURITY_OBJ_SERVER_URI_RID);
+typedef struct {
+    uint16_t rid;
     anj_data_type_t type;
-    if (_anj_dm_get_resource_type(anj, &path, &type)
-            || type != ANJ_DATA_TYPE_STRING) {
-        log(L_ERROR, "Invalid URI type");
-        return -1;
+} _resource_type_check_t;
+
+int _anj_core_utils_validate_server_resource_types(anj_t *anj) {
+    // if resource is not present and it is mandatory, it will be handled later
+    // in the code
+    anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER,
+                                                 anj->server_instance.iid, 0);
+    anj_data_type_t type;
+    // clang-format off
+    _resource_type_check_t server_obj_check[] = {
+        {.rid = SERVER_OBJ_LIFETIME_RID,                          .type = ANJ_DATA_TYPE_INT},
+        {.rid = SERVER_OBJ_DEFAULT_PMIN_RID,                      .type = ANJ_DATA_TYPE_INT},
+        {.rid = SERVER_OBJ_DEFAULT_PMAX_RID,                      .type = ANJ_DATA_TYPE_INT},
+        {.rid = SERVER_OBJ_DISABLE_TIMEOUT,                       .type = ANJ_DATA_TYPE_INT},
+        {.rid = SERVER_OBJ_NOTIFICATION_STORING_RID,              .type = ANJ_DATA_TYPE_BOOL},
+        {.rid = SERVER_OBJ_BOOTSTRAP_ON_REGISTRATION_FAILURE_RID, .type = ANJ_DATA_TYPE_BOOL},
+        {.rid = SERVER_OBJ_COMMUNICATION_RETRY_COUNT_RID,         .type = ANJ_DATA_TYPE_UINT},
+        {.rid = SERVER_OBJ_COMMUNICATION_RETRY_TIMER_RID,         .type = ANJ_DATA_TYPE_UINT},
+        {.rid = SERVER_OBJ_COMMUNICATION_SEQUENCE_DELAY_TIMER_RID,.type = ANJ_DATA_TYPE_UINT},
+        {.rid = SERVER_OBJ_COMMUNICATION_SEQUENCE_RETRY_COUNT_RID,.type = ANJ_DATA_TYPE_UINT},
+#    ifdef ANJ_WITH_LWM2M12
+        {.rid = SERVER_OBJ_DEFAULT_NOTIFICATION_MODE_RID,         .type = ANJ_DATA_TYPE_INT},
+#    endif // ANJ_WITH_LWM2M12
+    };
+    // clang-format on
+    for (size_t i = 0; i < ANJ_ARRAY_SIZE(server_obj_check); i++) {
+        path.ids[ANJ_ID_RID] = server_obj_check[i].rid;
+        if (!_anj_dm_get_resource_type(anj, &path, &type)
+                && type != server_obj_check[i].type) {
+            log(L_ERROR, "Invalid resource type, for %" PRIu16 " RID",
+                server_obj_check[i].rid);
+            return -1;
+        }
     }
-    path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
-                                  anj->security_instance.iid,
-                                  SECURITY_OBJ_CLIENT_HOLD_OFF_TIME_RID);
-    if (_anj_dm_get_resource_type(anj, &path, &type)
-            || type != ANJ_DATA_TYPE_INT) {
-        log(L_ERROR, "Invalid Client Hold Off Time type");
-        return -1;
+    return 0;
+}
+
+int _anj_core_utils_validate_security_resource_types(anj_t *anj) {
+    anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
+                                                 anj->security_instance.iid, 0);
+    anj_data_type_t type;
+    // clang-format off
+    _resource_type_check_t security_obj_check[] = {
+        {.rid = SECURITY_OBJ_SERVER_URI_RID,           .type = ANJ_DATA_TYPE_STRING},
+        {.rid = SECURITY_OBJ_SERVER_SECURITY_MODE_RID, .type = ANJ_DATA_TYPE_INT},
+        {.rid = SECURITY_OBJ_PUBLIC_KEY_OR_IDENTITY_RID, .type = ANJ_DATA_TYPE_BYTES},
+        {.rid = SECURITY_OBJ_SERVER_PUBLIC_KEY_RID,    .type = ANJ_DATA_TYPE_BYTES},
+        {.rid = SECURITY_OBJ_SECRET_KEY_RID,           .type = ANJ_DATA_TYPE_BYTES},
+        {.rid = SECURITY_OBJ_CLIENT_HOLD_OFF_TIME_RID, .type = ANJ_DATA_TYPE_INT}
+    };
+    // clang-format on
+    for (size_t i = 0; i < ANJ_ARRAY_SIZE(security_obj_check); i++) {
+        path.ids[ANJ_ID_RID] = security_obj_check[i].rid;
+        if (!_anj_dm_get_resource_type(anj, &path, &type)
+                && type != security_obj_check[i].type) {
+            log(L_ERROR, "Invalid resource type, for %" PRIu16 " RID",
+                security_obj_check[i].rid);
+            return -1;
+        }
     }
     return 0;
 }

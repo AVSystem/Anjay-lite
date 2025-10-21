@@ -28,7 +28,7 @@
 // inner_mtu_value value will lead to block transfer for additional objects in
 // payload
 #define TEST_INIT()                                        \
-    set_mock_time(0);                                      \
+    mock_time_reset();                                     \
     net_api_mock_t mock = { 0 };                           \
     net_api_mock_ctx_init(&mock);                          \
     mock.inner_mtu_value = 102;                            \
@@ -55,7 +55,8 @@
     anj_dm_security_instance_init_t sec_inst = { \
         .server_uri = "coap://server.com:5683",  \
         .ssid = 2,                               \
-        .iid = &iid                              \
+        .iid = &iid,                             \
+        .security_mode = ANJ_DM_SECURITY_NOSEC,  \
     };                                           \
     anj_dm_server_instance_init_t ser_inst = {   \
         .ssid = 2,                               \
@@ -82,7 +83,9 @@ ANJ_UNIT_TEST(server_register, register_init_success) {
     ANJ_UNIT_ASSERT_EQUAL(anj.security_instance.iid, 1);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_instance.bootstrap_on_registration_failure,
                           true);
-    ANJ_UNIT_ASSERT_EQUAL(anj.server_instance.lifetime, 10);
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq(anj.server_instance.lifetime,
+                                 anj_time_duration_new(10, ANJ_TIME_UNIT_S)));
     ANJ_UNIT_ASSERT_EQUAL(anj.server_instance.ssid, 2);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_instance.iid, 1);
     anj_communication_retry_res_t retry_res =
@@ -175,6 +178,7 @@ ANJ_UNIT_TEST(server_register, register_init_empty_port) {
 ANJ_UNIT_TEST(server_register, register_init_coaps) {
     TEST_INIT();
     INIT_BASIC_INSTANCES();
+    sec_inst.security_mode = ANJ_DM_SECURITY_PSK;
     sec_inst.server_uri = "coaps://server.com:123";
     ADD_INSTANCES();
     anj_core_step(&anj);
@@ -253,7 +257,7 @@ ANJ_UNIT_TEST(server_register, register_no_delays) {
 ANJ_UNIT_TEST(server_register, register_net_again) {
     EXTENDED_INIT();
 
-    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EAGAIN;
+    mock.call_result[ANJ_NET_FUN_CONNECT] = ANJ_NET_EINPROGRESS;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
@@ -405,13 +409,12 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
                           ANJ_CONN_STATUS_REGISTERING);
 
     // next register request will be sent in 60 seconds
-    uint64_t actual_time = 50;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
 
     // second register request
-    set_mock_time_advance(&actual_time, 20);
+    mock_time_advance(anj_time_duration_new(20, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(expected_register);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
@@ -428,12 +431,12 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
                           ANJ_CONN_STATUS_REGISTERING);
 
     // next register request will be sent in 120 seconds
-    set_mock_time_advance(&actual_time, 110);
+    mock_time_advance(anj_time_duration_new(110, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
 
     // third register request
-    set_mock_time_advance(&actual_time, 20);
+    mock_time_advance(anj_time_duration_new(20, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(expected_register);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
@@ -450,12 +453,12 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
                           ANJ_CONN_STATUS_REGISTERING);
 
     // next register request will be sent in 240 seconds
-    set_mock_time_advance(&actual_time, 230);
+    mock_time_advance(anj_time_duration_new(230, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
 
     // fourth register try - this time not allow to connect
-    set_mock_time_advance(&actual_time, 20);
+    mock_time_advance(anj_time_duration_new(20, ANJ_TIME_UNIT_S));
     mock.call_result[ANJ_NET_FUN_CONNECT] = -20;
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
@@ -464,7 +467,7 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
     mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
 
     // next register request will be sent in 480 seconds
-    set_mock_time_advance(&actual_time, 479);
+    mock_time_advance(anj_time_duration_new(479, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
 
@@ -473,7 +476,7 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
     mock.port[0] = '\0';
 
     // fifth register try - finally success
-    set_mock_time_advance(&actual_time, 2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(expected_register);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
@@ -516,15 +519,14 @@ ANJ_UNIT_TEST(server_register, register_fail_network_errors) {
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 1);
 
     // next register attempt will be in 1000 seconds
-    uint64_t actual_time = 999;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(999, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
     mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
 
     // second attempt - send error
-    set_mock_time_advance(&actual_time, 2);
+    mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     anj_core_step(&anj);
     anj_core_step(&anj);
@@ -626,8 +628,7 @@ ANJ_UNIT_TEST(server_register, register_corrupted_coap_msg) {
                           ANJ_CONN_STATUS_REGISTERING);
 
     // next register request will be sent in 10 seconds
-    uint64_t actual_time = 11;
-    set_mock_time(actual_time);
+    mock_time_advance(anj_time_duration_new(11, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(expected_register);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
@@ -647,7 +648,7 @@ ANJ_UNIT_TEST(server_register, register_retransmisions) {
     anj_exchange_udp_tx_params_t test_params = {
         .max_retransmit = 2,
         .ack_random_factor = 1.01,
-        .ack_timeout_ms = 5000
+        .ack_timeout = anj_time_duration_new(5000, ANJ_TIME_UNIT_MS)
     };
     _anj_exchange_set_udp_tx_params(&anj.exchange_ctx, &test_params);
 
@@ -655,8 +656,9 @@ ANJ_UNIT_TEST(server_register, register_retransmisions) {
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
 
-    uint64_t actual_time = _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS / 1000 + 1;
-    set_mock_time(actual_time);
+    mock_time_advance(
+            anj_time_duration_add(_ANJ_EXCHANGE_COAP_PROCESSING_DELAY,
+                                  anj_time_duration_new(1, ANJ_TIME_UNIT_S)));
     // there is no send ACK, exchange is cancel and second register attempt
     // starts
     anj_core_step(&anj);
@@ -665,7 +667,7 @@ ANJ_UNIT_TEST(server_register, register_retransmisions) {
     anj_core_step(&anj);
 
     // next register request will be sent in 60 seconds
-    set_mock_time_advance(&actual_time, 61);
+    mock_time_advance(anj_time_duration_new(61, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
 
     // second register request
@@ -678,7 +680,7 @@ ANJ_UNIT_TEST(server_register, register_retransmisions) {
     mock.bytes_to_send = 0;
 
     // response timeout is set to 5000 ms
-    set_mock_time_advance(&actual_time, 6);
+    mock_time_advance(anj_time_duration_new(6, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
 
     // request is send again

@@ -33,8 +33,10 @@ set(ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE 100)
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
+target_compile_options(anj PRIVATE -Wall -Wextra -Werror)
 
 file(GLOB core_tests_sources "*.c" "../mock/*.c")
+
 add_executable(core_tests ${core_tests_sources})
 
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../framework"

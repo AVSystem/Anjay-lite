@@ -21,6 +21,7 @@ set(ANJ_WITH_COAP_DOWNLOADER ON)
 set(anjay_lite_DIR "../../../cmake")
 
 find_package(anjay_lite REQUIRED)
+target_compile_options(anj PRIVATE -Wall -Wextra -Werror)
 
 file(GLOB downloader_tests_sources "*.c" "../mock/*.c")
 add_executable(downloader_tests ${downloader_tests_sources})
