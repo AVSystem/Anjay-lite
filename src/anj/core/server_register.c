@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 15
 
 #include <assert.h>
 #include <inttypes.h>
@@ -33,8 +35,8 @@
 #include "../dm/dm_integration.h"
 #include "core_utils.h"
 #include "register.h"
-#include "server.h"
 #include "server_register.h"
+#include "srv_conn.h"
 
 /**
  * IMPORTANT: Data validation is omitted on purpose, it is done at the level of
@@ -136,7 +138,7 @@ static int register_op_post_connect_operations(anj_t *anj) {
     _anj_coap_msg_t msg;
     memset(&msg, 0, sizeof(msg));
     _anj_register_register(anj, &register_attr, &msg, &exchange_handlers);
-    return _anj_server_prepare_client_request(anj, &msg, &exchange_handlers);
+    return _anj_srv_conn_prepare_client_request(anj, &msg, &exchange_handlers);
 }
 
 int _anj_server_register_start_register_operation(anj_t *anj) {
@@ -226,11 +228,11 @@ _anj_server_register_process_register_operation(anj_t *anj,
                                                 anj_conn_status_t *out_status) {
     switch (anj->server_state.details.registration.registration_state) {
     case _ANJ_SRV_REG_STATE_CONNECTION_IN_PROGRESS: {
-        int result = _anj_server_connect(&anj->connection_ctx,
-                                         anj->security_instance.type,
-                                         &anj->net_socket_cfg,
-                                         anj->security_instance.server_uri,
-                                         anj->security_instance.port);
+        int result = _anj_srv_conn_connect(&anj->connection_ctx,
+                                           anj->security_instance.type,
+                                           &anj->net_socket_cfg,
+                                           anj->security_instance.server_uri,
+                                           anj->security_instance.port);
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -249,7 +251,7 @@ _anj_server_register_process_register_operation(anj_t *anj,
     }
 
     case _ANJ_SRV_REG_STATE_REGISTER_IN_PROGRESS: {
-        int result = _anj_server_handle_request(anj);
+        int result = _anj_srv_conn_handle_request(anj);
         if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -260,7 +262,9 @@ _anj_server_register_process_register_operation(anj_t *anj,
                                != _ANJ_REGISTER_OPERATION_FINISHED) {
             anj->server_state.details.registration.registration_state =
                     _ANJ_SRV_REG_STATE_ERROR_HANDLING_IN_PROGRESS;
-            log(L_ERROR, "Registration error: %d", result);
+            if (result) {
+                log(L_ERROR, "Registration error: %d", result);
+            }
         } else {
             *out_status = ANJ_CONN_STATUS_REGISTERED;
         }
@@ -280,7 +284,7 @@ _anj_server_register_process_register_operation(anj_t *anj,
         bool with_cleanup =
                 anj->server_state.details.registration.registration_state
                 != _ANJ_SRV_REG_STATE_DISCONNECT_IN_PROGRESS;
-        int result = _anj_server_close(&anj->connection_ctx, with_cleanup);
+        int result = _anj_srv_conn_close(&anj->connection_ctx, with_cleanup);
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }

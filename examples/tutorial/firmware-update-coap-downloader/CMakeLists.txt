@@ -1,4 +1,4 @@
-# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
 # AVSystem Anjay Lite LwM2M SDK
 # All rights reserved.
 #

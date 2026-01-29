@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 23
 
 #include <assert.h>
 #include <inttypes.h>
@@ -123,7 +125,7 @@ static int handle_read_payload_result(_anj_dm_data_model_t *ctx,
         assert(offset == out_buff_len);
         return _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED;
     } else {
-        dm_log(L_ERROR, "anj_io ctx error");
+        dm_log(L_ERROR, "anj_io ctx error: %d", anj_io_return_code);
         ctx->data_to_copy = false;
         return map_anj_io_err_to_coap_code(anj_io_return_code);
     }
@@ -323,7 +325,7 @@ static int process_register(anj_t *anj,
             ret_anj = _anj_io_register_ctx_new_entry(&anj->anj_io.register_ctx,
                                                      &path, version);
             if (ret_anj) {
-                dm_log(L_ERROR, "anj_io register ctx error");
+                dm_log(L_ERROR, "anj_io register ctx error %d", ret_anj);
                 return map_anj_io_err_to_coap_code(ret_anj);
             }
         } else if (ctx->op_count == 0) {
@@ -526,7 +528,9 @@ static int process_write(anj_t *anj,
                 if (ctx->comp_read_path_count == ANJ_DM_MAX_COMP_READ_ENTRIES) {
                     /* No space for another path, respond with
                      * ANJ_COAP_CODE_INTERNAL_SERVER_ERROR */
-                    ret_dm = _ANJ_DM_ERR_LOGIC;
+                    dm_log(L_ERROR,
+                           "Exceeded maximum number of composite read paths");
+                    return _ANJ_DM_ERR_LOGIC;
                 } else if (_anj_dm_path_has_readable_resources(&anj->dm, path)
                            == 0) {
                     ctx->comp_read_paths[ctx->comp_read_path_count++] = *path;
@@ -784,8 +788,8 @@ void _anj_dm_process_request(anj_t *anj,
     }
     if (ret_val) {
         *out_response_code = map_err_to_coap_code(ret_val);
-        dm_log(L_ERROR, "Operation initialization failed: %s",
-               COAP_CODE_FORMAT(*out_response_code));
+        // error code is printed in exchange module
+        dm_log(L_ERROR, "Operation initialization failed");
         _anj_dm_operation_end(anj, ANJ_DM_TRANSACTION_FAILURE);
     }
 }

@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -33,6 +33,23 @@ or memory analysis.
 .. code-block:: bash
 
    apt-get install -yq python3 python3-pip clang-tools valgrind curl doxygen
+
+To simplify environment setup (including creating/activating a Python virtual
+environment and installing Python dependencies), you can use the ``devconfig``
+helper script from the repository root:
+
+.. code-block:: bash
+
+   source ./devconfig
+
+This script will create the virtual environment (by default in ``venv/``) if it
+does not exist, activate it, upgrade ``pip`` and install dependencies from
+``requirements.txt``.
+
+If you prefer not to use ``devconfig``, you can install Python dependencies manually:
+
+.. code-block:: bash
+
    pip3 install -U -r requirements.txt
 
 .. _integrating-anjay-lite:

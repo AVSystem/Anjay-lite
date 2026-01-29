@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -9,13 +9,14 @@
 
 #include <anj/init.h>
 
+#define ANJ_LOG_SOURCE_FILE_ID 27
+
 #include <assert.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <anj/core.h>
-#include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
 #include <anj/dm/security_object.h>
@@ -25,7 +26,9 @@
 #include "dm_core.h"
 
 #ifdef ANJ_WITH_SECURITY
-#    include <anj/compat/crypto/storage.h>
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+#        include <anj/compat/crypto/storage.h>
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 #    include <anj/crypto.h>
 #endif // ANJ_WITH_SECURITY
 
@@ -107,7 +110,7 @@ static const anj_dm_res_t RES[ANJ_DM_SECURITY_RESOURCES_COUNT] = {
         .rid = ANJ_DM_SECURITY_RID_CLIENT_HOLD_OFF_TIME,
         .type = ANJ_DATA_TYPE_INT,
         .kind = ANJ_DM_RES_RW
-    }
+    },
 };
 
 static void initialize_instance(anj_dm_security_instance_t *inst,
@@ -133,7 +136,7 @@ static anj_iid_t find_free_iid(anj_dm_security_obj_t *security_obj_ctx) {
     return ANJ_ID_INVALID;
 }
 
-static const char *URI_SCHEME[] = { "coap", "coaps", "coap+tcp", "coaps+tcp" };
+static const char *URI_SCHEME[] = { "coap", "coaps" };
 
 static bool valid_uri_scheme(const char *uri) {
     for (size_t i = 0; i < ANJ_ARRAY_SIZE(URI_SCHEME); i++) {

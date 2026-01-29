@@ -113,10 +113,24 @@ make -j
 
 Replace <endpoint_name> with your desired endpoint name.
 
+### Building the documentation
+
+To build the documentation, first install all dependencies by following the `Prepare the environment`
+section in [Compilation instructions][anjay-lite-compilation]. Then run:
+
+``` sh
+mkdir build
+cd build
+cmake ..
+make doc
+```
+
+The generated documentation will be available in the `doc/build` directory.
+
 ### Configuring the MbedTLS
 
 Anjay Lite examples uses MbedTLS to implement DTLS for secure transport.
-The library automatically fetches and builds MbedTLS version 3.6.0 during the
+The library automatically fetches and builds MbedTLS version 3.6.4 during the
 build process. You can override this default version or use a custom, pre-installed MbedTLS library if needed.
 
 To override the default version fetched via FetchContent, set the MBEDTLS_VERSION variable:
@@ -170,6 +184,13 @@ Visit the official Anjay Lite documentation:
 
 ---
 
+## Embedded Platform Integrations
+
+Anjay Lite is designed with portability in mind and can be integrated into
+various embedded environments. For details, see the
+[integrations chapter in the documentation][anjay-lite-integrations].
+
+<p align="right">(<a href="#readme-top">Back to top</a>)</p>
 
 <!-- LICENSE && COMMERCIAL SUPPORT-->
 ## License
@@ -230,6 +251,7 @@ Contributions are welcome! See our [contributing guide](CONTRIBUTING.rst).
 [dual-license-badge]: https://img.shields.io/badge/license-Dual-blue
 
 [anjay-lite-full-documentation]: https://AVSystem.github.io/Anjay-lite
+[anjay-lite-integrations]: https://avsystem.github.io/Anjay-lite/Integrations.html
 [anjay-lite-introduction]: https://AVSystem.github.io/Anjay-lite/Introduction.html
 [anjay-lite-compilation]: https://avsystem.github.io/Anjay-lite/Compile_client_applications.html
 [anjay-lite-tutorials]: https://AVSystem.github.io/Anjay-lite/BasicClient.html

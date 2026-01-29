@@ -1,4 +1,4 @@
-# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
 # AVSystem Anjay Lite LwM2M SDK
 # All rights reserved.
 #
@@ -13,7 +13,6 @@ set(CMAKE_C_STANDARD 99)
 
 set(ANJ_WITH_SOCKET_POSIX_COMPAT OFF)
 set(ANJ_NET_WITH_UDP ON)
-set(ANJ_NET_WITH_TCP OFF)
 
 if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     set(anjay_lite_DIR "../../../cmake")

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -9,7 +9,10 @@
 
 #include <anj/init.h>
 
+#define ANJ_LOG_SOURCE_FILE_ID 51
+
 #include <assert.h>
+#include <inttypes.h> // IWYU pragma: keep
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -44,7 +47,7 @@ static inline int actual_formatter_str_len(size_t buffer_size,
     return ANJ_MIN(formatter_retval, (int) (buffer_size - 1));
 }
 
-#    ifdef ANJ_LOG_FULL
+#    if defined(ANJ_LOG_MICRO) || defined(ANJ_LOG_FULL)
 static const char *level_as_string(anj_log_level_t level) {
     static const char *level_strings[] = {
         [ANJ_LOG_LEVEL_L_TRACE] = "TRACE",
@@ -55,7 +58,9 @@ static const char *level_as_string(anj_log_level_t level) {
     };
     return level < ANJ_LOG_LEVEL_L_MUTED ? level_strings[level] : "???";
 }
+#    endif // defined(ANJ_LOG_MICRO) || defined(ANJ_LOG_FULL)
 
+#    ifdef ANJ_LOG_FULL
 void anj_log_handler_impl_full(anj_log_level_t level,
                                const char *module,
                                const char *file,
@@ -92,6 +97,46 @@ void anj_log_handler_impl_full(anj_log_level_t level,
     anj_log_handler_output(buffer, (size_t) (header_len + msg_len));
 }
 #    endif // ANJ_LOG_FULL
+
+#    ifdef ANJ_LOG_MICRO
+void anj_log_handler_impl_micro(anj_log_level_t level,
+                                uint16_t source_file_id,
+                                uint16_t line,
+                                const char *format,
+                                ...) {
+    char buffer[ANJ_LOG_FORMATTER_BUF_SIZE];
+
+    int header_len =
+            formatter_variadic(buffer, sizeof(buffer),
+                               "%s <ANJ_uLOG>"
+                               "%" PRIu16 ";"
+                               "%" PRIu16 "</ANJ_uLOG> ",
+                               level_as_string(level), source_file_id, line);
+    assert(header_len >= 0);
+    if (header_len < 0) {
+        return;
+    }
+    header_len = actual_formatter_str_len(sizeof(buffer), header_len);
+
+    va_list args;
+    va_start(args, format);
+    int msg_len = formatter_va_list(buffer + header_len,
+                                    sizeof(buffer) - (unsigned int) header_len,
+                                    format, args);
+    va_end(args);
+
+    assert(msg_len >= 0);
+    if (msg_len < 0) {
+        return;
+    }
+    msg_len =
+            actual_formatter_str_len(sizeof(buffer) - (unsigned int) header_len,
+                                     msg_len);
+
+    anj_log_handler_output(buffer, (size_t) (header_len + msg_len));
+}
+
+#    endif // ANJ_LOG_MICRO
 
 #    ifdef ANJ_LOG_HANDLER_OUTPUT_STDERR
 void anj_log_handler_output(const char *output, size_t len) {

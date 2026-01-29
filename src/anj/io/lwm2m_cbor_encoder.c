@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 38
 
 #include <assert.h>
 #include <stdbool.h>

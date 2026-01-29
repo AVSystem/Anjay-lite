@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -56,12 +56,14 @@ time as ``anj_time_monotonic_t``.
 Monotonic time:
 
 - Represents time elapsed since an arbitrary epoch (typically system boot).
-- Must not be affected by wall-clock adjustments (NTP, manual edits, or time zone changes).
-- **May** stop during system is suspend, depending on the clock source
-  (e.g., ``CLOCK_MONOTONIC`` stops across suspend; ``CLOCK_BOOTTIME`` continues counting).
+- Must not be affected by wall-clock adjustments (NTP synchronization, manual edits,
+  or time zone changes).
+- Must never stop and must never go backwards. It needs to be a continuously
+  advancing time base even if the system enters sleep/suspend.
 
-If your platform exposes a stable real-time clock that does not change during
-runtime, you can use it as a monotonic source as a last resort.
+If the platform's default monotonic clock stops across suspend, use a clock
+source that continues counting, or implement compensation using the platform's
+power-management hooks.
 
 In the POSIX reference implementation, ``anj_time_monotonic_now()`` prefers
 ``CLOCK_MONOTONIC`` if available; otherwise it falls back to ``CLOCK_REALTIME``.
@@ -86,23 +88,34 @@ In the POSIX reference implementation, ``anj_time_monotonic_now()`` prefers
     #    endif /* CLOCK_MONOTONIC */
     }
 
+Resolution, precision, and drift
+""""""""""""""""""""""""""""""""
+
+The resolution and precision of the monotonic clock are platform-dependent.
+All internal scheduling in Anjay Lite (notifications, retransmissions, registration
+lifetime handling, etc.) relies on monotonic time.
+
+Your integration should therefore:
+
+- provide sufficient resolution for your use case (millisecond-level resolution is
+  typically sufficient),
+- keep clock drift under control and take it into account especially for long
+  intervals (e.g., operations scheduled once per day), where small errors may
+  accumulate over time.
+
 ``anj_time_real_now()``
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 The ``anj_time_real_now()`` function must return the current *real* (wall-clock)
 time since the Unix epoch (00:00:00 UTC on 1970-01-01) as ``anj_time_real_t``.
 
-Real time:
-
-* Provides timestamps meaningful across reboots and devices.
-* Reflects the actual current date and time.
-* Requires synchronization (e.g., NTP) or correct RTC configuration.
-* **Must** continue counting across suspend and power-down (typically via RTC).
-
 .. important::
-   The real-time clock **must not be adjusted while the Anjay Lite client is
-   running**, as sudden time jumps can cause undefined behavior. If start-up
-   synchronization is needed, perform it **before** the client starts.
+   Within the Anjay Lite library, the real-time clock is used for: the LwM2M Send
+   Operation timestamping and X.509 certificate validity period checks.
+
+   Integrations that do not use these features and do not require real-time
+   functionality may return a constant value (e.g., zero) from this function,
+   or map it to the monotonic clock.
 
 In the POSIX reference implementation, this function wraps ``CLOCK_REALTIME``.
 
@@ -113,14 +126,6 @@ In the POSIX reference implementation, this function wraps ``CLOCK_REALTIME``.
         return anj_time_real_new(get_time(CLOCK_REALTIME), ANJ_TIME_UNIT_US);
     }
 
-Workarounds and limitations
----------------------------
-
-If the platform lacks a dedicated monotonic clock, a stable real-time clock that
-does not change during runtime **may** be used as a monotonic source. Be aware
-of trade-offs:
-
-- If ``anj_time_real_now()`` is backed by an unsynchronized or monotonic-like
-  source, returned timestamps will not be meaningful as calendar time.
-- LwM2M resources that require real time (e.g., ``Current Time (3/0/13)``)
-  will not be useful without proper wall-clock synchronization.
+.. note::
+    Real-time clock can be synchronized by Anjay Lite's Time Synchronization
+    module. Check the :doc:`../AdvancedTopics/AT-TimeSynchronization` for details.

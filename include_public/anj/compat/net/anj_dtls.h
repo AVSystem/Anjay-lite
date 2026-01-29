@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -14,7 +14,7 @@
  * @brief Network backend interface for DTLS transport.
  *
  * Declares the DTLS variant of the generic @ref anj_net_api.h
- * functions (create, connect, send, recv, shutdown, etc.).
+ * functions (create, connect, send, recv, etc.).
  *
  * These symbols are defined only if @ref ANJ_NET_WITH_DTLS is
  * enabled. They provide the DTLS binding used by
@@ -37,7 +37,6 @@ anj_net_connect_t anj_dtls_connect;
 anj_net_create_ctx_t anj_dtls_create_ctx;
 anj_net_send_t anj_dtls_send;
 anj_net_recv_t anj_dtls_recv;
-anj_net_shutdown_t anj_dtls_shutdown;
 anj_net_cleanup_ctx_t anj_dtls_cleanup_ctx;
 
 anj_net_get_inner_mtu_t anj_dtls_get_inner_mtu;

@@ -1,4 +1,4 @@
-# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
 # AVSystem Anjay Lite LwM2M SDK
 # All rights reserved.
 #
@@ -20,6 +20,7 @@ if(NOT MBEDTLS_ROOT_DIR)
         mbedtls
         GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
         GIT_TAG        v${MBEDTLS_VERSION}
+        GIT_SHALLOW    TRUE
     )
     FetchContent_MakeAvailable(mbedtls)
     set(MBEDTLS_TARGETS MbedTLS::mbedtls MbedTLS::mbedx509 MbedTLS::mbedcrypto)

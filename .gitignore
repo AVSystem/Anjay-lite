@@ -17,12 +17,14 @@ build/
 site/
 coverage/
 doxygen/
+venv/
 
 # make
 CMakeFiles/
 CMakeDoxyfile.in
 *.cmake
 !cmake/*.cmake
+!tests/anj/standard_tests/standard_tests_base_config.cmake
 !tests/init_header_check/run_check.cmake
 CMakeCache.txt
 Makefile
@@ -31,23 +33,10 @@ __pycache__/
 libanj.a
 
 /doc/sphinx/conf.py
-/anjay_lite_bc_initialization
-/anjay_lite_bc_mandatory_objects
-/anjay_lite_bc_send
-/anjay_lite_bc_security
-/anjay_lite_at_bootstrap
-/anjay_lite_at_persistence
-/anjay_lite_firmware_update
-/dm_tests
-/io_tests
-/io_tests_without_extended
-/coap_tests
-/observe_tests
-/observe_without_composite_tests
-/dm_without_composite_tests
-/exchange_tests
-/core_tests
-/downloader_tests
-/net_tests
 /anj_config
 /cxx_header_check
+
+# Python venv
+/venv/
+dist/
+tools/deploy_utils.egg-info/

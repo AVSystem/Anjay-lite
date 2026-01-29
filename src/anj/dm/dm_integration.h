@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -21,7 +21,7 @@
 
 /**
  * Processes all LwM2M Server requests related to the data model, call it after
- * @ref anj_coap_decode_udp or @ref _anj_coap_decode_tcp call. This function is
+ * @ref anj_coap_decode_udp call. This function is
  * compliant with the anj_exchange API. Supported data model operations are:
  *      - ANJ_OP_DM_READ,
  *      - ANJ_OP_DM_READ_COMP,

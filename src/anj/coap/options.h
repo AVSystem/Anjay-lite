@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -18,7 +18,7 @@
 #    include <string.h>
 
 /**
- * CoAP option numbers, as defined in RFC7252/RFC7641/RFC7959.
+ * CoAP option numbers, as defined in RFC7252/RFC7641/RFC7959/RFC8613.
  * @{
  */
 // clang-format off
@@ -43,16 +43,6 @@
 #define _ANJ_COAP_OPTION_SIZE1             60
 #define _ANJ_COAP_OPTION_SIZE2             28
 
-/**
- * CoAP Signaling option codes, as defined in RFC 8323.
- * Codes reused between different options. Meaning depends on message code.
- */
-#define _ANJ_COAP_OPTION_MAX_MESSAGE_SIZE                  2
-#define _ANJ_COAP_OPTION_BLOCK_WISE_TRANSFER_CAPABILITY    4
-#define _ANJ_COAP_OPTION_CUSTODY                           2
-#define _ANJ_COAP_OPTION_ALTERNATIVE_ADDRESS               2
-#define _ANJ_COAP_OPTION_HOLD_OFF                          4
-#define _ANJ_COAP_OPTION_BAD_CSM_OPTION                    2
 // clang-format on
 
 /**

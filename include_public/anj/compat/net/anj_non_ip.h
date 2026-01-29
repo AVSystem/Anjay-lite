@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -14,7 +14,7 @@
  * @brief Network backend interface for Non-IP transport.
  *
  * Declares the Non-IP variant of the generic @ref anj_net_api.h
- * functions (create, connect, send, recv, shutdown, etc.).
+ * functions (create, connect, send, recv, etc.).
  *
  * These symbols are defined only if @c ANJ_NET_WITH_NON_IP_BINDING is enabled.
  * They provide the Non-IP binding used by @ref anj_net_wrapper.h for dispatch.
@@ -36,7 +36,6 @@ anj_net_connect_t anj_non_ip_connect;
 anj_net_create_ctx_t anj_non_ip_create_ctx;
 anj_net_send_t anj_non_ip_send;
 anj_net_recv_t anj_non_ip_recv;
-anj_net_shutdown_t anj_non_ip_shutdown;
 anj_net_cleanup_ctx_t anj_non_ip_cleanup_ctx;
 
 anj_net_get_bytes_received_t anj_non_ip_get_bytes_received;

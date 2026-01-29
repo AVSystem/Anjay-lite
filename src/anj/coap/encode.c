@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 5
 
 #include <assert.h>
 #include <stdbool.h>
@@ -23,13 +25,9 @@
 #include "block.h"
 #include "coap.h"
 #include "common.h"
-#ifdef ANJ_COAP_WITH_TCP
-#    include "tcp_header.h"
-#endif // ANJ_COAP_WITH_TCP
-#ifdef ANJ_COAP_WITH_UDP
-#    include "udp_header.h"
-#endif // ANJ_COAP_WITH_UDP
+
 #include "options.h"
+#include "udp_header.h"
 
 static int add_uri_path(anj_coap_options_t *opts, const _anj_coap_msg_t *msg) {
     int res = 0;
@@ -242,15 +240,6 @@ static int recognize_msg_code(_anj_coap_msg_t *msg) {
     case ANJ_OP_INF_INITIAL_NOTIFY:
         // msg code must be defined
         break;
-    case ANJ_OP_COAP_CSM: /* Following operations are only valid for TCP */
-        msg->msg_code = ANJ_COAP_CODE_CSM;
-        break;
-    case ANJ_OP_COAP_PING:
-        msg->msg_code = ANJ_COAP_CODE_PING;
-        break;
-    case ANJ_OP_COAP_PONG:
-        msg->msg_code = ANJ_COAP_CODE_PONG;
-        break;
     case ANJ_OP_COAP_DOWNLOADER_GET:
         msg->msg_code = ANJ_COAP_CODE_GET;
         break;
@@ -261,7 +250,6 @@ static int recognize_msg_code(_anj_coap_msg_t *msg) {
     return 0;
 }
 
-#ifdef ANJ_COAP_WITH_UDP
 static int _anj_coap_udp_header_serialize(anj_coap_message_t *msg,
                                           uint8_t *buf,
                                           size_t buf_size) {
@@ -273,8 +261,8 @@ static int _anj_coap_udp_header_serialize(anj_coap_message_t *msg,
 
     uint8_t version_type_token_length =
             _anj_coap_udp_prepare_version_type_token_len_field(
-                    msg->header.header_type.udp.version,
-                    msg->header.header_type.udp.type, msg->header.token_length);
+                    msg->header.udp_header.version, msg->header.udp_header.type,
+                    msg->header.token_length);
     if (_anj_bytes_append(&appender, &version_type_token_length,
                           sizeof(version_type_token_length))) {
         return _ANJ_ERR_BUFF;
@@ -285,8 +273,9 @@ static int _anj_coap_udp_header_serialize(anj_coap_message_t *msg,
         return _ANJ_ERR_BUFF;
     }
 
+    // nbo - network byte order
     uint16_t message_id_nbo =
-            _anj_convert_be16(msg->header.header_type.udp.message_id_hbo);
+            _anj_convert_be16(msg->header.udp_header.message_id_hbo);
     if (_anj_bytes_append(&appender, &message_id_nbo, sizeof(message_id_nbo))) {
         return _ANJ_ERR_BUFF;
     }
@@ -317,29 +306,29 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
 
     if (msg->operation == ANJ_OP_INF_CON_NOTIFY) {
         assert(msg->token.size != 0);
-        msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
     } else if (msg->operation == ANJ_OP_INF_NON_CON_NOTIFY) {
         assert(msg->token.size != 0);
-        msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE;
+        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE;
     } else if (msg->operation == ANJ_OP_RESPONSE
                || msg->operation == ANJ_OP_INF_INITIAL_NOTIFY) {
         assert(msg->token.size != 0);
-        msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     } else if (msg->operation == ANJ_OP_COAP_RESET) {
-        msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_RESET;
+        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_RESET;
         msg->payload_size = 0;
         msg->token.size = 0;
     } else if (msg->operation == ANJ_OP_COAP_PING_UDP) {
-        msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
         msg->payload_size = 0;
         msg->token.size = 0;
     } else if (msg->operation == ANJ_OP_COAP_EMPTY_MSG) {
-        msg->coap_binding_data.udp.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg->token.size = 0;
         msg->payload_size = 0;
     } else {
         // client request
-        msg->coap_binding_data.udp.type =
+        msg->coap_binding_data.type =
                 (msg->operation == ANJ_OP_INF_NON_CON_SEND)
                         ? ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE
                         : ANJ_COAP_UDP_TYPE_CONFIRMABLE;
@@ -351,11 +340,10 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
 
     _ANJ_COAP_OPTIONS_INIT_EMPTY(opts, ANJ_COAP_MAX_OPTIONS_NUMBER);
     anj_coap_message_t coap_msg = {
-        .header = _anj_coap_udp_header_init(
-                msg->coap_binding_data.udp.type,
-                msg->token.size,
-                msg->msg_code,
-                msg->coap_binding_data.udp.message_id),
+        .header = _anj_coap_udp_header_init(msg->coap_binding_data.type,
+                                            msg->token.size,
+                                            msg->msg_code,
+                                            msg->coap_binding_data.message_id),
         .options = &opts,
         .payload = msg->payload,
         .payload_size = msg->payload_size,
@@ -374,220 +362,6 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
     return _anj_coap_payload_serialize(&coap_msg, out_buff, out_buff_size,
                                        out_msg_size);
 }
-#endif // ANJ_COAP_WITH_UDP
-
-#ifdef ANJ_COAP_WITH_TCP
-static int coap_tcp_signalling_msg_options_add(anj_coap_options_t *opts,
-                                               const _anj_coap_msg_t *msg) {
-    int res = 0;
-
-    if (msg->operation == ANJ_OP_COAP_CSM) {
-        res = _anj_coap_options_add_u32(opts, _ANJ_COAP_OPTION_MAX_MESSAGE_SIZE,
-                                        msg->signalling_opts.csm.max_msg_size);
-        _RET_IF_ERROR(res);
-
-        if (msg->signalling_opts.csm.block_wise_transfer_capable) {
-            res = _anj_coap_options_add_empty(
-                    opts, _ANJ_COAP_OPTION_BLOCK_WISE_TRANSFER_CAPABILITY);
-        }
-    } else if (msg->operation == ANJ_OP_COAP_PING) {
-        if (msg->signalling_opts.ping_pong.custody) {
-            res = _anj_coap_options_add_empty(opts, _ANJ_COAP_OPTION_CUSTODY);
-        }
-    } else if (msg->operation == ANJ_OP_COAP_PONG) {
-        if (msg->signalling_opts.ping_pong.custody) {
-            res = _anj_coap_options_add_empty(opts, _ANJ_COAP_OPTION_CUSTODY);
-        }
-    } else {
-        return _ANJ_ERR_COAP_BAD_MSG;
-    }
-
-    return res;
-}
-
-static int _anj_coap_tcp_header_serialize(anj_coap_message_t *msg,
-                                          uint8_t *buf,
-                                          size_t buf_size) {
-    assert(msg);
-    assert(buf);
-
-    uint8_t msg_len;
-    uint8_t actual_msg_token_offset;
-    uint8_t frame_extended_length_len = 0;
-
-    size_t options_size = 0;
-    if (msg->options && msg->options->options_number > 0) {
-        size_t i = msg->options->options_number - 1;
-        anj_coap_option_t current_option = msg->options->options[i];
-
-        while (!current_option.payload && i > 0) {
-            current_option = msg->options->options[--i];
-            options_size++;
-        }
-
-        if (current_option.payload) {
-            options_size +=
-                    (size_t) (current_option.payload - msg->options->buff_begin)
-                    + current_option.payload_len;
-        } else {
-            options_size++;
-        }
-    }
-
-    if (buf_size < options_size) {
-        return _ANJ_ERR_BUFF;
-    }
-
-    _anj_bytes_appender_t appender =
-            _anj_make_bytes_appender(buf, buf_size - options_size);
-
-    size_t aux = options_size + msg->payload_size
-                 + (size_t) ((msg->payload_size > 0) ? sizeof(uint8_t) : 0);
-
-    if (aux < _ANJ_COAP_EXTENDED_LENGTH_MIN_8BIT) {
-        actual_msg_token_offset = 2;
-        msg_len = (uint8_t) aux;
-
-        uint8_t msg_len_token_len =
-                _anj_prepare_msg_len_token_len_field(msg_len,
-                                                     msg->header.token_length);
-        memmove(buf + actual_msg_token_offset + msg->header.token_length, buf,
-                aux);
-        if (_anj_bytes_append(&appender, &msg_len_token_len,
-                              sizeof(msg_len_token_len))) {
-            return _ANJ_ERR_BUFF;
-        }
-
-    } else if (aux < _ANJ_COAP_EXTENDED_LENGTH_MIN_16BIT) {
-        actual_msg_token_offset = 3;
-        msg_len = _ANJ_COAP_EXTENDED_LENGTH_UINT8;
-        frame_extended_length_len = 1;
-
-        uint8_t msg_len_token_len =
-                _anj_prepare_msg_len_token_len_field(msg_len,
-                                                     msg->header.token_length);
-        memmove(buf + actual_msg_token_offset + msg->header.token_length, buf,
-                aux);
-        if (_anj_bytes_append(&appender, &msg_len_token_len,
-                              sizeof(msg_len_token_len))) {
-            return _ANJ_ERR_BUFF;
-        }
-
-        uint8_t frame_extended_length_nbo =
-                (uint8_t) (aux - _ANJ_COAP_EXTENDED_LENGTH_MIN_8BIT);
-        if (_anj_bytes_append(&appender, &frame_extended_length_nbo,
-                              sizeof(frame_extended_length_nbo))) {
-            return _ANJ_ERR_BUFF;
-        }
-    } else if (aux < _ANJ_COAP_EXTENDED_LENGTH_MIN_32BIT) {
-        actual_msg_token_offset = 4;
-        msg_len = _ANJ_COAP_EXTENDED_LENGTH_UINT16;
-        frame_extended_length_len = 2;
-
-        uint8_t msg_len_token_len =
-                _anj_prepare_msg_len_token_len_field(msg_len,
-                                                     msg->header.token_length);
-        memmove(buf + actual_msg_token_offset + msg->header.token_length, buf,
-                aux);
-        if (_anj_bytes_append(&appender, &msg_len_token_len,
-                              sizeof(msg_len_token_len))) {
-            return _ANJ_ERR_BUFF;
-        }
-
-        uint16_t frame_extended_length_nbo = _anj_convert_be16(
-                (uint16_t) (aux - _ANJ_COAP_EXTENDED_LENGTH_MIN_16BIT));
-        if (_anj_bytes_append(&appender, &frame_extended_length_nbo,
-                              sizeof(frame_extended_length_nbo))) {
-            return _ANJ_ERR_BUFF;
-        }
-    } else {
-        actual_msg_token_offset = 6;
-        msg_len = _ANJ_COAP_EXTENDED_LENGTH_UINT32;
-        frame_extended_length_len = 4;
-
-        uint8_t msg_len_token_len =
-                _anj_prepare_msg_len_token_len_field(msg_len,
-                                                     msg->header.token_length);
-        memmove(buf + actual_msg_token_offset + msg->header.token_length, buf,
-                aux);
-        if (_anj_bytes_append(&appender, &msg_len_token_len,
-                              sizeof(msg_len_token_len))) {
-            return _ANJ_ERR_BUFF;
-        }
-
-        uint32_t frame_extended_length_nbo = _anj_convert_be32(
-                (uint32_t) (aux - _ANJ_COAP_EXTENDED_LENGTH_MIN_32BIT));
-        if (_anj_bytes_append(&appender, &frame_extended_length_nbo,
-                              sizeof(frame_extended_length_nbo))) {
-            return _ANJ_ERR_BUFF;
-        }
-    }
-
-    if (_anj_bytes_append(&appender, &msg->header.code,
-                          sizeof(msg->header.code))) {
-        return _ANJ_ERR_BUFF;
-    }
-
-    if (_anj_bytes_append(&appender, msg->token, msg->header.token_length)) {
-        return _ANJ_ERR_BUFF;
-    }
-
-    msg->occupied_buff_size = 2 * sizeof(uint8_t) + frame_extended_length_len
-                              + msg->header.token_length;
-    return 0;
-}
-
-int _anj_coap_encode_tcp(_anj_coap_msg_t *msg,
-                         uint8_t *out_buff,
-                         size_t out_buff_size,
-                         size_t *out_msg_size) {
-    assert(msg);
-    assert(out_buff);
-    assert(out_msg_size);
-
-    if (msg->operation == ANJ_OP_COAP_PONG || msg->operation == ANJ_OP_RESPONSE
-            || msg->operation == ANJ_OP_INF_INITIAL_NOTIFY
-            || msg->operation == ANJ_OP_INF_NON_CON_NOTIFY
-            || msg->operation == ANJ_OP_INF_CON_NOTIFY) {
-        // token reuse
-        assert(msg->token.size != 0);
-    } else if (msg->operation == ANJ_OP_COAP_EMPTY_MSG) {
-        // token not defined
-        msg->token.size = 0;
-        msg->payload_size = 0;
-    }
-
-    int res;
-    res = recognize_msg_code(msg);
-    _RET_IF_ERROR(res);
-
-    _ANJ_COAP_OPTIONS_INIT_EMPTY(opts, ANJ_COAP_MAX_OPTIONS_NUMBER);
-    anj_coap_message_t coap_msg = {
-        .header = _anj_coap_tcp_header_init(msg->token.size, msg->msg_code),
-        .options = &opts,
-        .payload = msg->payload,
-        .payload_size = msg->payload_size,
-    };
-    memcpy(coap_msg.token, msg->token.bytes, msg->token.size);
-
-    // prepare options buffer
-    coap_msg.options->buff_begin = out_buff;
-    coap_msg.options->buff_size = out_buff_size;
-
-    if (_anj_coap_tcp_code_is_signalling_message(msg->msg_code)) {
-        res = coap_tcp_signalling_msg_options_add(coap_msg.options, msg);
-    } else {
-        res = coap_standard_msg_options_add(coap_msg.options, msg);
-    }
-    _RET_IF_ERROR(res);
-
-    res = _anj_coap_tcp_header_serialize(&coap_msg, out_buff, out_buff_size);
-    _RET_IF_ERROR(res);
-
-    return _anj_coap_payload_serialize(&coap_msg, out_buff, out_buff_size,
-                                       out_msg_size);
-}
-#endif // ANJ_COAP_WITH_TCP
 
 #define _ANJ_COAP_PAYLOAD_MARKER_SIZE 1
 // How accept option size is calculated:
@@ -680,7 +454,6 @@ static size_t calculate_location_path_size(const _anj_location_path_t *path) {
 
 size_t _anj_coap_calculate_msg_header_max_size(const _anj_coap_msg_t *msg) {
     size_t max_size = 0;
-    // TODO: add tcp support here
     max_size = _ANJ_COAP_UDP_HEADER_LENGTH + _ANJ_COAP_MAX_TOKEN_LENGTH
                + _ANJ_COAP_PAYLOAD_MARKER_SIZE;
 

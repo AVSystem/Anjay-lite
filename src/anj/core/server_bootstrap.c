@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 14
 
 #include <assert.h>
 #include <inttypes.h>
@@ -30,8 +32,8 @@
 #include "bootstrap.h"
 #include "core.h"
 #include "core_utils.h"
-#include "server.h"
 #include "server_bootstrap.h"
+#include "srv_conn.h"
 
 #ifdef ANJ_WITH_BOOTSTRAP
 
@@ -111,7 +113,6 @@ int _anj_server_bootstrap_start_bootstrap_operation(anj_t *anj) {
 
 static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     _anj_coap_msg_t msg;
-    memset(&msg, 0, sizeof(msg));
     int res = _anj_coap_decode_udp(anj->in_buffer, msg_size, &msg);
     if (res) {
         ANJ_CORE_LOG_COAP_ERROR(res);
@@ -125,7 +126,7 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
 #    ifdef ANJ_WITH_CACHE
     // check if it's a retransmission
     if (_anj_exchange_cache_check(&anj->exchange_cache,
-                                  msg.coap_binding_data.udp.message_id)
+                                  msg.coap_binding_data.message_id)
             != _ANJ_EXCHANGE_CACHE_MISS) {
         return 0;
     }
@@ -165,8 +166,8 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     }
     }
 
-    if (_anj_server_prepare_server_request(anj, &msg, response_code,
-                                           &exchange_handlers)) {
+    if (_anj_srv_conn_prepare_server_request(anj, &msg, response_code,
+                                             &exchange_handlers)) {
         return -1;
     }
     return 0;
@@ -181,8 +182,8 @@ static _anj_core_next_action_t handle_bootstrap_process(anj_t *anj) {
     case _ANJ_BOOTSTRAP_IN_PROGRESS: {
         // check for new requests
         size_t msg_size;
-        result = _anj_server_receive(&anj->connection_ctx, anj->in_buffer,
-                                     &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
+        result = _anj_srv_conn_receive(&anj->connection_ctx, anj->in_buffer,
+                                       &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -205,7 +206,8 @@ static _anj_core_next_action_t handle_bootstrap_process(anj_t *anj) {
         return _ANJ_CORE_NEXT_ACTION_LEAVE;
     }
     case _ANJ_BOOTSTRAP_NEW_REQUEST_TO_SEND:
-        if (_anj_server_prepare_client_request(anj, &msg, &exchange_handlers)) {
+        if (_anj_srv_conn_prepare_client_request(anj, &msg,
+                                                 &exchange_handlers)) {
             anj->server_state.details.bootstrap.bootstrap_state =
                     _ANJ_SRV_BOOTSTRAP_STATE_FINISH_DISCONNECT_AND_RETRY;
             log(L_ERROR, "Starting Bootstrap process failed");
@@ -244,11 +246,11 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         anj_t *anj, anj_conn_status_t *out_status) {
     switch (anj->server_state.details.bootstrap.bootstrap_state) {
     case _ANJ_SRV_BOOTSTRAP_STATE_CONNECTION_IN_PROGRESS: {
-        int result = _anj_server_connect(&anj->connection_ctx,
-                                         anj->security_instance.type,
-                                         &anj->net_socket_cfg,
-                                         anj->security_instance.server_uri,
-                                         anj->security_instance.port);
+        int result = _anj_srv_conn_connect(&anj->connection_ctx,
+                                           anj->security_instance.type,
+                                           &anj->net_socket_cfg,
+                                           anj->security_instance.server_uri,
+                                           anj->security_instance.port);
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -265,8 +267,8 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         memset(&msg, 0, sizeof(msg));
         if (_anj_bootstrap_process(anj, &msg, &exchange_handlers)
                         != _ANJ_BOOTSTRAP_NEW_REQUEST_TO_SEND
-                || _anj_server_prepare_client_request(anj, &msg,
-                                                      &exchange_handlers)) {
+                || _anj_srv_conn_prepare_client_request(anj, &msg,
+                                                        &exchange_handlers)) {
             anj->server_state.details.bootstrap.bootstrap_state =
                     _ANJ_SRV_BOOTSTRAP_STATE_FINISH_DISCONNECT_AND_RETRY;
             log(L_ERROR, "Starting Bootstrap process failed");
@@ -274,7 +276,7 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }
     case _ANJ_SRV_BOOTSTRAP_STATE_BOOTSTRAP_IN_PROGRESS: {
-        int result = _anj_server_handle_request(anj);
+        int result = _anj_srv_conn_handle_request(anj);
         if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -287,7 +289,7 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         return handle_bootstrap_process(anj);
     }
     case _ANJ_SRV_BOOTSTRAP_STATE_FINISHED: {
-        int result = _anj_server_close(&anj->connection_ctx, true);
+        int result = _anj_srv_conn_close(&anj->connection_ctx, true);
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -311,7 +313,7 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
     }
     // fall through
     case _ANJ_SRV_BOOTSTRAP_STATE_DISCONNECT_AND_RETRY: {
-        int result = _anj_server_close(&anj->connection_ctx, true);
+        int result = _anj_srv_conn_close(&anj->connection_ctx, true);
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }

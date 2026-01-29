@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -72,13 +72,10 @@ typedef enum {
 
 /** @anj_internal_fields_do_not_use */
 typedef struct {
+    // resources
     char server_uri[ANJ_SERVER_URI_MAX_SIZE];
     bool bootstrap_server;
     anj_dm_security_mode_t security_mode;
-    uint32_t client_hold_off_time;
-    uint16_t ssid;
-    anj_iid_t iid;
-
 #        ifdef ANJ_WITH_SECURITY
     uint8_t public_key_or_identity_buff
             [ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE];
@@ -88,6 +85,11 @@ typedef struct {
     anj_crypto_security_info_t server_public_key;
     anj_crypto_security_info_t secret_key;
 #        endif // ANJ_WITH_SECURITY
+    uint16_t ssid;
+    uint32_t client_hold_off_time;
+
+    // metadata
+    anj_iid_t iid;
 } anj_dm_security_instance_t;
 
 /**

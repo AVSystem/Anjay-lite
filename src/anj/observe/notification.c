@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 45
 
 #include <assert.h>
 #include <inttypes.h>
@@ -136,37 +138,51 @@ static int update_last_sent_value(anj_t *anj) {
     return 0;
 }
 
-static void set_notification_flag(_anj_observe_ctx_t *ctx, bool to_send) {
-    ctx->processing_observation->notification_to_send = to_send;
+static void mark_notification_as_sent(_anj_observe_ctx_t *ctx) {
+    ctx->processing_observation->notification_to_send = false;
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     if (ctx->processing_observation->prev) {
         _anj_observe_observation_t *prev_observation =
                 ctx->processing_observation->prev;
         while (prev_observation != ctx->processing_observation) {
             assert(prev_observation);
-            prev_observation->notification_to_send = to_send;
+            prev_observation->notification_to_send = false;
             prev_observation = prev_observation->prev;
         }
     }
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
 }
 
-static void anj_exchange_completion(void *arg_ptr,
-                                    const _anj_coap_msg_t *response,
-                                    int result) {
+static void notification_exchange_completion(void *arg_ptr,
+                                             const _anj_coap_msg_t *response,
+                                             int result) {
     (void) response;
     anj_t *anj = (anj_t *) arg_ptr;
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
     assert(ctx->in_progress_type == MSG_TYPE_NOTIFY);
     ctx->already_processed = 0;
     _anj_dm_observe_finalize_operation(anj, result);
-    if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
-        _anj_observe_remove_observation(ctx);
-        observe_log(L_ERROR, "Failed to send notification");
-    } else {
-        set_notification_flag(ctx, false);
+    if (result == _ANJ_EXCHANGE_RESULT_SUCCESS) {
+        mark_notification_as_sent(ctx);
         observe_log(L_INFO, "Notification sent");
+        return;
     }
+#    ifndef ANJ_OBSERVE_OBSERVATION_CANCEL_ON_TIMEOUT
+    if (result == _ANJ_EXCHANGE_ERROR_TIMEOUT) {
+        mark_notification_as_sent(ctx);
+        observe_log(L_WARNING,
+                    "Timeout while waiting for notification ACK, "
+                    "but observation will be kept");
+        return;
+    }
+#    endif // ANJ_OBSERVE_OBSERVATION_CANCEL_ON_TIMEOUT
+
+    if (result == _ANJ_EXCHANGE_ERROR_SERVER_RESPONSE) {
+        observe_log(L_ERROR, "Server rejected notification");
+    } else {
+        observe_log(L_ERROR, "Notification sending failed: %d", result);
+    }
+    _anj_observe_remove_observation(ctx);
 }
 
 static int create_notification(anj_t *anj,
@@ -181,7 +197,7 @@ static int create_notification(anj_t *anj,
 
     *out_handlers = (_anj_exchange_handlers_t) {
         .read_payload = _anj_observe_build_message,
-        .completion = anj_exchange_completion,
+        .completion = notification_exchange_completion,
         .arg = anj
     };
     ctx->in_progress_type = MSG_TYPE_NOTIFY;
@@ -215,10 +231,11 @@ static int create_notification(anj_t *anj,
             con_attr ? ANJ_OP_INF_CON_NOTIFY : ANJ_OP_INF_NON_CON_NOTIFY;
 #    else  // ANJ_WITH_LWM2M12
     out_msg->operation = ANJ_OP_INF_NON_CON_NOTIFY;
+    (void) server_state; // suppress unused parameter warning
 #    endif // ANJ_WITH_LWM2M12
     // send a confirmable notification at least once every 24 hours
-    if (anj_time_real_geq(
-                anj_time_real_now(),
+    if (anj_time_monotonic_geq(
+                anj_time_monotonic_now(),
                 ctx->processing_observation->next_conf_notify_timestamp)) {
         out_msg->operation = ANJ_OP_INF_CON_NOTIFY;
     }
@@ -233,19 +250,20 @@ static int create_notification(anj_t *anj,
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     sync_composite_observe_number(ctx->processing_observation);
 #    endif
-    _anj_observe_refresh_timestamp(ctx, anj_time_real_now(),
+    _anj_observe_refresh_timestamp(ctx, anj_time_monotonic_now(),
                                    out_msg->operation == ANJ_OP_INF_CON_NOTIFY);
     return 0;
 }
 
-static anj_time_real_t
+static anj_time_monotonic_t
 calculate_next_notify_check_timestamp(_anj_observe_observation_t *observation,
                                       anj_time_duration_t max_period) {
     if (anj_time_duration_eq(max_period, ANJ_TIME_DURATION_ZERO)) {
-        return ANJ_TIME_REAL_INVALID;
+        return ANJ_TIME_MONOTONIC_INVALID;
     }
 
-    return anj_time_real_add(observation->last_notify_timestamp, max_period);
+    return anj_time_monotonic_add(observation->last_notify_timestamp,
+                                  max_period);
 }
 
 static int
@@ -258,9 +276,9 @@ observe_process_or_get_time(anj_t *anj,
     anj_time_duration_t min_period;
     anj_time_duration_t max_period;
     anj_time_duration_t elapsed_time;
-    anj_time_real_t current_time = anj_time_real_now();
+    anj_time_monotonic_t current_time = anj_time_monotonic_now();
     anj_time_duration_t tmp_time_to_next_notif;
-    anj_time_real_t next_notify_check_timestamp;
+    anj_time_monotonic_t next_notify_check_timestamp;
     int ret_val = 0;
 
     if (get_time) {
@@ -277,7 +295,7 @@ observe_process_or_get_time(anj_t *anj,
         /* If this condition is met, it means that the system time has been
          * modified, and for this reason, we send a notification regardless of
          * the attributes */
-        if (anj_time_real_lt(
+        if (anj_time_monotonic_lt(
                     current_time,
                     ctx->processing_observation->last_notify_timestamp)) {
             if (get_time) {
@@ -295,13 +313,15 @@ observe_process_or_get_time(anj_t *anj,
         next_notify_check_timestamp = calculate_next_notify_check_timestamp(
                 ctx->processing_observation, max_period);
 
-        if (get_time && anj_time_real_is_valid(next_notify_check_timestamp)) {
-            if (anj_time_real_gt(current_time, next_notify_check_timestamp)) {
+        if (get_time
+                && anj_time_monotonic_is_valid(next_notify_check_timestamp)) {
+            if (anj_time_monotonic_gt(current_time,
+                                      next_notify_check_timestamp)) {
                 tmp_time_to_next_notif = ANJ_TIME_DURATION_ZERO;
             } else {
                 tmp_time_to_next_notif =
-                        anj_time_real_diff(next_notify_check_timestamp,
-                                           current_time);
+                        anj_time_monotonic_diff(next_notify_check_timestamp,
+                                                current_time);
             }
 
             if (!anj_time_duration_lt(*time_to_next_notif,
@@ -310,7 +330,7 @@ observe_process_or_get_time(anj_t *anj,
             }
         }
 
-        elapsed_time = anj_time_real_diff(
+        elapsed_time = anj_time_monotonic_diff(
                 current_time,
                 ctx->processing_observation->last_notify_timestamp);
 
@@ -319,9 +339,10 @@ observe_process_or_get_time(anj_t *anj,
 
                 tmp_time_to_next_notif = anj_time_duration_sub(
                         min_period,
-                        anj_time_real_diff(current_time,
-                                           ctx->processing_observation
-                                                   ->last_notify_timestamp));
+                        anj_time_monotonic_diff(
+                                current_time,
+                                ctx->processing_observation
+                                        ->last_notify_timestamp));
                 if (!anj_time_duration_lt(*time_to_next_notif,
                                           tmp_time_to_next_notif)) {
                     *time_to_next_notif = tmp_time_to_next_notif;

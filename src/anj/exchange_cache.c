@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 50
 
 #include <assert.h>
 #include <stdbool.h>
@@ -65,18 +67,20 @@ get_exchange_lifetime(const anj_exchange_udp_tx_params_t *tx_params) {
  * @param ctx       Exchange context with cache storage.
  * @param time_now  Current time in milliseconds.
  */
-static void drop_expired(_anj_exchange_cache_t *ctx, anj_time_real_t time_now) {
-    if (anj_time_real_lt(ctx->cache_recent.expiration_time, time_now)) {
+static void drop_expired(_anj_exchange_cache_t *ctx,
+                         anj_time_monotonic_t time_now) {
+    if (anj_time_monotonic_lt(ctx->cache_recent.expiration_time, time_now)) {
         exchange_log(L_TRACE, "Dropped recent cache");
-        ctx->cache_recent.expiration_time = ANJ_TIME_REAL_INVALID;
+        ctx->cache_recent.expiration_time = ANJ_TIME_MONOTONIC_INVALID;
     }
 
 #    if ANJ_CACHE_ENTRIES_NUMBER > 1
     for (uint8_t i = 0; i < ANJ_ARRAY_SIZE(ctx->cache_non_recent); i++) {
-        if (anj_time_real_lt(ctx->cache_non_recent[i].expiration_time,
-                             time_now)) {
+        if (anj_time_monotonic_lt(ctx->cache_non_recent[i].expiration_time,
+                                  time_now)) {
             exchange_log(L_TRACE, "Dropped cache n=%d", i);
-            ctx->cache_non_recent[i].expiration_time = ANJ_TIME_REAL_INVALID;
+            ctx->cache_non_recent[i].expiration_time =
+                    ANJ_TIME_MONOTONIC_INVALID;
         }
     }
 #    endif // ANJ_CACHE_ENTRIES_NUMBER > 1
@@ -84,7 +88,7 @@ static void drop_expired(_anj_exchange_cache_t *ctx, anj_time_real_t time_now) {
 
 static void save_recent_cache(_anj_exchange_cache_t *ctx,
                               const _anj_coap_msg_t *response,
-                              anj_time_real_t expiration_time) {
+                              anj_time_monotonic_t expiration_time) {
     memcpy(&ctx->cache_recent.response, response, sizeof(*response));
     if (response->payload && response->payload_size) {
         memcpy(&ctx->cache_recent.payload,
@@ -103,34 +107,35 @@ void _anj_exchange_cache_add(_anj_exchange_cache_t *ctx,
     }
 
     // calculate the expiration time for currently processed entry
-    anj_time_real_t time_now = anj_time_real_now();
-    anj_time_real_t expiration_time =
-            anj_time_real_add(time_now, get_exchange_lifetime(tx_params));
+    anj_time_monotonic_t time_now = anj_time_monotonic_now();
+    anj_time_monotonic_t expiration_time =
+            anj_time_monotonic_add(time_now, get_exchange_lifetime(tx_params));
 
 #    if ANJ_CACHE_ENTRIES_NUMBER > 1
     // free slots with expired entries
     drop_expired(ctx, time_now);
 
     // check if the recent cache expired. If it did, the non-recent ones did too
-    if (!anj_time_real_is_valid(ctx->cache_recent.expiration_time)) {
+    if (!anj_time_monotonic_is_valid(ctx->cache_recent.expiration_time)) {
         save_recent_cache(ctx, response, expiration_time);
         exchange_log(L_TRACE, "Saved latest cache");
         return;
     }
 
-    anj_time_real_t oldest_cache_time = ANJ_TIME_REAL_INVALID;
+    anj_time_monotonic_t oldest_cache_time = ANJ_TIME_MONOTONIC_INVALID;
     uint8_t candidate_id = 0;
     for (uint8_t i = 0; i < ANJ_ARRAY_SIZE(ctx->cache_non_recent); i++) {
         // check if the entry is already invalid
-        if (!anj_time_real_is_valid(ctx->cache_non_recent[i].expiration_time)) {
+        if (!anj_time_monotonic_is_valid(
+                    ctx->cache_non_recent[i].expiration_time)) {
             candidate_id = i;
             exchange_log(L_TRACE, "Found invalid cache and saved i=%d", i);
             break;
         }
 
         // if not, check if it's the candidate for overwriting
-        if (!anj_time_real_gt(ctx->cache_non_recent[i].expiration_time,
-                              oldest_cache_time)) {
+        if (!anj_time_monotonic_gt(ctx->cache_non_recent[i].expiration_time,
+                                   oldest_cache_time)) {
             oldest_cache_time = ctx->cache_non_recent[i].expiration_time;
             candidate_id = i;
             exchange_log(L_TRACE, "Found candidate i=%d", i);
@@ -139,7 +144,7 @@ void _anj_exchange_cache_add(_anj_exchange_cache_t *ctx,
 
     // move the most recent cache to the non-recent array
     ctx->cache_non_recent[candidate_id].mid =
-            ctx->cache_recent.response.coap_binding_data.udp.message_id;
+            ctx->cache_recent.response.coap_binding_data.message_id;
     ctx->cache_non_recent[candidate_id].expiration_time =
             ctx->cache_recent.expiration_time;
 
@@ -152,13 +157,13 @@ void _anj_exchange_cache_add(_anj_exchange_cache_t *ctx,
 
 int _anj_exchange_cache_check(_anj_exchange_cache_t *ctx, uint16_t msg_id) {
     // free slots with expired entries
-    anj_time_real_t time_now = anj_time_real_now();
+    anj_time_monotonic_t time_now = anj_time_monotonic_now();
     drop_expired(ctx, time_now);
     exchange_log(L_TRACE, "Checking cache");
 
     // check if it's the most recent message
-    if (ctx->cache_recent.response.coap_binding_data.udp.message_id == msg_id
-            && anj_time_real_is_valid(ctx->cache_recent.expiration_time)) {
+    if (ctx->cache_recent.response.coap_binding_data.message_id == msg_id
+            && anj_time_monotonic_is_valid(ctx->cache_recent.expiration_time)) {
         ctx->handling_retransmission = true;
         exchange_log(L_TRACE, "Found most recent");
         return _ANJ_EXCHANGE_CACHE_HIT_RECENT;
@@ -168,7 +173,7 @@ int _anj_exchange_cache_check(_anj_exchange_cache_t *ctx, uint16_t msg_id) {
     // if not, check the older ones
     for (uint8_t i = 0; i < ANJ_ARRAY_SIZE(ctx->cache_non_recent); i++) {
         if (ctx->cache_non_recent[i].mid == msg_id
-                && anj_time_real_is_valid(
+                && anj_time_monotonic_is_valid(
                            ctx->cache_non_recent[i].expiration_time)) {
             exchange_log(L_TRACE, "Found non recent");
             return _ANJ_EXCHANGE_CACHE_HIT_NON_RECENT;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 11
 
 #include <assert.h>
 #include <inttypes.h>
@@ -35,7 +37,7 @@
 #include "core_utils.h"
 #include "reg_session.h"
 #include "register.h"
-#include "server.h"
+#include "srv_conn.h"
 
 #ifdef ANJ_WITH_LWM2M_SEND
 #    include "lwm2m_send.h"
@@ -43,14 +45,14 @@
 
 #define _ANJ_REG_SESSION_NEW_EXCHANGE 1
 
-static anj_time_real_t calculate_next_update(anj_t *anj) {
+static anj_time_monotonic_t calculate_next_update(anj_t *anj) {
     if (anj_time_duration_eq(anj->server_instance.lifetime,
                              ANJ_TIME_DURATION_ZERO)) {
         // "...If the value is set to 0, the lifetime is infinite."
-        return ANJ_TIME_REAL_INVALID;
+        return ANJ_TIME_MONOTONIC_INVALID;
     }
     const anj_time_duration_t max_transmit_wait =
-            _anj_server_calculate_max_transmit_wait(
+            _anj_srv_conn_calculate_max_transmit_wait(
                     &anj->exchange_ctx.tx_params);
 
     anj_time_duration_t timeout;
@@ -65,14 +67,15 @@ static anj_time_real_t calculate_next_update(anj_t *anj) {
         timeout = half_lifetime;
     }
 
-    return anj_time_real_add(anj_time_real_now(), timeout);
+    return anj_time_monotonic_add(anj_time_monotonic_now(), timeout);
 }
 
 static void refresh_queue_mode_timeout(anj_t *anj) {
     anj->server_state.details.registered.queue_start_time =
-            anj->queue_mode_enabled ? anj_time_real_add(anj_time_real_now(),
-                                                        anj->queue_mode_timeout)
-                                    : ANJ_TIME_REAL_INVALID;
+            anj->queue_mode_enabled
+                    ? anj_time_monotonic_add(anj_time_monotonic_now(),
+                                             anj->queue_mode_timeout)
+                    : ANJ_TIME_MONOTONIC_INVALID;
 }
 
 void _anj_reg_session_init(anj_t *anj) {
@@ -85,8 +88,8 @@ void _anj_reg_session_init(anj_t *anj) {
     anj->server_state.details.registered.update_with_lifetime = false;
     anj->server_state.details.registered.update_with_payload = false;
     _anj_core_state_transition_clear(anj);
-    anj->server_state.enable_time = ANJ_TIME_REAL_ZERO;
-    anj->server_state.enable_time_user_triggered = ANJ_TIME_REAL_ZERO;
+    anj->server_state.enable_time = ANJ_TIME_MONOTONIC_ZERO;
+    anj->server_state.enable_time_user_triggered = ANJ_TIME_MONOTONIC_ZERO;
     refresh_queue_mode_timeout(anj);
 }
 
@@ -189,7 +192,6 @@ void _anj_reg_session_refresh_registration_related_resources(anj_t *anj) {
 
 static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     _anj_coap_msg_t msg;
-    memset(&msg, 0, sizeof(msg));
     int res = _anj_coap_decode_udp(anj->in_buffer, msg_size, &msg);
     if (res) {
         ANJ_CORE_LOG_COAP_ERROR(res);
@@ -202,9 +204,8 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
 
 #ifdef ANJ_WITH_CACHE
     // check if it's a retransmission
-    int cache_try =
-            _anj_exchange_cache_check(&anj->exchange_cache,
-                                      msg.coap_binding_data.udp.message_id);
+    int cache_try = _anj_exchange_cache_check(&anj->exchange_cache,
+                                              msg.coap_binding_data.message_id);
     if (cache_try == _ANJ_EXCHANGE_CACHE_HIT_RECENT) {
         return _ANJ_REG_SESSION_NEW_EXCHANGE;
     } else if (cache_try == _ANJ_EXCHANGE_CACHE_HIT_NON_RECENT) {
@@ -257,6 +258,14 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
         break;
     }
 #endif // ANJ_WITH_OBSERVE
+#ifdef ANJ_WITH_RST_AS_CANCEL_OBSERVE
+    case ANJ_OP_COAP_RESET: {
+        // non-confirmable notifications cancel by RST is handled here
+        _anj_observe_cancel_observation_by_mid(
+                anj, msg.coap_binding_data.message_id);
+        return 0;
+    }
+#endif // ANJ_WITH_RST_AS_CANCEL_OBSERVE
     case ANJ_OP_COAP_PING_UDP:
         break; // PING is handled by the exchange module
     default: {
@@ -265,8 +274,8 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     }
     }
 
-    if (_anj_server_prepare_server_request(anj, &msg, response_code,
-                                           &exchange_handlers)) {
+    if (_anj_srv_conn_prepare_server_request(anj, &msg, response_code,
+                                             &exchange_handlers)) {
         return -1;
     }
     return _ANJ_REG_SESSION_NEW_EXCHANGE;
@@ -276,8 +285,9 @@ static int handle_registration_update(anj_t *anj) {
     // "When any of the parameters listed in Table: 6.2.2.-1 Update Parameters
     // changes, the LwM2M Client MUST send an "Update" operation to the LwM2M
     // Server"
-    if (!anj_time_real_gt(anj_time_real_now(),
-                          anj->server_state.details.registered.next_update_time)
+    if (!anj_time_monotonic_gt(
+                anj_time_monotonic_now(),
+                anj->server_state.details.registered.next_update_time)
             && !anj->server_state.details.registered.update_with_lifetime
             && !anj->server_state.details.registered.update_with_payload
             && !anj->server_state.registration_update_triggered) {
@@ -302,7 +312,7 @@ static int handle_registration_update(anj_t *anj) {
     anj->server_state.details.registered.update_with_payload = false;
 
     _anj_register_update(anj, lifetime, with_payload, &msg, &exchange_handlers);
-    if (_anj_server_prepare_client_request(anj, &msg, &exchange_handlers)) {
+    if (_anj_srv_conn_prepare_client_request(anj, &msg, &exchange_handlers)) {
         return -1;
     }
     return _ANJ_REG_SESSION_NEW_EXCHANGE;
@@ -318,7 +328,7 @@ static int handle_send(anj_t *anj) {
         return 0;
     }
     log(L_DEBUG, "Sending LwM2M Send");
-    if (_anj_server_prepare_client_request(anj, &msg, &exchange_handlers)) {
+    if (_anj_srv_conn_prepare_client_request(anj, &msg, &exchange_handlers)) {
         return -1;
     }
     return _ANJ_REG_SESSION_NEW_EXCHANGE;
@@ -337,9 +347,15 @@ static int handle_observe(anj_t *anj) {
         return 0;
     }
     log(L_DEBUG, "Sending notification");
-    if (_anj_server_prepare_client_request(anj, &msg, &exchange_handlers)) {
+    if (_anj_srv_conn_prepare_client_request(anj, &msg, &exchange_handlers)) {
         return -1;
     }
+// The message was prepared successfully, so we update last sent Notify
+// Message ID for the processed observation. This way if we receive CoAP
+// Reset in response, we can math it to the observation and cancel it.
+#    ifdef ANJ_WITH_RST_AS_CANCEL_OBSERVE
+    _anj_observe_update_last_mid(anj, msg.coap_binding_data.message_id);
+#    endif // ANJ_WITH_RST_AS_CANCEL_OBSERVE
     return _ANJ_REG_SESSION_NEW_EXCHANGE;
 }
 #endif // ANJ_WITH_OBSERVE
@@ -349,7 +365,7 @@ static int try_send_deregistrer(anj_t *anj) {
     memset(&msg, 0, sizeof(msg));
     _anj_exchange_handlers_t out_handlers = { 0 };
     _anj_register_deregister(anj, &msg, &out_handlers);
-    if (_anj_server_prepare_client_request(anj, &msg, &out_handlers)) {
+    if (_anj_srv_conn_prepare_client_request(anj, &msg, &out_handlers)) {
         return -1;
     }
     return _ANJ_REG_SESSION_NEW_EXCHANGE;
@@ -390,8 +406,8 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
 
         // check for new requests
         size_t msg_size;
-        res = _anj_server_receive(&anj->connection_ctx, anj->in_buffer,
-                                  &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
+        res = _anj_srv_conn_receive(&anj->connection_ctx, anj->in_buffer,
+                                    &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
         if (anj_net_is_inprogress(res)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -462,9 +478,9 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
         if (anj->queue_mode_enabled
                 && anj->server_state.details.registered.internal_state
                                != _ANJ_SRV_MAN_STATE_QUEUE_MODE_IN_PROGRESS
-                && anj_time_real_gt(anj_time_real_now(),
-                                    anj->server_state.details.registered
-                                            .queue_start_time)) {
+                && anj_time_monotonic_gt(anj_time_monotonic_now(),
+                                         anj->server_state.details.registered
+                                                 .queue_start_time)) {
             anj->server_state.details.registered.internal_state =
                     _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS;
             *out_status = ANJ_CONN_STATUS_ENTERING_QUEUE_MODE;
@@ -489,7 +505,7 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
     }
 
     case _ANJ_SRV_MAN_STATE_EXCHANGE_IN_PROGRESS: {
-        int res = _anj_server_handle_request(anj);
+        int res = _anj_srv_conn_handle_request(anj);
         if (anj_net_is_again(res) || anj_net_is_inprogress(res)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -515,7 +531,7 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
     }
 
     case _ANJ_SRV_MAN_STATE_ENTERING_QUEUE_MODE_IN_PROGRESS: {
-        int res = _anj_server_queue_mode_rx_off(&anj->connection_ctx);
+        int res = _anj_srv_conn_queue_mode_rx_off(&anj->connection_ctx);
         if (anj_net_is_inprogress(res)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -541,7 +557,7 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
         // up the connection
         bool with_cleanup = anj->server_state.bootstrap_request_triggered
                             || anj->server_state.restart_triggered;
-        int res = _anj_server_close(&anj->connection_ctx, with_cleanup);
+        int res = _anj_srv_conn_close(&anj->connection_ctx, with_cleanup);
         if (anj_net_is_inprogress(res)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
@@ -569,17 +585,17 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
 _anj_core_next_action_t
 _anj_reg_session_process_suspended(anj_t *anj, anj_conn_status_t *out_status) {
     assert(anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED);
-    anj_time_real_t enable_time;
-    if (anj_time_real_gt(anj->server_state.enable_time_user_triggered,
-                         anj->server_state.enable_time)) {
+    anj_time_monotonic_t enable_time;
+    if (anj_time_monotonic_gt(anj->server_state.enable_time_user_triggered,
+                              anj->server_state.enable_time)) {
         enable_time = anj->server_state.enable_time_user_triggered;
     } else {
         enable_time = anj->server_state.enable_time;
     }
 
-    if (anj_time_real_leq(enable_time, anj_time_real_now())) {
-        anj->server_state.enable_time = ANJ_TIME_REAL_ZERO;
-        anj->server_state.enable_time_user_triggered = ANJ_TIME_REAL_ZERO;
+    if (anj_time_monotonic_leq(enable_time, anj_time_monotonic_now())) {
+        anj->server_state.enable_time = ANJ_TIME_MONOTONIC_ZERO;
+        anj->server_state.enable_time_user_triggered = ANJ_TIME_MONOTONIC_ZERO;
         *out_status = ANJ_CONN_STATUS_INITIAL;
         log(L_INFO, "Server leaving suspended state");
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;

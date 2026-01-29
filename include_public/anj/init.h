@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -31,25 +31,19 @@
 extern "C" {
 #endif
 
-#if !defined(ANJ_COAP_WITH_TCP) && !defined(ANJ_COAP_WITH_UDP)
-#    error "At least one binding mode must be enabled"
-#endif // !defined(ANJ_COAP_WITH_TCP) && !defined(ANJ_COAP_WITH_UDP)
-
-#if defined(ANJ_COAP_WITH_UDP) && !defined(ANJ_NET_WITH_UDP)
-#    error "if CoAP UDP binding is enabled, NET UDP has to be enabled too"
-#endif // defined(ANJ_COAP_WITH_UDP) && !defined(ANJ_NET_WITH_UDP)
-
-#if defined(ANJ_COAP_WITH_TCP) && !defined(ANJ_NET_WITH_TCP)
-#    error "if CoAP TCP binding is enabled, NET TCP has to be enabled too"
-#endif // defined(ANJ_COAP_WITH_TCP) && !defined(ANJ_NET_WITH_TCP)
-
-#if defined(ANJ_WITH_CACHE) && !defined(ANJ_COAP_WITH_UDP)
-#    error "Responses caching only makes sense for UDP"
-#endif // defined(ANJ_WITH_CACHE) && !defined(ANJ_COAP_WITH_UDP)
+#if !defined(ANJ_NET_WITH_UDP) && !defined(ANJ_NET_WITH_DTLS) \
+        && !defined(ANJ_NET_WITH_NON_IP_BINDING)
+#    error "at least one of ANJ_NET_WITH_UDP, ANJ_NET_WITH_DTLS, ANJ_NET_WITH_NON_IP_BINDING should be enabled"
+#endif // !defined(ANJ_NET_WITH_UDP) && !defined(ANJ_NET_WITH_DTLS) &&
+       // !defined(ANJ_NET_WITH_NON_IP_BINDING)
 
 #if defined(ANJ_WITH_CACHE) && ANJ_CACHE_ENTRIES_NUMBER <= 0
 #    error "if response caching is enabled, number of cached entries has to be greater than 0"
 #endif // defined(ANJ_WITH_CACHE) && ANJ_CACHE_ENTRIES_NUMBER <= 0
+
+#if defined(ANJ_WITH_RST_AS_CANCEL_OBSERVE) && !defined(ANJ_WITH_OBSERVE)
+#    error "RST as Cancel Observe only makes sense when Observations are supported"
+#endif // defined(ANJ_WITH_RST_AS_CANCEL_OBSERVE) && !defined(ANJ_WITH_OBSERVE)
 
 #if defined(ANJ_WITH_LWM2M_CBOR) && !defined(ANJ_WITH_LWM2M12)
 #    error "ANJ_WITH_LWM2M_CBOR requires ANJ_WITH_LWM2M12 enabled"
@@ -133,14 +127,21 @@ extern "C" {
 #    define _ANJ_LOG_FULL_ENABLED 0
 #endif // ANJ_LOG_FULL
 
+#ifdef ANJ_LOG_MICRO
+#    define _ANJ_LOG_MICRO_ENABLED 1
+#else // ANJ_LOG_MICRO
+#    define _ANJ_LOG_MICRO_ENABLED 0
+#endif // ANJ_LOG_MICRO
+
 #ifdef ANJ_LOG_ALT_IMPL_HEADER
 #    define _ANJ_LOG_ALT_IMPL_HEADER_ENABLED 1
 #else // ANJ_LOG_ALT_IMPL_HEADER
 #    define _ANJ_LOG_ALT_IMPL_HEADER_ENABLED 0
 #endif // ANJ_LOG_ALT_IMPL_HEADER
 
-#define _ANJ_LOG_TYPES_ENABLED \
-    (_ANJ_LOG_FULL_ENABLED + _ANJ_LOG_ALT_IMPL_HEADER_ENABLED)
+#define _ANJ_LOG_TYPES_ENABLED                      \
+    (_ANJ_LOG_FULL_ENABLED + _ANJ_LOG_MICRO_ENABLED \
+     + _ANJ_LOG_ALT_IMPL_HEADER_ENABLED)
 
 #if _ANJ_LOG_TYPES_ENABLED > 1
 #    error "Only one logger type can be enabled at a time."

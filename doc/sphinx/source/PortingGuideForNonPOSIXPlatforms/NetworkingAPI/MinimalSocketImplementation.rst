@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -35,7 +35,7 @@ layer, apply the following changes in `CMakeLists.txt`:
 
 .. highlight:: cmake
 .. snippet-source:: examples/custom-network/minimal/CMakeLists.txt
-    :emphasize-lines: 7-9,16
+    :emphasize-lines: 7-8,15
 
     cmake_minimum_required(VERSION 3.16.0)
 
@@ -45,7 +45,6 @@ layer, apply the following changes in `CMakeLists.txt`:
 
     set(ANJ_WITH_SOCKET_POSIX_COMPAT OFF)
     set(ANJ_NET_WITH_UDP ON)
-    set(ANJ_NET_WITH_TCP OFF)
 
     if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
         set(anjay_lite_DIR "../../../cmake")
@@ -72,7 +71,6 @@ has the following limitations:
 
     - ``fcntl``
     - ``close``
-    - ``shutdown``
 
 - Does not support socket configuration, such as selecting the address family.
 - Uses a fixed inner MTU value, which may not reflect actual network conditions.
@@ -351,25 +349,6 @@ Receiving follows the same pattern as sending:
     If the buffer is too small to hold the incoming packet, or matches it exactly
     ``anj_udp_recv`` returns ``ANJ_NET_EMSGSIZE``. This informs Anjay Lite to drop the packet gracefully.
     Any other error is treated as fatal and triggers a connection reset.
-
-Shutdown
---------
-
-``anj_udp_shutdown`` function is straightforward but requires updating the socket
-context's state to ``ANJ_NET_SOCKET_STATE_SHUTDOWN`` upon completion.
-
-.. highlight:: c
-.. snippet-source:: examples/custom-network/minimal/src/net.c
-    :emphasize-lines: 6
-
-    int anj_udp_shutdown(anj_net_ctx_t *ctx_) {
-        net_ctx_posix_impl_t *ctx = (net_ctx_posix_impl_t *) ctx_;
-
-        shutdown(ctx->sockfd, SHUT_RDWR);
-
-        ctx->state = ANJ_NET_SOCKET_STATE_SHUTDOWN;
-        return ANJ_NET_OK;
-    }
 
 Close
 -----

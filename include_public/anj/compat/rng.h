@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -43,7 +43,7 @@ extern "C" {
  * When using a library with secure connections, a cryptographically secure
  * random number generator (CSRNG) is required. Recommended RNG sources in this
  * case include:
- *  - The operating system's CSRNG (e.g. Linux @c getrandom())
+ *  - The operating system's CSRNG (e.g. Linux @c getentropy())
  *  - For embedded/bare-metal systems:
  *    - (a) A hardware TRNG, if it provides sufficient throughput, or
  *    - (b) A DRBG, such as NIST SP 800-90A DRBG: CTR_DRBG, MAC_DRBG, or

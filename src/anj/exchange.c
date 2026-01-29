@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 49
 
 #include <assert.h>
 #include <inttypes.h>
@@ -144,7 +146,7 @@ static void handle_send_confirmation(_anj_exchange_ctx_t *ctx,
 
 // This function can be used only to handle server responses.
 static bool is_separate_response_mode(const _anj_coap_msg_t *msg) {
-    return msg->coap_binding_data.udp.type == ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+    return msg->coap_binding_data.type == ANJ_COAP_UDP_TYPE_CONFIRMABLE;
 }
 
 /**
@@ -169,7 +171,7 @@ static int token_create(_anj_coap_token_t *token) {
  */
 static void init_msd_id(_anj_exchange_ctx_t *ctx, _anj_coap_msg_t *msg) {
     assert(msg);
-    msg->coap_binding_data.udp.message_id = ++ctx->msg_id;
+    msg->coap_binding_data.message_id = ++ctx->msg_id;
 }
 
 static void handle_server_response(_anj_exchange_ctx_t *ctx,
@@ -204,8 +206,8 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
     }
 
     if (in_out_msg->msg_code >= ANJ_COAP_CODE_BAD_REQUEST) {
-        exchange_log(L_ERROR, "received error response: %" PRIu8,
-                     in_out_msg->msg_code);
+        exchange_log(L_ERROR, "received error response: %s",
+                     COAP_CODE_FORMAT(in_out_msg->msg_code));
         finalize_exchange(ctx, in_out_msg, _ANJ_EXCHANGE_ERROR_SERVER_RESPONSE);
         return;
     }
@@ -245,9 +247,9 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
         };
         if (result) {
             exchange_log(L_ERROR,
-                         "error while writing payload: %" PRIu8
+                         "error while writing payload: %s"
                          ", cancel exchange",
-                         result);
+                         COAP_CODE_FORMAT(result));
             finalize_exchange(ctx, NULL, _ANJ_EXCHANGE_ERROR_REQUEST);
             return;
         }
@@ -273,9 +275,9 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
             ctx->base_msg.block.more_flag = false;
         } else {
             exchange_log(L_ERROR,
-                         "error while reading payload: %" PRIu8
+                         "error while reading payload: %s"
                          ", cancel exchange",
-                         result);
+                         COAP_CODE_FORMAT(result));
             finalize_exchange(ctx, NULL, _ANJ_EXCHANGE_ERROR_REQUEST);
             return;
         }
@@ -377,8 +379,8 @@ static void handle_server_request(_anj_exchange_ctx_t *ctx,
                                                      in_out_msg->payload_size,
                                                      !ctx->block_transfer);
         if (result) {
-            exchange_log(L_ERROR, "error while writing payload: %" PRIu8,
-                         result);
+            exchange_log(L_ERROR, "error while writing payload: %s",
+                         COAP_CODE_FORMAT(result));
             response_code = result;
             goto send_response;
         } else {
@@ -420,8 +422,8 @@ static void handle_server_request(_anj_exchange_ctx_t *ctx,
                 };
             }
         } else if (result) {
-            exchange_log(L_ERROR, "error while reading payload: %" PRIu8,
-                         result);
+            exchange_log(L_ERROR, "error while reading payload: %s",
+                         COAP_CODE_FORMAT(result));
             response_code = (uint8_t) result;
             goto send_response;
         } else {
@@ -565,7 +567,8 @@ _anj_exchange_new_server_request(_anj_exchange_ctx_t *ctx,
 
 respone_with_error:
     if (result && result != _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED) {
-        exchange_log(L_ERROR, "response with error code: %" PRIu8, result);
+        exchange_log(L_ERROR, "response with error code: %s",
+                     COAP_CODE_FORMAT(result));
         in_out_msg->msg_code = result;
         in_out_msg->payload_size = 0;
         in_out_msg->block.block_type = ANJ_OPTION_BLOCK_NOT_DEFINED;
@@ -651,7 +654,8 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
             }
         }
     } else if (result) {
-        exchange_log(L_ERROR, "error while preparing request: %" PRIu8, result);
+        exchange_log(L_ERROR, "error while preparing request: %s",
+                     COAP_CODE_FORMAT(result));
         return finalize_exchange(ctx, NULL, _ANJ_EXCHANGE_ERROR_REQUEST);
     }
 
@@ -821,16 +825,16 @@ void _anj_exchange_setup_cache(_anj_exchange_ctx_t *ctx,
                                _anj_exchange_cache_t *cache) {
     assert(ctx && cache);
     ctx->cache = cache;
-#    ifdef ANJ_WITH_CACHE
+
     // there is no uint16_t value for "invalid MID" so we invalidate expiration
     // time
-    ctx->cache->cache_recent.expiration_time = ANJ_TIME_REAL_INVALID;
+    ctx->cache->cache_recent.expiration_time = ANJ_TIME_MONOTONIC_INVALID;
     ctx->cache->handling_retransmission = false;
-#        if ANJ_CACHE_ENTRIES_NUMBER > 1
+#    if ANJ_CACHE_ENTRIES_NUMBER > 1
     for (uint8_t i = 0; i < ANJ_ARRAY_SIZE(ctx->cache->cache_non_recent); i++) {
-        ctx->cache->cache_non_recent[i].expiration_time = ANJ_TIME_REAL_INVALID;
+        ctx->cache->cache_non_recent[i].expiration_time =
+                ANJ_TIME_MONOTONIC_INVALID;
     }
-#        endif // ANJ_CACHE_ENTRIES_NUMBER > 1
-#    endif     // ANJ_WITH_CACHE
+#    endif // ANJ_CACHE_ENTRIES_NUMBER > 1
 }
 #endif // ANJ_WITH_CACHE

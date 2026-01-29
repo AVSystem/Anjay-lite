@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
 # AVSystem Anjay Lite LwM2M SDK
 # All rights reserved.
 #
@@ -57,8 +57,8 @@ class SnippetSourceDirective(SphinxDirective):
                 nlines = len(self.content)
                 hl_lines = parselinenos(emphasized_lines, nlines)
                 if any(i >= nlines for i in hl_lines):
-                    raise RuntimeError('line number spec out of range 1-%d: %r' % (
-                        (nlines, self.options['emphasize-lines'])))
+                    raise RuntimeError('%s: line number spec out of range 1-%d: %r' % (
+                        (self.get_source_info()[0], nlines, self.options['emphasize-lines'])))
                 hl_lines = [i + 1 for i in hl_lines]
             except ValueError as err:
                 return [document.reporter.warning(err, line=self.lineno)]

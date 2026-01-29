@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 48
 
 #include <assert.h>
 #include <inttypes.h>
@@ -21,7 +23,7 @@
 
 #include "coap/coap.h"
 #include "core/core_utils.h"
-#include "core/server.h"
+#include "core/srv_conn.h"
 #include "exchange.h"
 
 #ifdef ANJ_WITH_COAP_DOWNLOADER
@@ -33,11 +35,11 @@ static int connect_with_server(anj_coap_downloader_t *ctx) {
     char port[ANJ_U16_STR_MAX_LEN + 1] = { 0 };
     memcpy(hostname, ctx->host, ctx->host_len);
     memcpy(port, ctx->port, ctx->port_len);
-    return _anj_server_connect(&ctx->connection_ctx,
-                               ctx->binding,
-                               &ctx->net_socket_cfg,
-                               hostname,
-                               port);
+    return _anj_srv_conn_connect(&ctx->connection_ctx,
+                                 ctx->binding,
+                                 &ctx->net_socket_cfg,
+                                 hostname,
+                                 port);
 }
 
 static void exchange_completion(void *arg_ptr,
@@ -202,8 +204,8 @@ static int handle_request(anj_coap_downloader_t *ctx) {
                     return ANJ_COAP_DOWNLOADER_ERR_INTERNAL;
                 }
             }
-            result = _anj_server_send(&ctx->connection_ctx, ctx->msg_buffer,
-                                      ctx->out_msg_len);
+            result = _anj_srv_conn_send(&ctx->connection_ctx, ctx->msg_buffer,
+                                        ctx->out_msg_len);
             if (anj_net_is_inprogress(result)) {
                 // check for send ACK timeout, error suggests network issue
                 exchange_state =
@@ -224,9 +226,9 @@ static int handle_request(anj_coap_downloader_t *ctx) {
 
         if (exchange_state == ANJ_EXCHANGE_STATE_WAITING_MSG) {
             size_t msg_size;
-            result = _anj_server_receive(&ctx->connection_ctx, ctx->msg_buffer,
-                                         &msg_size,
-                                         ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE);
+            result = _anj_srv_conn_receive(&ctx->connection_ctx,
+                                           ctx->msg_buffer, &msg_size,
+                                           ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE);
             if (anj_net_is_inprogress(result)) {
                 return result;
             }
@@ -331,7 +333,7 @@ void anj_coap_downloader_step(anj_coap_downloader_t *ctx) {
     }
     case ANJ_COAP_DOWNLOADER_STATUS_FINISHING: {
         handle_event_cb(ctx, ANJ_COAP_DOWNLOADER_STATUS_FINISHING);
-        int result = _anj_server_close(&ctx->connection_ctx, true);
+        int result = _anj_srv_conn_close(&ctx->connection_ctx, true);
         if (anj_net_is_inprogress(result)) {
             break;
         }
@@ -414,9 +416,7 @@ int anj_coap_downloader_start(anj_coap_downloader_t *ctx,
     ctx->port = uri_components.port;
     ctx->port_len = uri_components.port_len;
 
-    if (!net_config
-            && (uri_components.binding_type == ANJ_NET_BINDING_DTLS
-                || uri_components.binding_type == ANJ_NET_BINDING_TLS)) {
+    if (!net_config && uri_components.binding_type == ANJ_NET_BINDING_DTLS) {
         downloader_log(L_ERROR, "No network configuration for secure CoAP");
         return ANJ_COAP_DOWNLOADER_ERR_INVALID_CONFIGURATION;
     }

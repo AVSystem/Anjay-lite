@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -208,17 +208,22 @@ Call the function in the main loop
 ----------------------------------
 .. highlight:: c
 .. snippet-source:: examples/tutorial/BC-Notifications/src/main.c
-    :emphasize-lines: 6
+    :emphasize-lines: 7-9
 
     int main(int argc, char *argv[]) {
         // ...
 
         while (true) {
             anj_core_step(&anj);
-            update_temperature_obj_value(&anj);
+
+            if (!anj_core_ongoing_operation(&anj)) {
+                update_temperature_obj_value(&anj);
+            }
             usleep(50 * 1000);
         }
         return 0;
     }
+
+See :ref:`Concurrent data model modifications<concurrent_dm_modifications>` for more.
 
 That's it. Your application now supports Observe/Notify for dynamic resources like temperature readings.

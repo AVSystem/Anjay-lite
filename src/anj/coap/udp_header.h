@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -101,11 +101,11 @@ static inline void _anj_coap_udp_header_set(anj_coap_header_t *coap_header,
                                             uint8_t token_length,
                                             uint8_t code,
                                             uint16_t message_id_hbo) {
-    coap_header->header_type.udp.version = 1;
-    coap_header->header_type.udp.type = (uint8_t) type;
+    coap_header->udp_header.version = 1;
+    coap_header->udp_header.type = (uint8_t) type;
     coap_header->token_length = token_length;
     coap_header->code = code;
-    coap_header->header_type.udp.message_id_hbo = message_id_hbo;
+    coap_header->udp_header.message_id_hbo = message_id_hbo;
 }
 
 static inline anj_coap_header_t

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -15,7 +15,7 @@
 #endif // ANJ_INTERNAL_INCLUDE_COAP_DOWNLOADER
 
 #define ANJ_INTERNAL_INCLUDE_SERVER
-#include <anj_internal/server.h>
+#include <anj_internal/srv_conn.h>
 #undef ANJ_INTERNAL_INCLUDE_SERVER
 
 #ifdef __cplusplus
@@ -28,7 +28,7 @@ extern "C" {
  * @anj_internal_api_do_not_use
  * CoAP downloader context structure.
  */
-typedef struct anj_coap_downloader_struct {
+typedef struct _anj_coap_downloader_struct {
     _anj_server_connection_ctx_t connection_ctx;
     _anj_exchange_ctx_t exchange_ctx;
     size_t out_msg_len;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -89,7 +89,7 @@ typedef enum {
  *                 anj_dm_fw_update_object_install.
  *
  * @return The callback should return:
- *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if the download process can be
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if the download process can be
  *           initiated,
  *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
  *           reason of failure.
@@ -113,7 +113,7 @@ anj_dm_fw_update_package_write_start_t(void *user_ptr);
  * @param data_size Size of the data chunk.
  *
  * @return The callback should return:
- *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if part of firmware package
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if part of firmware package
  *           has been successfully processed,
  *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
  *           reason of failure.
@@ -138,7 +138,7 @@ typedef anj_dm_fw_update_result_t anj_dm_fw_update_package_write_t(
  *                 anj_dm_fw_update_object_install.
  *
  * @return The callback should return:
- *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if the download process has
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if the download process has
  *           been successfully finalized,
  *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
  *           reason of failure.
@@ -164,7 +164,7 @@ anj_dm_fw_update_package_write_finish_t(void *user_ptr);
  *                 package.
  *
  * @return The callback should return:
- *         - @ref ANJ_DM_FW_UPDATE_RESULT_INITIAL if the download process can be
+ *         - @ref ANJ_DM_FW_UPDATE_RESULT_SUCCESS if the download process can be
  *           initiated,
  *         - other @ref anj_dm_fw_update_result_t value, accordingly to the
  *           reason of failure.

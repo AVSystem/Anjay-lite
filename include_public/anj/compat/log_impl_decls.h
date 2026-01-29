@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -29,6 +29,7 @@
 
 #    include <stdarg.h>
 #    include <stddef.h>
+#    include <stdint.h>
 
 #    ifdef __cplusplus
 extern "C" {
@@ -73,6 +74,26 @@ void anj_log_handler_impl_full(anj_log_level_t level,
                                int line,
                                const char *format,
                                ...);
+/**
+ * Micro implementation of log handler, enabled if @ref ANJ_LOG_MICRO is
+ * defined.
+ *
+ * @warning This function is not meant to be called directly. Use the
+ *          @ref anj_log macro instead.
+ *
+ * @param level          Log level of the message.
+ * @param source_file_id Numeric id of the file where the log message originates
+ *                           from.
+ * @param line           Line number in the source file where the log message
+ *                           originates from.
+ * @param format         printf-style format string for the log message.
+ * @param ...            Arguments for the format string.
+ */
+void anj_log_handler_impl_micro(anj_log_level_t level,
+                                uint16_t source_file_id,
+                                uint16_t line,
+                                const char *format,
+                                ...);
 
 /**
  * Function used to output the formatted log strings, if one of builtin handler

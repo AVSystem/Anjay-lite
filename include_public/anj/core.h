@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -46,13 +46,7 @@
 extern "C" {
 #    endif
 
-#    if defined(ANJ_COAP_WITH_TCP) && defined(ANJ_COAP_WITH_UDP)
-#        define ANJ_SUPPORTED_BINDING_MODES "UT"
-#    elif defined(ANJ_COAP_WITH_TCP)
-#        define ANJ_SUPPORTED_BINDING_MODES "T"
-#    else
-#        define ANJ_SUPPORTED_BINDING_MODES "U"
-#    endif
+#    define ANJ_SUPPORTED_BINDING_MODES "U"
 
 /**
  * This enum represents the possible states of a server connection.
@@ -271,12 +265,6 @@ typedef struct anj_configuration_struct {
  * Initializes the core of the Anjay Lite library. The @p anj object must be
  * created and allocated by the user before calling this function.
  *
- * @warning User must ensure that real (calendar) time (see @ref
- *          anj_time_real_now) is set correctly before calling this function.
- *          Many internal mechanisms depend on the monotonic clock. Significant
- *          adjustments of the clock (e.g. via NTP or manual update) after
- *          initialization may cause the library to behave incorrectly.
- *
  * @param anj    Anjay object to operate on.
  * @param config Configuration structure.
  *
@@ -417,6 +405,23 @@ void anj_core_server_obj_bootstrap_request_trigger_executed(anj_t *anj);
 void anj_core_data_model_changed(anj_t *anj,
                                  const anj_uri_path_t *path,
                                  anj_core_change_type_t change_type);
+
+/**
+ * Checks if there is an ongoing operation on Data Model.
+ * If this function returns true, user must not modify Data Model, i.e.:
+ *  - add or remove Objects
+ *  - arr or remove Object Instances,
+ *  - add or remove Resource Instances,
+ *  - change values of Resources,
+ *  - change values of Resource Instances,
+ *  and maintain validity of external data sources, pointers and buffers, that
+ *  might be accessed with Resource Handlers within Object implementation
+ *
+ * @param anj Anjay object to operate on.
+ *
+ * @return true if there is an ongoing operation, false otherwise.
+ */
+bool anj_core_ongoing_operation(anj_t *anj);
 
 /**
  * Temporarily disables the LwM2M Server connection.

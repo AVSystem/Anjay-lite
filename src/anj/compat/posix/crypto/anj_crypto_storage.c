@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -9,6 +9,9 @@
 
 #include <anj/init.h>
 
+#define ANJ_LOG_SOURCE_FILE_ID 56
+
+// IWYU pragma: begin_keep
 #include <assert.h>
 #include <errno.h>
 #include <stdbool.h>
@@ -16,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+// IWYU pragma: end_keep
 
 #if defined(ANJ_WITH_CRYPTO_STORAGE_DEFAULT)
 
@@ -181,11 +185,11 @@ int anj_crypto_storage_delete_record(void *crypto_ctx,
     }
     // Remove entry from local structure (if found)
     if (idx >= 0) {
-        ctx->file_name[idx][0] = '\0'; // mark as empty
         assert(ctx->occupied_slots > 0);
         ctx->occupied_slots--;
         data_loader_log(L_INFO, "Deleted security record '%s'",
                         external_info->identity);
+        ctx->file_name[idx][0] = '\0'; // mark as empty
         return 0;
     }
     // Not found in table — maybe it was already deleted?

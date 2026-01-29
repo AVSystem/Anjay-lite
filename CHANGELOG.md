@@ -1,5 +1,38 @@
 # Changelog
 
+## Anjay Lite 2.0.0 (January 29th, 2026)
+
+### BREAKING CHANGES
+- Removed support for TCP and TLS bindings in NET layer - 
+  `ANJ_NET_WITH_TCP`, `ANJ_COAP_WITH_UDP`, `ANJ_COAP_WITH_TCP` options were removed.
+- Removed `anj_net_shutdown` from NET layer.
+- Monotonic time is now the primary clock used for scheduling operations,
+  replacing real-time clock usage across the codebase.
+
+### Features
+- NTP module for time synchronization.
+- (commercial version only) Added default OSCORE Object implementation.
+- Added support for canceling observations with CoAP RST message.
+- Re-introduced `anj_core_ongoing_operation` API.
+- Added `ANJ_OBSERVE_OBSERVATION_CANCEL_ON_TIMEOUT` option to control behavior
+  in case of notification timeouts.
+- Introduced `ANJ_LOG_MICRO` option for optimizing footprint of 
+  logging with `tools/micro_logs_decode.py` tool to decode log messages.
+
+### Improvements
+- Switch RNG implementation from getrandom() to getentropy() for improved portability.
+- Tests structure refactored in order to increase coverage.
+- Shorter Send operation payloads due to the use of a common path when encoding messages.
+- MbedTLS integration layer sets the correct MTU value.
+- MbedTLS is now fetched and compiled only once when calling `make all` via root `CMakeLists.txt`.
+
+### Bugfixes
+- Fixed a bug in TLV decoder that incorrectly rejected request with a resource
+  instance specified in the uri-path.
+- Fixed handling of Discover requests targeting the root path.
+- Fixed incorrect descriptions of return values in callbacks from FOTA.
+- Writes to Object Instances now ignore unknown optional Resources, per LwM2M specification.
+
 ## Anjay Lite 1.0.0 (October 20th, 2025)
 
 ### BREAKING CHANGES

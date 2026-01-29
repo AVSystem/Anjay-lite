@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -19,6 +19,27 @@
 #    include <anj/defs.h>
 
 #    include "coap/coap.h"
+
+#    define _ANJ_CBOR_VAL_OR_LEN_LEN_IMPL(Val_or_len)   \
+        ((Val_or_len) <= 23                             \
+                 ? 1                                    \
+                 : (Val_or_len) <= UINT8_MAX            \
+                           ? 2                          \
+                           : (Val_or_len) <= UINT16_MAX \
+                                     ? 3                \
+                                     : (Val_or_len) <= UINT32_MAX ? 5 : 9)
+#    define _ANJ_CBOR_VAL_OR_LEN_LEN_AVOID_ZERO(Val_or_len) \
+        ((Val_or_len) == 0 ? 1 : (Val_or_len))
+/**
+ * HACK: Invoking this macro with 0 leads to compile-time comparisons of
+ * unsigned 0 with other compile-time unsigned integer, which in some versions
+ * of gcc yields a warning about the comparison being always true/false. To
+ * avoid comparisons with 0 directly, 0 is replaced with 1 before comparison;
+ * this yields the same results and avoids the warning.
+ */
+#    define _ANJ_CBOR_VAL_OR_LEN_LEN(Val_or_len) \
+        _ANJ_CBOR_VAL_OR_LEN_LEN_IMPL(           \
+                _ANJ_CBOR_VAL_OR_LEN_LEN_AVOID_ZERO(Val_or_len))
 
 /**
  * Check if path points to Security or OSCORE object.

@@ -1,4 +1,4 @@
-# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
 # AVSystem Anjay Lite LwM2M SDK
 # All rights reserved.
 #
@@ -26,6 +26,7 @@ set(ANJ_WITH_DEFAULT_SECURITY_OBJ ON)
 # server object configuration
 set(ANJ_WITH_DEFAULT_SERVER_OBJ ON)
 
+
 # FOTA object configuration
 set(ANJ_WITH_DEFAULT_FOTA_OBJ ON)
 set(ANJ_FOTA_WITH_PULL_METHOD ON)
@@ -39,6 +40,9 @@ set(ANJ_FOTA_WITH_COAPS_TCP ON)
 
 # CoAP downloader configuration
 set(ANJ_WITH_COAP_DOWNLOADER ON)
+
+# anj ntp configuration
+set(ANJ_WITH_NTP ON)
 
 # observe configuration
 set(ANJ_WITH_OBSERVE ON)
@@ -62,14 +66,14 @@ set(ANJ_WITH_RNG_POSIX_COMPAT ON)
 set(ANJ_NET_WITH_IPV4 ON)
 set(ANJ_NET_WITH_IPV6 ON)
 set(ANJ_NET_WITH_UDP ON)
-set(ANJ_NET_WITH_TCP ON)
 set(ANJ_NET_WITH_DTLS OFF)
-set(ANJ_WITH_CRYPTO_STORAGE_DEFAULT ON)
+# TODO: Turn ON ANJ_WITH_EXTERNAL_CRYPTO_STORAGE as soon as OSCORE object can
+# compile with external crypto storage.
+set(ANJ_WITH_EXTERNAL_CRYPTO_STORAGE OFF)
 set(ANJ_WITH_MBEDTLS OFF)
 
 # security configuration
 set(ANJ_WITH_SECURITY ON)
-set(ANJ_WITH_EXTERNAL_CRYPTO_STORAGE ON)
 
 # data formats configuration
 set(ANJ_WITH_CBOR ON)
@@ -85,8 +89,6 @@ set(ANJ_WITH_TLV ON)
 set(ANJ_WITH_EXTERNAL_DATA ON)
 
 # CoAP related configuration
-set(ANJ_COAP_WITH_UDP ON)
-set(ANJ_COAP_WITH_TCP ON)
 set(ANJ_WITH_CACHE ON)
 
 # logger configuration

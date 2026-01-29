@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -155,15 +155,6 @@ int anj_udp_recv(anj_net_ctx_t *ctx_,
          */
         return ANJ_NET_EMSGSIZE;
     }
-    return ANJ_NET_OK;
-}
-
-int anj_udp_shutdown(anj_net_ctx_t *ctx_) {
-    net_ctx_posix_impl_t *ctx = (net_ctx_posix_impl_t *) ctx_;
-
-    shutdown(ctx->sockfd, SHUT_RDWR);
-
-    ctx->state = ANJ_NET_SOCKET_STATE_SHUTDOWN;
     return ANJ_NET_OK;
 }
 

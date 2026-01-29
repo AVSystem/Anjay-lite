@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -24,16 +24,6 @@
 /** CoAP payload marker */
 #    define _ANJ_COAP_PAYLOAD_MARKER ((uint8_t) { 0xFF })
 
-#    ifdef ANJ_COAP_WITH_TCP
-#        define _ANJ_COAP_EXTENDED_LENGTH_MIN_8BIT 13U
-#        define _ANJ_COAP_EXTENDED_LENGTH_MIN_16BIT 269U
-#        define _ANJ_COAP_EXTENDED_LENGTH_MIN_32BIT 65805U
-
-#        define _ANJ_COAP_EXTENDED_LENGTH_UINT8 13U
-#        define _ANJ_COAP_EXTENDED_LENGTH_UINT16 14U
-#        define _ANJ_COAP_EXTENDED_LENGTH_UINT32 15U
-#    endif // ANJ_COAP_WITH_TCP
-
 #    define _ANJ_FIELD_GET(field, mask, shift) \
         ((uint8_t) ((((uint32_t) (field)) & ((uint32_t) (mask))) >> (shift)))
 #    define _ANJ_FIELD_SET(field, mask, shift, value)                      \
@@ -46,24 +36,16 @@
             return Val;        \
         }
 
-typedef struct {
-    uint8_t msg_length;
-    uint32_t extended_length_hbo;
-} anj_coap_tcp_header_t;
-
 #    define _ANJ_COAP_MESSAGE_ID_LEN 2
 typedef struct {
     uint8_t version;
     uint8_t type;
+    // hbo - host byte order
     uint16_t message_id_hbo;
 } anj_coap_udp_header_t;
 
 typedef struct {
-    union {
-        anj_coap_tcp_header_t tcp;
-        anj_coap_udp_header_t udp;
-    } header_type;
-
+    anj_coap_udp_header_t udp_header;
     uint8_t code;
     uint8_t token_length;
 } anj_coap_header_t;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 19
 
 #include <assert.h>
 #include <string.h>
@@ -24,7 +26,7 @@
 
 #ifdef ANJ_WITH_DEFAULT_DEVICE_OBJ
 
-#    define ANJ_DM_DEVICE_RESOURCES_COUNT 7
+#    define ANJ_DM_DEVICE_RESOURCES_COUNT 8
 
 enum {
     RID_MANUFACTURER = 0,
@@ -34,6 +36,7 @@ enum {
     RID_REBOOT = 4,
     RID_ERROR_CODE = 11,
     RID_BINDING_MODES = 16,
+    RID_SOFTWARE_VERSION = 19
 };
 
 enum {
@@ -44,6 +47,7 @@ enum {
     RID_REBOOT_IDX,
     RID_ERROR_CODE_IDX,
     RID_BINDING_MODES_IDX,
+    RID_SOFTWARE_VERSION_IDX,
     _RID_LAST
 };
 
@@ -91,6 +95,11 @@ static const anj_dm_res_t RES[ANJ_DM_DEVICE_RESOURCES_COUNT] = {
     },
     [RID_BINDING_MODES_IDX] = {
         .rid = RID_BINDING_MODES,
+        .type = ANJ_DATA_TYPE_STRING,
+        .kind = ANJ_DM_RES_R
+    },
+    [RID_SOFTWARE_VERSION_IDX] = {
+        .rid = RID_SOFTWARE_VERSION,
         .type = ANJ_DATA_TYPE_STRING,
         .kind = ANJ_DM_RES_R
     }
@@ -154,6 +163,9 @@ static int res_read(anj_t *anj,
     case RID_BINDING_MODES:
         out_value->bytes_or_string.data = ctx->binding_modes;
         break;
+    case RID_SOFTWARE_VERSION:
+        out_value->bytes_or_string.data = ctx->software_version;
+        break;
     case RID_ERROR_CODE: {
         // resource is not supported, there is only one instance with default
         // value
@@ -188,6 +200,7 @@ int anj_dm_device_obj_install(anj_t *anj,
     device_obj->model_number = obj_init->model_number;
     device_obj->serial_number = obj_init->serial_number;
     device_obj->firmware_version = obj_init->firmware_version;
+    device_obj->software_version = obj_init->software_version;
     device_obj->binding_modes = ANJ_SUPPORTED_BINDING_MODES;
 
     device_obj->inst.resources = RES;

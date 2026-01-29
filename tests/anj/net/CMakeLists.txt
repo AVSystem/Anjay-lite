@@ -1,4 +1,4 @@
-# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
 # AVSystem Anjay Lite LwM2M SDK
 # All rights reserved.
 #
@@ -16,7 +16,6 @@ set(CMAKE_BUILD_TYPE Debug)
 set(ANJ_TESTING ON)
 set(ANJ_WITH_SOCKET_POSIX_COMPAT ON)
 set(ANJ_NET_WITH_UDP ON)
-set(ANJ_NET_WITH_TCP ON)
 set(ANJ_NET_WITH_IPV4 ON)
 set(ANJ_NET_WITH_IPV6 ON)
 

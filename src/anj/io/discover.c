@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 35
 
 #include <assert.h>
 #include <stdbool.h>
@@ -58,7 +60,10 @@ int _anj_io_bootstrap_discover_ctx_new_entry(
             && path->ids[ANJ_ID_OID] != ANJ_OBJ_ID_OSCORE) {
         return _ANJ_IO_ERR_INPUT_ARG;
     }
-    if (!ssid && path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_SERVER) {
+    // SSID is mandatory for Server object instances, but not for Objects
+    // themselves
+    if (!ssid && path->ids[ANJ_ID_OID] == ANJ_OBJ_ID_SERVER
+            && anj_uri_path_is(path, ANJ_ID_IID)) {
         return _ANJ_IO_ERR_INPUT_ARG;
     }
     if (uri && path->ids[ANJ_ID_OID] != ANJ_OBJ_ID_SECURITY) {

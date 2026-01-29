@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -35,7 +35,7 @@ extern "C" {
 #undef ANJ_INTERNAL_INCLUDE_IO_CTX
 
 #define ANJ_INTERNAL_INCLUDE_SERVER
-#include <anj_internal/server.h>
+#include <anj_internal/srv_conn.h>
 #undef ANJ_INTERNAL_INCLUDE_SERVER
 
 /**
@@ -112,8 +112,8 @@ typedef struct anj_struct {
 
     struct {
         bool disable_triggered;
-        anj_time_real_t enable_time;
-        anj_time_real_t enable_time_user_triggered;
+        anj_time_monotonic_t enable_time;
+        anj_time_monotonic_t enable_time_user_triggered;
         bool registration_update_triggered;
         bool bootstrap_request_triggered;
         bool restart_triggered;
@@ -133,8 +133,8 @@ typedef struct anj_struct {
                 uint8_t registration_state;
             } registration;
             struct {
-                anj_time_real_t next_update_time;
-                anj_time_real_t queue_start_time;
+                anj_time_monotonic_t next_update_time;
+                anj_time_monotonic_t queue_start_time;
                 bool update_with_lifetime;
                 bool update_with_payload;
                 uint8_t internal_state;

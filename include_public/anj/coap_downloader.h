@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -316,4 +316,4 @@ int anj_coap_downloader_get_error(anj_coap_downloader_t *coap_downloader);
 }
 #    endif
 
-#endif // ANJ_CORE_H
+#endif // ANJ_COAP_DOWNLOADER_H

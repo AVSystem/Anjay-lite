@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 46
 
 #include <assert.h>
 #include <inttypes.h>
@@ -91,7 +93,7 @@ static void get_observation_paths_for_composite(anj_t *anj) {
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
 
 void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
-                                    anj_time_real_t timestamp,
+                                    anj_time_monotonic_t timestamp,
                                     bool confirmable) {
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     const _anj_observe_observation_t *first_observation =
@@ -101,8 +103,9 @@ void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
         ctx->processing_observation->last_notify_timestamp = timestamp;
         if (confirmable) {
             ctx->processing_observation->next_conf_notify_timestamp =
-                    anj_time_real_add(timestamp, anj_time_duration_new(
-                                                         1, ANJ_TIME_UNIT_DAY));
+                    anj_time_monotonic_add(
+                            timestamp,
+                            anj_time_duration_new(1, ANJ_TIME_UNIT_DAY));
         }
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         if (ctx->processing_observation->prev) {
@@ -347,6 +350,8 @@ static int add_observation(anj_t *anj,
             return res;
         }
     }
+#    else  // ANJ_WITH_LWM2M12
+    (void) notification_attr; // suppress unused parameter warning
 #    endif // ANJ_WITH_LWM2M12
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
     observation = find_spot_for_new_observation(ctx);
@@ -428,7 +433,7 @@ static uint8_t add_composite_observation(void *arg_ptr,
     if ((result == _ANJ_IO_EOF && !foo_obs_result)
             || result == _ANJ_IO_WANT_NEXT_PAYLOAD) {
         if (last_block) {
-            _anj_observe_refresh_timestamp(ctx, anj_time_real_now(), true);
+            _anj_observe_refresh_timestamp(ctx, anj_time_monotonic_now(), true);
             _anj_observe_set_uri_paths_and_format(anj);
         }
         return 0;
@@ -478,9 +483,9 @@ uint8_t _anj_observe_build_message(void *arg_ptr,
     return 0;
 }
 
-static void anj_exchange_completion(void *arg_ptr,
-                                    const _anj_coap_msg_t *response,
-                                    int result) {
+static void observe_exchange_completion(void *arg_ptr,
+                                        const _anj_coap_msg_t *response,
+                                        int result) {
     (void) response;
     anj_t *anj = (anj_t *) arg_ptr;
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
@@ -502,7 +507,6 @@ static void anj_exchange_completion(void *arg_ptr,
             observe_log(L_INFO, "Observation added");
         } else if (ctx->in_progress_type == MSG_TYPE_CANCEL_OBSERVE_RESPONSE) {
             _anj_observe_remove_observation(ctx);
-            observe_log(L_INFO, "Observation removed");
         }
     }
 }
@@ -549,6 +553,10 @@ check_observe_attributes(const anj_uri_path_t *uri_path,
     return _anj_observe_verify_attributes(notification_attr, uri_path,
                                           composite);
 #    else  // ANJ_WITH_LWM2M12
+    (void) uri_path; // suppress unused parameter warning
+    (void) notification_attr;
+    (void) composite;
+    observe_log(L_ERROR, "Observe attributes are not supported");
     return ANJ_COAP_CODE_BAD_REQUEST;
 #    endif // ANJ_WITH_LWM2M12
 }
@@ -592,7 +600,7 @@ static int parse_request(anj_t *anj,
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
             .write_payload = add_composite_observation,
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
-            .completion = anj_exchange_completion,
+            .completion = observe_exchange_completion,
             .arg = anj
         };
         ctx->in_progress_type = MSG_TYPE_OBSERVE_RESPONSE;
@@ -643,7 +651,7 @@ static int parse_request(anj_t *anj,
                     break;
                 }
             }
-            _anj_observe_refresh_timestamp(ctx, anj_time_real_now(), true);
+            _anj_observe_refresh_timestamp(ctx, anj_time_monotonic_now(), true);
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         }
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
@@ -662,7 +670,7 @@ static int parse_request(anj_t *anj,
     case ANJ_OP_INF_CANCEL_OBSERVE:
         *out_handlers = (_anj_exchange_handlers_t) {
             .read_payload = _anj_observe_build_message,
-            .completion = anj_exchange_completion,
+            .completion = observe_exchange_completion,
             .arg = anj
         };
         ctx->in_progress_type = MSG_TYPE_CANCEL_OBSERVE_RESPONSE;
@@ -722,5 +730,27 @@ void _anj_observe_remove_all_observations(anj_t *anj, uint16_t ssid) {
         }
     }
 }
+
+#    ifdef ANJ_WITH_RST_AS_CANCEL_OBSERVE
+void _anj_observe_update_last_mid(anj_t *anj, uint16_t mid) {
+    _anj_observe_ctx_t *ctx = &anj->observe_ctx;
+    _anj_observe_observation_t *observation = ctx->processing_observation;
+    if (!observation) {
+        return;
+    }
+    observation->last_sent_mid = mid;
+}
+
+void _anj_observe_cancel_observation_by_mid(anj_t *anj, uint16_t mid) {
+    _anj_observe_ctx_t *ctx = &anj->observe_ctx;
+    for (size_t i = 0; i < ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER; i++) {
+        if (ctx->observations[i].last_sent_mid == mid
+                && ctx->observations[i].ssid != 0) {
+            ctx->processing_observation = &ctx->observations[i];
+            _anj_observe_remove_observation(ctx);
+        }
+    }
+}
+#    endif // ANJ_WITH_RST_AS_CANCEL_OBSERVE
 
 #endif // ANJ_WITH_OBSERVE

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 44
 
 #include <assert.h>
 #include <stdint.h>
@@ -407,8 +409,24 @@ static int tlv_get_path(_anj_io_in_ctx_t *ctx) {
         ctx->decoder.tlv.current_path.ids[(size_t) type] = id;
         ctx->decoder.tlv.current_path.uri_len = (size_t) type + 1;
 
-        if (anj_uri_path_outside_base(&ctx->decoder.tlv.current_path,
-                                      &ctx->decoder.tlv.uri_path)) {
+        /**
+         * Make check only when has_value is true -> we are at the level of
+         * resource with value, or resource instance with value, so we skip path
+         * check on the level of resource for multiple instance case (check
+         * description in get_id() function).
+         */
+        if (has_value
+                && anj_uri_path_outside_base(&ctx->decoder.tlv.current_path,
+                                             &ctx->decoder.tlv.uri_path)) {
+            return _ANJ_IO_ERR_FORMAT;
+        }
+        /**
+         * Prevent the situation where request uri path has depth of IID and
+         * TLV contains only RIID entries (no RID level).
+         */
+        if (anj_uri_path_has(&ctx->decoder.tlv.current_path, ANJ_ID_RID)
+                && ctx->decoder.tlv.current_path.ids[ANJ_ID_RID]
+                               == ANJ_ID_INVALID) {
             return _ANJ_IO_ERR_FORMAT;
         }
         ctx->decoder.tlv.type_field = 0xFF;

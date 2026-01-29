@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 8
 
 #include <assert.h>
 #include <stdbool.h>
@@ -34,9 +36,9 @@
 #    include "../observe/observe.h"
 #endif // ANJ_WITH_OBSERVE
 
-#ifdef ANJ_WITH_SECURITY
+#ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 #    include <anj/compat/crypto/storage.h>
-#endif // ANJ_WITH_SECURITY
+#endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
 #include "../dm/dm_io.h"
 #include "../exchange.h"
@@ -44,8 +46,8 @@
 #include "core_utils.h"
 #include "reg_session.h"
 #include "register.h"
-#include "server.h"
 #include "server_register.h"
+#include "srv_conn.h"
 
 #ifdef ANJ_WITH_BOOTSTRAP
 #    include "server_bootstrap.h"
@@ -114,7 +116,7 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config) {
         anj->queue_mode_timeout =
                 (anj_time_duration_eq(config->queue_mode_timeout,
                                       ANJ_TIME_DURATION_ZERO))
-                        ? _anj_server_calculate_max_transmit_wait(
+                        ? _anj_srv_conn_calculate_max_transmit_wait(
                                   &anj->exchange_ctx.tx_params)
                         : config->queue_mode_timeout;
     }
@@ -159,9 +161,9 @@ void anj_core_server_obj_disable_executed(anj_t *anj, uint32_t timeout) {
     }
     log(L_INFO, "Disable resource executed");
     anj->server_state.disable_triggered = true;
-    anj->server_state.enable_time =
-            anj_time_real_add(anj_time_real_now(),
-                              anj_time_duration_new(timeout, ANJ_TIME_UNIT_S));
+    anj->server_state.enable_time = anj_time_monotonic_add(
+            anj_time_monotonic_now(),
+            anj_time_duration_new(timeout, ANJ_TIME_UNIT_S));
 }
 
 void anj_core_server_obj_registration_update_trigger_executed(anj_t *anj) {
@@ -289,6 +291,10 @@ static _anj_core_next_action_t anj_core_step_internal(anj_t *anj) {
     return _ANJ_CORE_NEXT_ACTION_LEAVE;
 }
 
+bool anj_core_ongoing_operation(anj_t *anj) {
+    return anj->dm.op_in_progress;
+}
+
 static void init_new_conn_status(anj_t *anj,
                                  anj_conn_status_t last_conn_status) {
     switch (anj->server_state.conn_status) {
@@ -333,11 +339,11 @@ void anj_core_step(anj_t *anj) {
             // trigger functions, so the only remaining task here is to close
             // the connection before changing the state. We always perform
             // connection cleanup here.
-            int res = _anj_server_close(&anj->connection_ctx, true);
+            int res = _anj_srv_conn_close(&anj->connection_ctx, true);
             if (anj_net_is_inprogress(res)) {
                 return;
             }
-            // Regardless of the result of _anj_server_close, we proceed with
+            // Regardless of the result of _anj_srv_conn_close, we proceed with
             // the state change. Priority of state transitions (highest to
             // lowest): Restart, Bootstrap Request, Disable
             if (anj->server_state.restart_triggered) {
@@ -367,27 +373,27 @@ void anj_core_step(anj_t *anj) {
 
 anj_time_duration_t anj_core_next_step_time(anj_t *anj) {
     assert(anj);
-    anj_time_real_t current_time = anj_time_real_now();
+    anj_time_monotonic_t current_time = anj_time_monotonic_now();
     if (anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED) {
-        anj_time_real_t enable_time;
-        if (anj_time_real_gt(anj->server_state.enable_time_user_triggered,
-                             anj->server_state.enable_time)) {
+        anj_time_monotonic_t enable_time;
+        if (anj_time_monotonic_gt(anj->server_state.enable_time_user_triggered,
+                                  anj->server_state.enable_time)) {
             enable_time = anj->server_state.enable_time_user_triggered;
         } else {
             enable_time = anj->server_state.enable_time;
         }
 
-        if (anj_time_real_gt(enable_time, current_time)) {
-            return anj_time_real_diff(enable_time, current_time);
+        if (anj_time_monotonic_gt(enable_time, current_time)) {
+            return anj_time_monotonic_diff(enable_time, current_time);
         }
     } else if (anj->server_state.conn_status == ANJ_CONN_STATUS_QUEUE_MODE) {
-        anj_time_real_t next_update_time =
+        anj_time_monotonic_t next_update_time =
                 anj->server_state.details.registered.next_update_time;
-        assert(anj_time_real_is_valid(next_update_time));
+        assert(anj_time_monotonic_is_valid(next_update_time));
         anj_time_duration_t time_to_next_update;
-        if (!anj_time_real_lt(next_update_time, current_time)) {
+        if (!anj_time_monotonic_lt(next_update_time, current_time)) {
             time_to_next_update =
-                    anj_time_real_diff(next_update_time, current_time);
+                    anj_time_monotonic_diff(next_update_time, current_time);
         } else {
             time_to_next_update = ANJ_TIME_DURATION_ZERO;
         }
@@ -416,10 +422,11 @@ void anj_core_disable_server(anj_t *anj, anj_time_duration_t timeout) {
     assert(anj);
     log(L_INFO, "Disable called");
     if (!anj_time_duration_is_valid(timeout)) {
-        anj->server_state.enable_time_user_triggered = ANJ_TIME_REAL_INVALID;
+        anj->server_state.enable_time_user_triggered =
+                ANJ_TIME_MONOTONIC_INVALID;
     } else {
         anj->server_state.enable_time_user_triggered =
-                anj_time_real_add(anj_time_real_now(), timeout);
+                anj_time_monotonic_add(anj_time_monotonic_now(), timeout);
     }
 
     if (anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED
@@ -456,7 +463,7 @@ void anj_core_restart(anj_t *anj) {
 }
 
 int anj_core_shutdown(anj_t *anj) {
-    // Functions called until _anj_server_close() have no side effects when
+    // Functions called until _anj_srv_conn_close() have no side effects when
     // called again, so we do not track if the shutdown process was already
     // initiated.
     assert(anj);
@@ -466,7 +473,7 @@ int anj_core_shutdown(anj_t *anj) {
     anj_send_abort(anj, ANJ_SEND_ID_ALL);
 #endif // ANJ_WITH_LWM2M_SEND
 
-    int res = _anj_server_close(&anj->connection_ctx, true);
+    int res = _anj_srv_conn_close(&anj->connection_ctx, true);
     if (anj_net_is_inprogress(res)) {
         return res;
     }

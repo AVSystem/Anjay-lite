@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -75,8 +75,9 @@ typedef enum {
  *   // Do send a response
  *   // and call _anj_exchange_process again to inform
  *   // that message has been sent.
- *   if (_anj_exchange_process(&exchange_ctx, ANJ_EXCHANGE_EVENT_SEND_ACK,
- *       &inout_msg) == ANJ_EXCHANGE_STATE_FINISHED) {
+ *   if (_anj_exchange_process(&exchange_ctx,
+ *                             ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+ *                             &inout_msg) == ANJ_EXCHANGE_STATE_FINISHED) {
  *     break;
  *   }
  *
@@ -108,8 +109,9 @@ typedef enum {
  *     // Do send a block of the payload
  *     // and call _anj_exchange_process again to inform
  *     // that message has been sent.
- *     if (_anj_exchange_process(&exchange_ctx, ANJ_EXCHANGE_EVENT_SEND_ACK,
- *         &inout_msg) == ANJ_EXCHANGE_STATE_FINISHED) {
+ *     if (_anj_exchange_process(&exchange_ctx,
+ *                               ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
+ *                               &inout_msg) == ANJ_EXCHANGE_STATE_FINISHED) {
  *       break;
  *     }
  *
@@ -312,6 +314,28 @@ int anj_observe_data_model_changed(anj_t *anj,
                                    const anj_uri_path_t *path,
                                    anj_observe_change_type_t change_type,
                                    uint16_t ssid);
+
+#        ifdef ANJ_WITH_RST_AS_CANCEL_OBSERVE
+/**
+ * Sets last sent Message ID in the currently processed Observation so that
+ * Anjay Lite can intepret CoAP Reset messages as Cancel Observe properly.
+ *
+ * @param anj Anjay object to operate on.
+ * @param mid Message ID assigned to the last sent Notify related to currently
+ *            processed observation
+ */
+void _anj_observe_update_last_mid(anj_t *anj, uint16_t mid);
+
+/**
+ * Searches for an Observation that has last sent Notify MID same as \p mid
+ * and deletes it if found. This funciton is used for handling CoAP Reset
+ * response to a Notify as Cancel Observe.
+ *
+ * @param anj Anjay object to operate on.
+ * @param mid Message ID of received CoAP Reset message
+ */
+void _anj_observe_cancel_observation_by_mid(anj_t *anj, uint16_t mid);
+#        endif // ANJ_WITH_RST_AS_CANCEL_OBSERVE
 
 #    endif // ANJ_WITH_OBSERVE
 

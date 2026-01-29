@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -46,7 +46,6 @@ extern "C" {
  * CoAP code values as defined in RFC 7252, RFC 7959 and related extensions.
  *
  * @see RFC7252 (CoAP), RFC7959 (Blockwise), RFC8132 (FETCH/PATCH/iPATCH),
- *      RFC8323 (CoAP over TCP/TLS, Signaling codes)
  * @{
  */
 
@@ -87,12 +86,6 @@ extern "C" {
 #define ANJ_COAP_CODE_SERVICE_UNAVAILABLE     ANJ_COAP_CODE(5, 3)
 #define ANJ_COAP_CODE_GATEWAY_TIMEOUT         ANJ_COAP_CODE(5, 4)
 #define ANJ_COAP_CODE_PROXYING_NOT_SUPPORTED  ANJ_COAP_CODE(5, 5)
-
-#define ANJ_COAP_CODE_CSM      ANJ_COAP_CODE(7, 1)
-#define ANJ_COAP_CODE_PING     ANJ_COAP_CODE(7, 2)
-#define ANJ_COAP_CODE_PONG     ANJ_COAP_CODE(7, 3)
-#define ANJ_COAP_CODE_RELEASE  ANJ_COAP_CODE(7, 4)
-#define ANJ_COAP_CODE_ABORT    ANJ_COAP_CODE(7, 5)
 
 // clang-format on
 
@@ -136,8 +129,12 @@ typedef uint16_t anj_riid_t;
 typedef struct anj_struct anj_t;
 
 #    ifdef ANJ_WITH_COAP_DOWNLOADER
-typedef struct anj_coap_downloader_struct anj_coap_downloader_t;
+typedef struct _anj_coap_downloader_struct anj_coap_downloader_t;
 #    endif // ANJ_WITH_COAP_DOWNLOADER
+
+#    ifdef ANJ_WITH_NTP
+typedef struct _anj_ntp_struct anj_ntp_t;
+#    endif // ANJ_WITH_NTP
 
 /**
  * LwM2M Server URI maximum size (including null terminator).
@@ -529,6 +526,17 @@ typedef struct {
     /** Object Instance ID. */
     anj_iid_t iid;
 } anj_objlnk_value_t;
+
+/**
+ * An Object Link referencing no Object Instance as defined by LwM2M.
+ *
+ * @see @lwm2m_core &sect;C
+ */
+#    define ANJ_NULL_LINK          \
+        (anj_objlnk_value_t) {     \
+            .oid = ANJ_ID_INVALID, \
+            .iid = ANJ_ID_INVALID  \
+        }
 
 /**
  * Union type holding the value of a resource, in one of the supported

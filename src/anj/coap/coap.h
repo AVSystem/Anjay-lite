@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -75,13 +75,6 @@
 /** Location paths number oversizes @ref ANJ_COAP_MAX_LOCATION_PATHS_NUMBER */
 #    define _ANJ_ERR_LOCATION_PATHS_NUMBER (-8)
 
-#    ifdef ANJ_COAP_WITH_TCP
-/** Incomplete CoAP message. */
-#        define _ANJ_INF_COAP_TCP_INCOMPLETE_MESSAGE 1
-/** More data present in TCP packet. */
-#        define _ANJ_INF_COAP_TCP_MORE_DATA_PRESENT 2
-#    endif // ANJ_COAP_WITH_TCP
-
 /**
  * Maximum possible size of CoAP ACK message without payload.
  *
@@ -94,7 +87,6 @@
  */
 #    define _ANJ_COAP_UDP_RESPONSE_MSG_HEADER_MAX_SIZE 25
 
-#    ifdef ANJ_COAP_WITH_UDP
 /**
  * Based on @p msg decodes CoAP message, compliant with the LwM2M version 1.1
  * or 1.2 (check @ref ANJ_WITH_LWM2M12 config flag). All information from
@@ -105,7 +97,8 @@
  *
  * @param      msg      LWM2M/CoAP message.
  * @param      msg_size Length of the message.
- * @param[out] out_data Empty LwM2M data instance.
+ * @param[out] out_data Empty LwM2M data instance. @note It will be zeroed by
+ * the function before assigning any values
  *
  * NOTES: Check tests/lwm2m_decode.c to see the examples of usage.
  *
@@ -116,37 +109,6 @@
 int _anj_coap_decode_udp(uint8_t *msg,
                          size_t msg_size,
                          _anj_coap_msg_t *out_data);
-#    endif // ANJ_COAP_WITH_UDP
-#    ifdef ANJ_COAP_WITH_TCP
-/**
- * Based on @p msg decodes CoAP message, compliant with the LwM2M version 1.1
- * or 1.2 (check @ref ANJ_WITH_LWM2M12 config flag). All information from
- * message is decoded and stored in the @p out_data. Each possible option has
- * its own field in @ref _anj_coap_msg_t and if present in the message then it
- * is decoded. In order to be able to send the response, the data that must be
- * in the CoAP header are copied to @ref _anj_coap_binding_data_t.
- *
- * @param      msg                  LWM2M/CoAP message.
- * @param      msg_size             Length of the message.
- * @param[out] out_data             Empty LwM2M data instance.
- * @param[out] out_new_data_offset  Offset of remaining data after succesful
- * decoding.
- *
- * @return
- * - 0 on success,
- * - negative value in case of error,
- * - positive value:
- *  - _ANJ_INF_COAP_TCP_INCOMPLETE_MESSAGE if the amount of data is too small
- *    to be parsed properly,
- *  - _ANJ_INF_COAP_TCP_MORE_DATA_PRESENT after succesful parsing, if there are
- *    still some data in the @p msg.
- */
-int _anj_coap_decode_tcp(uint8_t *msg,
-                         size_t msg_size,
-                         _anj_coap_msg_t *out_data,
-                         size_t *out_new_data_offset);
-#    endif // ANJ_COAP_WITH_TCP
-#    ifdef ANJ_COAP_WITH_UDP
 /**
  * Based on @p msg prepares CoAP message, compliant with the LwM2M version 1.1
  * or 1.2 (check @ref ANJ_WITH_LWM2M12 config flag). All information related
@@ -168,29 +130,6 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
                          uint8_t *out_buff,
                          size_t out_buff_size,
                          size_t *out_msg_size);
-#    endif // ANJ_COAP_WITH_UDP
-#    ifdef ANJ_COAP_WITH_TCP
-/**
- * Based on @p msg prepares CoAP message, compliant with the LwM2M version 1.1
- * or 1.2 (check @ref ANJ_WITH_LWM2M12 config flag). All information related
- * with given @ref _anj_op_t are placed into the message, <b>except the
- * Token</b>. Token needs to be filled separately, before this function call.
- *
- * @param      msg           Structured LwM2M message.
- * @param[out] out_buff      Buffer for serialized LwM2M message.
- * @param      out_buff_size Buffer size.
- * @param[out] out_msg_size  Size of the prepared message.
- *
- * NOTES: Check tests/lwm2m_prepare.c to see the examples of usage.
- *
- * @return 0 on success, or an one of the error codes defined at the top of this
- * file.
- */
-int _anj_coap_encode_tcp(_anj_coap_msg_t *msg,
-                         uint8_t *out_buff,
-                         size_t out_buff_size,
-                         size_t *out_msg_size);
-#    endif // ANJ_COAP_WITH_TCP
 
 /**
  * Returns the maximum possible size of the CoAP message without payload. This

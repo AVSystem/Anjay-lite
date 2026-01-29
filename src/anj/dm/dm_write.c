@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 29
 
 #include <assert.h>
 #include <inttypes.h>
@@ -30,6 +32,7 @@ static int update_res_val(anj_t *anj, const anj_res_value_t *value) {
     const anj_dm_obj_t *obj = dm->entity_ptrs.obj;
     if (!obj->handlers->res_write) {
         dm_log(L_ERROR, "Write handler not defined");
+        return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
     return obj->handlers->res_write(anj, obj, entity_ptrs->inst->iid,
                                     entity_ptrs->res->rid, entity_ptrs->riid,
@@ -240,6 +243,27 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
                                     record->path.ids[ANJ_ID_RID]),
             &dm->entity_ptrs);
     if (result) {
+        /**
+         * Check description below update_res_val(), if NOT_FOUND but base path
+         * does target object or object instance and there is no such resource,
+         * we should ignore this error.
+         */
+        if (!anj_uri_path_has(&dm->op_ctx.write_ctx.path, ANJ_ID_RID)) {
+            // try to find instance, if exists then resource is missing, so we
+            // can reset the error
+            result = _anj_dm_get_obj_ptrs(
+                    dm->entity_ptrs.obj,
+                    &ANJ_MAKE_INSTANCE_PATH(record->path.ids[ANJ_ID_OID],
+                                            record->path.ids[ANJ_ID_IID]),
+                    &dm->entity_ptrs);
+            if (!result) {
+                dm_log(L_WARNING,
+                       "Ignoring error from writing to unsupported/unknown "
+                       "resource");
+                return 0;
+            }
+        }
+
         return result;
     }
 
@@ -256,6 +280,27 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
     }
 
     result = update_res_val(anj, &record->value);
+
+    /**
+     * According to OMA-TS-LightweightM2M_Core-V1_2_2-20240613-A:
+     * - 'In a "Write" operation targeting an Object Instance, any optional
+     *    Resources that are not supported by, or unknown to, the LwM2M Client
+     *    MUST NOT be interpreted as an error by the LwM2M Client'
+     * - 'Any optional Resources included in the "Bootstrap-Write" operation
+     *    targeting an Object or an Object Instance that are not supported by,
+     *    or unknown to, the LwM2M Client MUST NOT be interpreted as an error by
+     *    the LwM2M Client.'
+     *
+     * Because of that, we ignore NOT_FOUND and NOT_IMPLEMENTED errors here when
+     * base path does targets object or object instance.
+     */
+    if ((result == ANJ_DM_ERR_NOT_FOUND || result == ANJ_DM_ERR_NOT_IMPLEMENTED)
+            && !anj_uri_path_has(&dm->op_ctx.write_ctx.path, ANJ_ID_RID)) {
+        dm_log(L_WARNING,
+               "Ignoring error from writing to unsupported/unknown resource");
+        return 0;
+    }
+
     if (result) {
         return result;
     }

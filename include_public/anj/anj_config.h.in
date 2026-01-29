@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -227,6 +227,25 @@
 #cmakedefine ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE @ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE@
 
 /******************************************************************************\
+ * NTP module configuration
+\******************************************************************************/
+
+/**
+ * Enable NTP module.
+ *
+ * This module allows to synchronize device time with an NTP server.
+ */
+#cmakedefine ANJ_WITH_NTP
+
+/**
+ * Configures the maximum length of NTP server address string.
+ *
+ * Default value: 25
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_NTP_SERVER_ADDR_MAX_LEN @ANJ_NTP_SERVER_ADDR_MAX_LEN@
+
+/******************************************************************************\
  * Observe configuration
 \******************************************************************************/
 /**
@@ -266,6 +285,20 @@
  * Lite will respond with message code 5.00 Internal Server Error.
  */
 #cmakedefine ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER @ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER@
+
+/**
+ * Enables cancelling Observations when a Confirmable Notify message times out.
+ * If not enabled, the Observation remains active after a notification timeout.
+ */
+#cmakedefine ANJ_OBSERVE_OBSERVATION_CANCEL_ON_TIMEOUT
+
+/**
+ * Enables cancelling Observations by the LwM2M Server by responding with CoAP
+ * RST to a non-confirmable Notify message.
+ *
+ * Requires @ref ANJ_WITH_OBSERVE to be enabled.
+ */
+#cmakedefine ANJ_WITH_RST_AS_CANCEL_OBSERVE
 
 /******************************************************************************\
  * Bootstrap configuration
@@ -378,14 +411,6 @@
  * supports UDP.
  */
 #cmakedefine ANJ_NET_WITH_UDP
-
-/**
- * Enable communication using TCP protocol.
- *
- * This option is meaningful if underlaying, platform sockets implementation
- * supports TCP.
- */
-#cmakedefine ANJ_NET_WITH_TCP
 
 /**
  * Enable communication using DTLS protocol.
@@ -564,20 +589,6 @@
  * CoAP configuration
 \******************************************************************************/
 /**
- * Enable communication with LwM2M Server using CoAP over UDP.
- *
- * Requires @ref ANJ_NET_WITH_UDP to be enabled.
- */
-#cmakedefine ANJ_COAP_WITH_UDP
-
-/**
- * Enable communication with LwM2M Server using CoAP over TCP.
- *
- * Requires @ref ANJ_NET_WITH_TCP to be enabled.
- */
-#cmakedefine ANJ_COAP_WITH_TCP
-
-/**
  * Configures the maximum allowed number of Options present in CoAP header, in a
  * single frame.
  *
@@ -664,6 +675,35 @@
  * - line number of the log call
  */
 #cmakedefine ANJ_LOG_FULL
+
+/**
+ * Enable logger in micro mode. The header for log messages contains:
+ * - level of log message
+ * - numeric id of source file the log is called from
+ * - line number of the log call
+ *
+ * To use micro logs in your application you need to define
+ * @c ANJ_SOURCE_FILE_ID macro in each source file before
+ * including @ref anj/log.h. The value of this macro should be a unique
+ * integer for each source file in your application.
+ *
+ * @note Anjay Lite source code already defines @c ANJ_SOURCE_FILE_ID in each source
+ *       file reserving the range from 0 to 200. User application should use
+ *       values starting from 201.
+ *
+ * <example>
+ * @code
+ * // In your source file
+ * #define ANJ_SOURCE_FILE_ID 201
+ * #include <anj/log.h>
+ * @endcode
+ * </example>
+ *
+ * @note Micro logs reduce RAM and ROM usage compared to full logs with the
+ *       cost of reduced log message readability. To decode micro logs you
+ *       can use the @c tools/micro_logs_decode.py script shipped with Anjay Lite.
+ */
+#cmakedefine ANJ_LOG_MICRO
 
 /**
  * Enable logger in alternative mode. This should be defined to path to header

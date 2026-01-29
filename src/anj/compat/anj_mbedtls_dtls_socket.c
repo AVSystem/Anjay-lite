@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -9,12 +9,14 @@
 
 #include <anj/init.h>
 
+#define ANJ_LOG_SOURCE_FILE_ID 61
+
 #include <assert.h>  // IWYU pragma: keep
 #include <stdbool.h> // IWYU pragma: keep
 #include <stdio.h>   // IWYU pragma: keep
 #include <string.h>  // IWYU pragma: keep
 
-#if defined(ANJ_WITH_MBEDTLS)
+#if defined(ANJ_WITH_MBEDTLS) && defined(ANJ_NET_WITH_DTLS)
 
 #    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 #        include <anj/compat/crypto/storage.h>
@@ -50,6 +52,10 @@ typedef struct {
     anj_net_ssl_configuration_t secure_config;
     anj_net_socket_state_t state;
     state_machine_t sm_state;
+
+    int last_recv_err;
+    int last_send_err;
+    bool close_notify_sent;
 } ssl_socket_t;
 
 static int
@@ -79,7 +85,9 @@ _anj_mbedtls_bio_send(void *ctx, const unsigned char *buf, size_t len) {
     size_t sent = 0;
 
     int ret = anj_net_send(ANJ_NET_BINDING_UDP, s->net, &sent, buf, len);
-    if (ret == ANJ_NET_EINPROGRESS) {
+    s->last_send_err = ret;
+
+    if (anj_net_is_again(ret) || anj_net_is_inprogress(ret)) {
         return MBEDTLS_ERR_SSL_WANT_WRITE;
     } else if (ret != ANJ_NET_OK) {
         return MBEDTLS_ERR_NET_SEND_FAILED;
@@ -92,6 +100,8 @@ static int _anj_mbedtls_bio_recv(void *ctx, unsigned char *buf, size_t len) {
     size_t got = 0;
 
     int ret = anj_net_recv(ANJ_NET_BINDING_UDP, s->net, &got, buf, len);
+    s->last_recv_err = ret;
+
     if (anj_net_is_again(ret) || anj_net_is_inprogress(ret)) {
         return MBEDTLS_ERR_SSL_WANT_READ;
     } else if (ret != ANJ_NET_OK) {
@@ -258,6 +268,13 @@ int anj_dtls_connect(anj_net_ctx_t *ctx_,
         mbedtls_ssl_set_bio(&secure_socket->ssl_ctx, secure_socket,
                             _anj_mbedtls_bio_send, _anj_mbedtls_bio_recv, NULL);
         secure_socket->sm_state = SOCKET_STATE_HANDSHAKE_IN_PROGRESS;
+
+        int32_t mtu = 0;
+        if (anj_net_is_ok(anj_net_get_inner_mtu(ANJ_NET_BINDING_UDP,
+                                                secure_socket->net, &mtu))
+                && mtu > 0 && mtu <= UINT16_MAX) {
+            mbedtls_ssl_set_mtu(&secure_socket->ssl_ctx, (uint16_t) mtu);
+        }
     }
         // fallthrough
     case SOCKET_STATE_HANDSHAKE_IN_PROGRESS: {
@@ -333,6 +350,9 @@ int anj_dtls_create_ctx(anj_net_ctx_t **ctx_, const anj_net_config_t *config) {
         return -1;
     }
     secure_socket->secure_config = config->secure_socket_config;
+    secure_socket->last_recv_err = ANJ_NET_OK;
+    secure_socket->last_send_err = ANJ_NET_OK;
+    secure_socket->close_notify_sent = false;
 
     // Create UDP transport for DTLS
     if (!anj_net_is_ok(anj_net_create_ctx(ANJ_NET_BINDING_UDP,
@@ -371,7 +391,7 @@ int anj_dtls_send(anj_net_ctx_t *ctx_,
         }
         if (is_retry_result(result) && already_sent == 0) {
             mbedtls_log(L_DEBUG, "Transport busy, need to retry send");
-            return ANJ_NET_EINPROGRESS;
+            return secure_socket->last_send_err;
         }
         if (result < 0) {
             mbedtls_log(L_ERROR, "Failed to send data with error %d", result);
@@ -391,7 +411,7 @@ int anj_dtls_recv(anj_net_ctx_t *ctx_,
 
     int result = mbedtls_ssl_read(&secure_socket->ssl_ctx, buf, length);
     if (is_retry_result(result)) {
-        return ANJ_NET_EAGAIN;
+        return secure_socket->last_recv_err;
     }
     if (result < 0) {
         mbedtls_log(L_ERROR, "Failed to receive data with error %d", result);
@@ -399,13 +419,6 @@ int anj_dtls_recv(anj_net_ctx_t *ctx_,
     }
     *bytes_received = (size_t) result;
     return ANJ_NET_OK;
-}
-
-int anj_dtls_shutdown(anj_net_ctx_t *ctx_) {
-    assert(ctx_);
-    ssl_socket_t *secure_socket = (ssl_socket_t *) ctx_;
-    secure_socket->state = ANJ_NET_SOCKET_STATE_SHUTDOWN;
-    return anj_net_shutdown(ANJ_NET_BINDING_UDP, secure_socket->net);
 }
 
 int anj_dtls_close(anj_net_ctx_t *ctx_) {
@@ -427,11 +440,19 @@ int anj_dtls_cleanup_ctx(anj_net_ctx_t **ctx_) {
     assert(ctx_ && *ctx_);
     ssl_socket_t *secure_socket = (ssl_socket_t *) *ctx_;
     secure_socket->sm_state = SOCKET_STATE_INITIAL;
+    int ret;
 
-    // Send close_notify and flush DTLS state; safe to call multiple times.
-    mbedtls_ssl_close_notify(&secure_socket->ssl_ctx);
+    if (!secure_socket->close_notify_sent) {
+        // Send close_notify and flush DTLS state
+        ret = mbedtls_ssl_close_notify(&secure_socket->ssl_ctx);
+        if (is_retry_result(ret)) {
+            return secure_socket->last_send_err;
+        } else if (ret == 0) {
+            secure_socket->close_notify_sent = true;
+        }
+    }
 
-    int ret = anj_net_cleanup_ctx(ANJ_NET_BINDING_UDP, &secure_socket->net);
+    ret = anj_net_cleanup_ctx(ANJ_NET_BINDING_UDP, &secure_socket->net);
     if (anj_net_is_inprogress(ret)) {
         return ret;
     }
@@ -446,9 +467,24 @@ int anj_dtls_cleanup_ctx(anj_net_ctx_t **ctx_) {
 }
 
 int anj_dtls_get_inner_mtu(anj_net_ctx_t *ctx, int32_t *out_value) {
-    (void) ctx;
-    // TODO: check if this is correct value
-    *out_value = 548; /* 576 (IPv4 MTU) - 28 bytes of headers */
+    ssl_socket_t *secure_socket = (ssl_socket_t *) ctx;
+    int ret = anj_net_get_inner_mtu(ANJ_NET_BINDING_UDP, secure_socket->net,
+                                    out_value);
+    if (!anj_net_is_ok(ret)) {
+        return ret;
+    }
+
+#    if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID)
+// When DTLS CID is enabled, overhead increases due to the CID field.
+#        define ANJ_MBEDTLS_DTLS_MTU_OVERHEAD 21
+#    else // MBEDTLS_SSL_DTLS_CONNECTION_ID
+#        define ANJ_MBEDTLS_DTLS_MTU_OVERHEAD 13
+#    endif // MBEDTLS_SSL_DTLS_CONNECTION_ID
+
+    if (*out_value <= ANJ_MBEDTLS_DTLS_MTU_OVERHEAD) {
+        return -1;
+    }
+    *out_value = *out_value - ANJ_MBEDTLS_DTLS_MTU_OVERHEAD;
     return ANJ_NET_OK;
 }
 
@@ -465,4 +501,4 @@ int anj_dtls_queue_mode_rx_off(anj_net_ctx_t *ctx_) {
     return anj_net_queue_mode_rx_off(ANJ_NET_BINDING_UDP, secure_socket->net);
 }
 
-#endif // ANJ_WITH_MBEDTLS
+#endif // ANJ_WITH_MBEDTLS && ANJ_NET_WITH_DTLS

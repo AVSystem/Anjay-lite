@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -29,7 +29,7 @@ typedef enum {
     ANJ_OPTION_BLOCK_1,
     ANJ_OPTION_BLOCK_2,
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    // Used only in @ref anj_coap_encode_udp / @ref _anj_coap_encode_tcp for
+    // Used only in @ref anj_coap_encode_udp for
     // composite operations with block-wise transfer in both directions. BLOCK2
     // option is always encoded with number=0 and more_flag=1, BLOCK1 option is
     // always encoded with more_flag=0. Both options size is set to the same
@@ -78,12 +78,6 @@ typedef enum {
     ANJ_OP_COAP_RESET,
     ANJ_OP_COAP_PING_UDP,
     ANJ_OP_COAP_EMPTY_MSG,
-    // Signaling
-    ANJ_OP_COAP_CSM,
-    ANJ_OP_COAP_PING,
-    ANJ_OP_COAP_PONG,
-    ANJ_OP_COAP_RELEASE,
-    ANJ_OP_COAP_ABORT
 } _anj_op_t;
 
 /**
@@ -183,12 +177,11 @@ typedef struct {
  * @anj_internal_api_do_not_use
  * Location-Path from REGISTER operation response. If the number of
  * Location-Paths exceeds @ref ANJ_COAP_MAX_LOCATION_PATHS_NUMBER then
- * @ref anj_coap_decode_udp / @ref _anj_coap_decode_tcp returns a @ref
- * _ANJ_ERR_LOCATION_PATHS_NUMBER error. For every @ref anj_coap_encode_udp /
- * @ref _anj_coap_encode_tcp calls for UPDATE and DEREGISTER operations, this
- * structure must be filled. After @ref anj_coap_encode_udp /
- * @ref _anj_coap_encode_tcp @p location points to message buffer, so they have
- * to be copied into user memory.
+ * @ref anj_coap_decode_udp returns a @ref
+ * _ANJ_ERR_LOCATION_PATHS_NUMBER error. For every @ref anj_coap_encode_udp
+ * calls for UPDATE and DEREGISTER operations, this structure must be filled.
+ * After @ref anj_coap_encode_udp @p location points to message buffer, so they
+ * have to be copied into user memory.
  */
 typedef struct {
     const char *location[ANJ_COAP_MAX_LOCATION_PATHS_NUMBER];
@@ -239,18 +232,6 @@ typedef struct {
     _anj_coap_udp_type_t type;
 } _anj_coap_binding_data_udp_t;
 
-/** @anj_internal_api_do_not_use */
-typedef struct {
-    uint8_t msg_len;
-    uint32_t extended_length;
-} _anj_coap_binding_data_tcp_t;
-
-/** @anj_internal_api_do_not_use */
-typedef union {
-    _anj_coap_binding_data_udp_t udp;
-    _anj_coap_binding_data_tcp_t tcp;
-} _anj_coap_binding_data_t;
-
 #ifdef ANJ_WITH_COAP_DOWNLOADER
 /** @anj_internal_api_do_not_use
  * Represents attributes for the downloader operation.
@@ -274,12 +255,12 @@ typedef struct {
  *
  * This structure serves as the central representation of CoAP messages within
  * the library. It is populated by the decode functions:
- * @ref anj_coap_decode_udp and @ref _anj_coap_decode_tcp, which parse raw CoAP
+ * @ref anj_coap_decode_udp, which parse raw CoAP
  * message buffers into this structured form.
  *
- * Conversely, the encode functions — @ref anj_coap_encode_udp and
- * @ref _anj_coap_encode_tcp — serialize the contents of this structure into a
- * raw CoAP message buffer for transmission over the network.
+ * Conversely, the encode functions — @ref anj_coap_encode_udp — serialize the
+ * contents of this structure into a raw CoAP message buffer for transmission
+ * over the network.
  *
  * As a result, other parts of the library operate solely on this structure,
  * without needing to directly parse or construct CoAP messages.
@@ -290,15 +271,13 @@ typedef struct {
 typedef struct {
     /**
      * ANJ operation type, which indicates LwM2M operation or specific CoAP
-     * message. Must be defined before @ref anj_coap_encode_udp /
-     * @ref _anj_coap_encode_tcp call.
+     * message. Must be defined before @ref anj_coap_encode_udp call.
      */
     _anj_op_t operation;
 
     /**
-     * Pointer to CoAP msg payload. Set in @ref anj_coap_decode_udp / @ref
-     * _anj_coap_decode_tcp, @ref anj_coap_encode_udp / @ref
-     * _anj_coap_encode_tcp copies payload directly to message buffer.
+     * Pointer to CoAP msg payload. Set in @ref anj_coap_decode_udp, @ref
+     * anj_coap_encode_udp copies payload directly to message buffer.
      *
      * IMPORTANT: Payload is not encoded or decoded by ANJ functions, use
      * ANJ_IO API to achieve this.
@@ -310,10 +289,9 @@ typedef struct {
 
     /**
      * Stores the value of Content Format option. If payload is present it
-     * describes its format. In @ref anj_coap_decode_udp / @ref
-     * _anj_coap_decode_tcp set to _ANJ_COAP_FORMAT_NOT_DEFINED if not present.
-     * If message contains payload, must be set before @ref anj_coap_encode_udp
-     * / @ref _anj_coap_encode_tcp call.
+     * describes its format. In @ref anj_coap_decode_udp set to
+     * _ANJ_COAP_FORMAT_NOT_DEFINED if not present. If message contains payload,
+     * must be set before @ref anj_coap_encode_udp call.
      */
     uint16_t content_format;
 
@@ -336,7 +314,7 @@ typedef struct {
 
     /**
      * Stores the value of Block option. If block type is defined
-     * @ref anj_coap_encode_udp / @ref _anj_coap_encode_tcp will add block
+     * @ref anj_coap_encode_udp will add block
      * option to the message.
      */
     _anj_block_t block;
@@ -346,24 +324,6 @@ typedef struct {
      * be used in UPDATE and DEREGISTER requests.
      */
     _anj_location_path_t location_path;
-
-#ifdef ANJ_COAP_WITH_TCP
-    /**
-     * Stores CoAP signalling options.
-     */
-    union {
-        struct {
-            uint32_t max_msg_size;
-            bool block_wise_transfer_capable;
-        } csm;
-
-        struct {
-            bool custody;
-        } ping_pong;
-        // ANJ doesn't handle alternative_address, hold_off and bad_csm_option
-        // options
-    } signalling_opts;
-#endif // ANJ_COAP_WITH_TCP
 
     /**
      * Each attribute is related to a specific operation.
@@ -380,16 +340,16 @@ typedef struct {
     } attr;
 
     /**
-     * Coap msg code. Must be set before @ref anj_coap_encode_udp / @ref
-     * _anj_coap_encode_tcp call if message is any kind of response.
+     * Coap msg code. Must be set before @ref anj_coap_encode_udp call if
+     * message is any kind of response.
      */
     uint8_t msg_code;
 
     /**
-     * Contains communication channel dependend informations that allows to
+     * Contains communication channel-dependent information that allows to
      * prepare or identify response.
      */
-    _anj_coap_binding_data_t coap_binding_data;
+    _anj_coap_binding_data_udp_t coap_binding_data;
 
     /**
      * Token used in CoAP message. Unique for every exchange.

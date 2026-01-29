@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 10
 
 #include <assert.h>
 #include <inttypes.h>
@@ -23,6 +25,7 @@
 #include "../coap/coap.h"
 #include "../exchange.h"
 #include "../io/io.h"
+#include "../utils.h"
 #include "core.h"
 #include "core_utils.h"
 #include "lwm2m_send.h"
@@ -246,9 +249,8 @@ static void send_completion_callback(void *arg_ptr,
         send_result = ANJ_SEND_ERR_INTERNAL;
     } else {
         if (response && response->operation == ANJ_OP_RESPONSE) {
-            log(L_ERROR,
-                "Send request failed: %" PRIu16 " with %" PRIu8 " error code",
-                ctx->ids[0], response->msg_code);
+            log(L_ERROR, "Send request failed: %" PRIu16 " with %s error code",
+                ctx->ids[0], COAP_CODE_FORMAT(response->msg_code));
         } else {
             // Server responded with RST
             log(L_ERROR, "Server rejected request: %" PRIu16, ctx->ids[0]);
@@ -286,6 +288,24 @@ static void send_completion_callback(void *arg_ptr,
     finished_handler(anj, send_id, send_result, user_data);
 }
 
+static anj_uri_path_t find_common_path(const anj_io_out_entry_t *records,
+                                       size_t records_cnt) {
+    assert(records && records_cnt > 0);
+
+    anj_uri_path_t base_path = records[0].path;
+    for (size_t i = 1; i < records_cnt; i++) {
+        size_t min_len = ANJ_MIN(base_path.uri_len, records[i].path.uri_len);
+        size_t j = 0;
+        for (; j < min_len; j++) {
+            if (base_path.ids[j] != records[i].path.ids[j]) {
+                break;
+            }
+        }
+        base_path.uri_len = j;
+    }
+    return base_path;
+}
+
 void _anj_lwm2m_send_process(anj_t *anj,
                              _anj_exchange_handlers_t *out_handlers,
                              _anj_coap_msg_t *out_msg) {
@@ -307,19 +327,22 @@ void _anj_lwm2m_send_process(anj_t *anj,
         return;
     }
 
+    anj_send_request_t const *send_request = ctx->requests_queue[0];
 #    if defined(ANJ_WITH_SENML_CBOR) && defined(ANJ_WITH_LWM2M_CBOR)
-    uint16_t format = (ctx->requests_queue[0]->content_format
-                       == ANJ_SEND_CONTENT_FORMAT_SENML_CBOR)
-                              ? _ANJ_COAP_FORMAT_SENML_CBOR
-                              : _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
+    uint16_t format =
+            (send_request->content_format == ANJ_SEND_CONTENT_FORMAT_SENML_CBOR)
+                    ? _ANJ_COAP_FORMAT_SENML_CBOR
+                    : _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
 #    elif defined(ANJ_WITH_SENML_CBOR)
     uint16_t format = _ANJ_COAP_FORMAT_SENML_CBOR;
 #    elif defined(ANJ_WITH_LWM2M_CBOR)
     uint16_t format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
 #    endif
 
+    anj_uri_path_t common_path =
+            find_common_path(send_request->records, send_request->records_cnt);
     int res = _anj_io_out_ctx_init(&anj->anj_io.out_ctx, ANJ_OP_INF_CON_SEND,
-                                   NULL, ctx->requests_queue[0]->records_cnt,
+                                   &common_path, send_request->records_cnt,
                                    format);
     if (res) {
         log(L_ERROR, "anj_io out ctx error %d", res);

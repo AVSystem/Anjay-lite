@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -70,6 +70,9 @@ typedef struct {
     /** Firmware Version Resource (/3/0/3) value. */
     const char *firmware_version;
 
+    /** Software Version Resource (/3/0/19) value. */
+    const char *software_version;
+
     /** Reboot Resource (/3/0/4) callback.
      *
      * @note If not set, Execute operation on this resource will fail.
@@ -101,6 +104,7 @@ typedef struct {
     const char *serial_number;
     const char *firmware_version;
     const char *binding_modes;
+    const char *software_version;
 } anj_dm_device_obj_t;
 
 /**
@@ -120,6 +124,7 @@ typedef struct {
  *     .model_number = "model_number",
  *     .serial_number = "serial_number",
  *     .firmware_version = "firmware_version",
+ *     .software_version = "software_version",
  *     .reboot_handler = reboot_cb
  * };
  * anj_dm_device_obj_install(&anj, &dev_obj, &dev_obj_init);

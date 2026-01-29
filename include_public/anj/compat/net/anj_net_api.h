@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -14,7 +14,7 @@
  * @brief Platform hooks for network transport integration.
  *
  * This header declares the minimal socket-like API that platform integrators
- * must implement to let Anjay Lite communicate over UDP, TCP, DTLS, TLS or some
+ * must implement to let Anjay Lite communicate over UDP, DTLS or some
  * Non-IP transport.
  *
  * The API covers:
@@ -88,9 +88,7 @@ extern "C" {
 
 typedef enum {
     ANJ_NET_BINDING_UDP = 0,
-    ANJ_NET_BINDING_TCP,
     ANJ_NET_BINDING_DTLS,
-    ANJ_NET_BINDING_TLS,
     ANJ_NET_BINDING_NON_IP
 } anj_net_binding_type_t;
 
@@ -100,12 +98,6 @@ typedef enum {
      * @ref anj_net_close.
      */
     ANJ_NET_SOCKET_STATE_CLOSED,
-
-    /**
-     * Socket was previously in @ref ANJ_NET_SOCKET_STATE_CONNECTED state, and
-     * @ref anj_net_shutdown was called.
-     */
-    ANJ_NET_SOCKET_STATE_SHUTDOWN,
 
     /**
      * @ref anj_net_connect has been called. The socket is connected to some
@@ -151,7 +143,7 @@ typedef enum {
 } anj_net_address_family_setting_t;
 
 /**
- * Additional configuration options for creating TCP or UDP sockets.
+ * Additional configuration options for creating UDP sockets.
  */
 typedef struct {
     /**
@@ -383,25 +375,6 @@ typedef int anj_net_recv_t(anj_net_ctx_t *ctx,
 
 /**
  * Shuts down the connection associated with @p ctx. No further communication is
- * allowed using this context. Any buffered but not yet processed data should
- * still be delivered. Performs the termination handshake if the protocol used
- * requires one.
- *
- * Data already received can still be read using @ref anj_net_recv. However, the
- * user must call @ref anj_net_close before reusing the context.
- *
- * @note This function does not block.
- *
- * @param ctx Communication context to shut down.
- *
- * @return @ref ANJ_NET_OK          on success.
- *         @ref ANJ_NET_EINPROGRESS
- *         Other non-zero value in case of an error.
- */
-typedef int anj_net_shutdown_t(anj_net_ctx_t *ctx);
-
-/**
- * Shuts down the connection associated with @p ctx. No further communication is
  * allowed using this context. Discards any buffered but not yet processed data.
  *
  * @p ctx may later be reused by calling @ref anj_net_connect again.
@@ -459,7 +432,7 @@ typedef int anj_net_get_inner_mtu_t(anj_net_ctx_t *ctx, int32_t *out_value);
  * - Net compat implementation must implicitly re-enable RX whenever
  *   a subsequent net API call may require inbound traffic (e.g.,
  *   @ref anj_net_connect, @ref anj_net_send, @ref anj_net_recv,
- *   and @ref anj_net_close / @ref anj_net_shutdown for TCP/TLS).
+ *   and @ref anj_net_close).
  * - Once RX is re-enabled, it remains enabled for the connection until
  *   @ref anj_net_queue_mode_rx_off_t is called again.
  *

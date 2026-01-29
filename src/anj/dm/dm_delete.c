@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -9,7 +9,8 @@
 
 #include <anj/init.h>
 
-#include <assert.h>
+#define ANJ_LOG_SOURCE_FILE_ID 18
+
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -48,10 +49,10 @@ static int delete_instance(anj_t *anj) {
     return 0;
 }
 
-#ifdef ANJ_WITH_OSCORE
 static bool is_oscore_bootstrap_instance(anj_t *anj) {
     _anj_dm_data_model_t *dm = &anj->dm;
-    anj_dm_obj_t *security_object = _anj_dm_find_obj(dm, ANJ_OBJ_ID_SECURITY);
+    const anj_dm_obj_t *security_object =
+            _anj_dm_find_obj(dm, ANJ_OBJ_ID_SECURITY);
     if (!security_object) {
         return false;
     }
@@ -81,7 +82,6 @@ static bool is_oscore_bootstrap_instance(anj_t *anj) {
     }
     return false;
 }
-#endif // ANJ_WITH_OSCORE
 
 #ifdef ANJ_WITH_BOOTSTRAP
 static bool is_bootstrap_instance(anj_t *anj) {
@@ -99,17 +99,18 @@ static bool is_bootstrap_instance(anj_t *anj) {
         }
         return value.bool_value;
     }
-#    ifdef ANJ_WITH_OSCORE
     if (dm->entity_ptrs.obj->oid == ANJ_OBJ_ID_OSCORE) {
         return is_oscore_bootstrap_instance(anj);
     }
-#    endif // ANJ_WITH_OSCORE
     return false;
 }
 
 static int process_bootstrap_delete_op(anj_t *anj,
                                        const anj_uri_path_t *base_path) {
-    assert(!anj_uri_path_has(base_path, ANJ_ID_RID));
+    if (anj_uri_path_has(base_path, ANJ_ID_RID)) {
+        dm_log(L_ERROR, "Invalid path");
+        return ANJ_DM_ERR_BAD_REQUEST;
+    }
 
     bool all_objects = !anj_uri_path_has(base_path, ANJ_ID_OID);
     bool all_instances = !anj_uri_path_has(base_path, ANJ_ID_IID);
@@ -167,8 +168,15 @@ static int process_bootstrap_delete_op(anj_t *anj,
 int _anj_dm_process_delete_op(anj_t *anj, const anj_uri_path_t *base_path) {
     _anj_dm_data_model_t *dm = &anj->dm;
     int result = 0;
-    assert(dm->bootstrap_operation || anj_uri_path_is(base_path, ANJ_ID_IID)
-           || anj_uri_path_is(base_path, ANJ_ID_RIID));
+
+    // For Delete operation, only paths targeting Object Instances or
+    // Resource Instances are valid outside of Bootstrap mode
+    if (!dm->bootstrap_operation
+            && (anj_uri_path_is(base_path, ANJ_ID_OID)
+                || anj_uri_path_is(base_path, ANJ_ID_RID))) {
+        dm_log(L_ERROR, "Invalid path");
+        return ANJ_DM_ERR_BAD_REQUEST;
+    }
 
     dm->is_transactional = true;
 

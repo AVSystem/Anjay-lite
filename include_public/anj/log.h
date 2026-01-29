@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -71,6 +71,17 @@ extern "C" {
                                           ANJ_QUOTE_MACRO(Module), __FILE__, \
                                           __LINE__, __VA_ARGS__)
 #        endif // ANJ_LOG_FULL
+#        ifdef ANJ_LOG_MICRO
+#            ifndef ANJ_LOG_SOURCE_FILE_ID
+#                error "ANJ_LOG_SOURCE_FILE_ID is not defined."
+#            endif // ANJ_LOG_SOURCE_FILE_ID
+
+#            define ANJ_LOG_HANDLER_IMPL_MACRO(Module, LogLevel, ...)        \
+                anj_log_handler_impl_micro(ANJ_LOG_LEVEL_##LogLevel,         \
+                                           ANJ_LOG_SOURCE_FILE_ID, __LINE__, \
+                                           __VA_ARGS__)
+
+#        endif // ANJ_LOG_MICRO
 
 #        ifdef ANJ_LOG_ALT_IMPL_HEADER
 #            include ANJ_LOG_ALT_IMPL_HEADER

@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 22
 
 #include <assert.h>
 #include <stdbool.h>
@@ -340,7 +342,7 @@ static int res_write(anj_t *anj,
         anj_dm_fw_update_result_t result =
                 entity->repr.user_handlers->uri_write_handler(
                         entity->repr.user_ptr, entity->repr.uri);
-        if (result != ANJ_DM_FW_UPDATE_RESULT_INITIAL) {
+        if (result != ANJ_DM_FW_UPDATE_RESULT_SUCCESS) {
             entity->repr.result = (int8_t) result;
             fw_data_model_changed(
                     anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);

@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -269,6 +269,41 @@ minimum, and maximum observed values accordingly. We will periodically call
 ``update_temperature_obj_value()`` to simulate ongoing temperature updates in
 our LwM2M object.
 
+.. _concurrent_dm_modifications:
+
+**Concurrent data model modifications**
+
+In Anjay Lite, operations that modify the data model (for example LwM2M
+Write or Write-Attributes requests) may span multiple calls to
+``anj_core_step()``. This is a consequence of block-wise transfers and other
+protocol mechanisms that require the library to keep intermediate state
+between subsequent processing steps.
+
+To preserve a consistent state of objects implemented by the user, the
+application must avoid modifying the data model while such an operation is
+in progress. Failing to do so may lead to subtle race conditions, for
+example when both the LwM2M Server and the application attempt to update
+the same variable representing a resource at the same time.
+
+To address this, Anjay Lite provides the function
+``anj_core_ongoing_operation()``. Before performing any application-driven
+modification of objects or resources, the application should check this
+function and only proceed when it indicates that no LwM2M operation on the
+data model is currently in progress. This ensures that server-triggered and
+application-triggered updates do not interfere with each other and that the
+data model remains consistent.
+
+There is no need to call this function in user-implemented Resource Handlers,
+as the access there is driven by Anjay Lite itself with internal
+synchronization.
+
+.. highlight:: c
+.. snippet-source:: examples/tutorial/BC-BasicObjectImplementation/src/main.c
+
+        if (!anj_core_ongoing_operation(&anj)) {
+            update_temperature_obj_value();
+        }
+
 Step 4: Implement Resource Handlers
 -----------------------------------
 
@@ -536,7 +571,7 @@ inside the main loop of the application.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/BC-BasicObjectImplementation/src/main.c
-   :emphasize-lines: 7-9, 30-33, 37
+   :emphasize-lines: 7-9, 30-33, 38-40
 
     int main(int argc, char *argv[]) {
         if (argc != 2) {
@@ -574,7 +609,10 @@ inside the main loop of the application.
 
         while (true) {
             anj_core_step(&anj);
-            update_temperature_obj_value();
+
+            if (!anj_core_ongoing_operation(&anj)) {
+                update_temperature_obj_value();
+            }
             usleep(50 * 1000);
         }
         return 0;
@@ -660,6 +698,10 @@ What these handlers do:
     Implementing the ``transaction_validate`` handler is optional. Anjay Lite
     will still call ``transaction_end`` even if ``transaction_validate`` is not implemented,
     allowing the user to restore the object state in case of an error.
+
+.. note::
+    For more information on transactional writes, see
+    :doc:`../AdvancedTopics/AT-Transactions`.
 
 That's it! Your client is now ready to use the new LwM2M Object. Other objects
 can be implemented in a similar way.

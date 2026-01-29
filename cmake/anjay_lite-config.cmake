@@ -1,4 +1,4 @@
-# Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+# Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
 # AVSystem Anjay Lite LwM2M SDK
 # All rights reserved.
 #
@@ -32,8 +32,6 @@ endmacro()
 # Internal options
 define_overridable_option(ANJ_TESTING BOOL OFF "Enable code unit tests")
 define_overridable_option(ANJ_IWYU_PATH STRING "" "IWYU executable path")
-
-# General options
 define_overridable_option(ANJ_WITH_EXTRA_WARNINGS BOOL ON "Enable extra compilation warnings")
 
 # input/output buffer sizes
@@ -74,11 +72,17 @@ define_overridable_option(ANJ_WITH_COAP_DOWNLOADER BOOL OFF "Enable CoAP Downloa
 define_overridable_option(ANJ_COAP_DOWNLOADER_MAX_PATHS_NUMBER STRING 3 "Max CoAP Paths number in CoAP Downloader")
 define_overridable_option(ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE STRING 1200 "Max CoAP message size used in CoAP Downloader")
 
+# NTP module configuration
+define_overridable_option(ANJ_WITH_NTP BOOL OFF "Enable NTP module and NTP Object support")
+define_overridable_option(ANJ_NTP_SERVER_ADDR_MAX_LEN STRING 25 "Max NTP server address length")
+
 # observe configuration
 define_overridable_option(ANJ_WITH_OBSERVE BOOL ON "Enable Observe-Notify mechanism")
 define_overridable_option(ANJ_WITH_OBSERVE_COMPOSITE BOOL OFF "Enable Observe-Composite support")
 define_overridable_option(ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER STRING 10 "Max number of enabled observations")
 define_overridable_option(ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER STRING 10 "Max number of Attributes set with Write-Attributes")
+define_overridable_option(ANJ_OBSERVE_OBSERVATION_CANCEL_ON_TIMEOUT BOOL FALSE "Enable Observation cancellation on notification timeout")
+define_overridable_option(ANJ_WITH_RST_AS_CANCEL_OBSERVE BOOL ON "Enable support for cancelling Observations with CoAP RST")
 
 # bootstrap configuration
 define_overridable_option(ANJ_WITH_BOOTSTRAP BOOL ON "Enable Bootstrap Interface")
@@ -99,7 +103,6 @@ define_overridable_option(ANJ_WITH_SOCKET_POSIX_COMPAT BOOL ON "Enable POSIX-com
 define_overridable_option(ANJ_NET_WITH_IPV4 BOOL ON "Enable communication over IPv4")
 define_overridable_option(ANJ_NET_WITH_IPV6 BOOL OFF "Enable communication over IPv6")
 define_overridable_option(ANJ_NET_WITH_UDP BOOL ON "Enable communication over UDP")
-define_overridable_option(ANJ_NET_WITH_TCP BOOL OFF "Enable communication over TCP")
 define_overridable_option(ANJ_NET_WITH_DTLS BOOL OFF "Enable communication over DTLS")
 define_overridable_option(ANJ_WITH_CRYPTO_STORAGE_DEFAULT BOOL OFF "Enable default implementation of crypto storage API")
 define_overridable_option(ANJ_WITH_MBEDTLS BOOL OFF "Enable MbedTLS support")
@@ -130,8 +133,6 @@ define_overridable_option(ANJ_WITH_TLV BOOL ON "Enable TLV format support (decod
 define_overridable_option(ANJ_WITH_EXTERNAL_DATA BOOL OFF "Enable External Data Type support")
 
 # CoAP related configuration
-define_overridable_option(ANJ_COAP_WITH_UDP BOOL ON "Enable CoAP over UDP transport")
-define_overridable_option(ANJ_COAP_WITH_TCP BOOL OFF "Enable CoAP over TCP transport")
 define_overridable_option(ANJ_COAP_MAX_OPTIONS_NUMBER STRING 15 "Max number of CoAP options in CoAP header")
 define_overridable_option(ANJ_COAP_MAX_ATTR_OPTION_SIZE STRING 40 "Max Attribute-related CoAP option size")
 define_overridable_option(ANJ_COAP_MAX_LOCATION_PATHS_NUMBER STRING 2 "Max CoAP Location-Paths number in Registration Interface")
@@ -141,6 +142,7 @@ define_overridable_option(ANJ_CACHE_ENTRIES_NUMBER STRING 10 "Non-recent cache e
 
 # logger configuration
 define_overridable_option(ANJ_LOG_FULL BOOL ON "Enable full logger: includes module, level, file, and line info")
+define_overridable_option(ANJ_LOG_MICRO BOOL OFF "Enable micro logger: includes level, source file id, and line info")
 define_overridable_option(ANJ_LOG_ALT_IMPL_HEADER STRING "" "Path to custom logger implementation header")
 define_overridable_option(ANJ_LOG_FORMATTER_PRINTF BOOL ON "Use vsnprintf() for log message formatting")
 define_overridable_option(ANJ_LOG_FORMATTER_BUF_SIZE STRING 512 "Log formatting buffer size")
@@ -158,7 +160,7 @@ define_overridable_option(ANJ_WITH_LWM2M12 BOOL ON "Enable LwM2M protocol versio
 define_overridable_option(ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS BOOL ON "Enable custom string<->number conversion function")
 define_overridable_option(ANJ_PLATFORM_BIG_ENDIAN BOOL OFF "Define platform endianess as big endian")
 
-define_overridable_option(MBEDTLS_VERSION STRING "" "MbedTLS version to use when MBEDTLS_ROOT_DIR is not set, default is 3.6.0")
+define_overridable_option(MBEDTLS_VERSION STRING "" "MbedTLS version to use when MBEDTLS_ROOT_DIR is not set, default is 3.6.4")
 define_overridable_option(MBEDTLS_ROOT_DIR STRING "" "Path to MbedTLS root directory (if not set, MbedTLS will be fetched from GitHub)")
 
 set(repo_root "${CMAKE_CURRENT_LIST_DIR}/..")
@@ -216,8 +218,9 @@ if(gcc_or_clang)
           -Wno-variadic-macros
           -Wno-long-long
           -Wshadow
+          -Wno-empty-translation-unit
           )
-  
+
   if (ANJ_WITH_EXTRA_WARNINGS)
     target_link_libraries(anj PRIVATE anj_extra_warning_flags)
   endif()

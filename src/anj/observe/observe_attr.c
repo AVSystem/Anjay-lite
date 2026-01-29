@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 47
 
 #include <assert.h>
 #include <math.h>
@@ -226,11 +228,10 @@ static int add_attr(_anj_observe_ctx_t *ctx,
     _anj_observe_attr_storage_t *attr_rec =
             _anj_observe_get_attr_from_path(ctx, &request->uri, ssid);
     if (attr_rec) {
-        observe_log(L_DEBUG, "Attributes added");
+        observe_log(L_DEBUG, "Attributes updated");
         _anj_observe_update_attr(&attr_rec->attr,
                                  &request->attr.notification_attr);
     } else {
-        observe_log(L_DEBUG, "Attributes updated");
         attr_rec = find_spot_for_new_attr(ctx);
         if (!attr_rec) {
             observe_log(L_ERROR, "No space for new attributes");
@@ -239,6 +240,7 @@ static int add_attr(_anj_observe_ctx_t *ctx,
         attr_rec->ssid = ssid;
         attr_rec->path = request->uri;
         attr_rec->attr = request->attr.notification_attr;
+        observe_log(L_DEBUG, "New attributes added");
     }
     *out_record = attr_rec;
     return 0;

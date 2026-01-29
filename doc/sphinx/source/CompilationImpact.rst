@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -38,7 +38,6 @@ to a server and supports standard operations on the Data Model, including the
 - ``ANJ_WITH_DEFAULT_SERVER_OBJ`` - enables the built-in Server Object (/1)
 - ``ANJ_WITH_DEFAULT_DEVICE_OBJ`` - enables the built-in Device Object (/3)
 - ``ANJ_WITH_DISCOVER`` - enables support for the Discover operation
-- ``ANJ_COAP_WITH_UDP`` - enables CoAP over UDP
 - ``ANJ_WITH_SENML_CBOR`` - enables SenML CBOR as a payload format
 
 SenML CBOR is the most complete content format, supporting composite
@@ -187,7 +186,7 @@ representation of the final memory footprint.
 The build environment was:
 
 - Compiler: ``arm-none-eabi-gcc-14.2.1``
-- Anjay Lite version: ``1.0.0``
+- Anjay Lite version: ``2.0.0``
 - Build type: ``RelWithDebInfo`` (``-DCMAKE_BUILD_TYPE=RelWithDebInfo``)
 
 .. note::
@@ -249,7 +248,8 @@ Impact of logging
 ^^^^^^^^^^^^^^^^^
 
 Logging has a measurable impact on final binary size. The table below shows how
-much the size increases when enabling logs at different levels.
+much the size increases when enabling logs at different levels. Sizes were measured
+with ``ANJ_LOG_MICRO`` option enabled, which is recommended for constrained environments.
 
 .. note::
 
@@ -261,9 +261,9 @@ much the size increases when enabling logs at different levels.
 +-------------------------------------------------------------------+---------------------+-----------------------------------+---------------------+
 | Build variant                                                     | Error logs only [kB]| Error, warning and info logs [kB] | Full logs [kB]      |
 +===================================================================+=====================+===================================+=====================+
-| Minimal build                                                     | \+ 7.3  (~22%)      | \+ 9.7  (~29%)                    | \+ 12.1  (~36%)     |
+| Minimal build                                                     | \+ 6.2  (~19%)      | \+ 9.0  (~27%)                    | \+ 11.6 (~35%)      |
 +-------------------------------------------------------------------+---------------------+-----------------------------------+---------------------+
-| Minimal build + all commonly used options + all additional options| \+ 13.2 (~23%)      | \+ 15.2  (~27%)                   | \+ 19.1 (~34%)      |
+| Minimal build + all commonly used options + all additional options| \+ 11.2 (~20%)      | \+ 15.7  (~28%)                   | \+ 19.5 (~35%)      |
 +-------------------------------------------------------------------+---------------------+-----------------------------------+---------------------+
 
 Static RAM usage

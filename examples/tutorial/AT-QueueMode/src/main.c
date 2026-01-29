@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -66,6 +66,18 @@ static int install_security_obj(anj_t *anj,
     }
     return 0;
 }
+
+#ifdef __APPLE__
+#    include <time.h>
+static int clock_nanosleep(clockid_t clock_id,
+                           int flags,
+                           const struct timespec *req,
+                           struct timespec *rem) {
+    (void) clock_id; // Ignore clock ID
+    (void) flags;    // Ignore flags
+    return nanosleep(req, rem);
+}
+#endif
 
 static void connection_status_callback(void *arg,
                                        anj_t *anj,

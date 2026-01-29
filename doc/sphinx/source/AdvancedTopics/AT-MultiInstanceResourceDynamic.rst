@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -147,7 +147,7 @@ In order to support Write Replace operation that targets the object instance, yo
 `res_insts` array to `ANJ_ID_INVALID`.
 
 .. warning::
-    It is an :ref:`known issue <default-value-of-multi-instance-resource>` that
+    It is a :ref:`known issue <default-value-of-multi-instance-resource>` that
     multiple instance resources can't have a default value after a write-replace
     operation.
 

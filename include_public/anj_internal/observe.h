@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -45,6 +45,9 @@ struct _anj_observe_observation_struct {
     uint16_t ssid;
     anj_uri_path_t path;
     _anj_coap_token_t token;
+#    ifdef ANJ_WITH_RST_AS_CANCEL_OBSERVE
+    uint16_t last_sent_mid;
+#    endif // ANJ_WITH_RST_AS_CANCEL_OBSERVE
     uint32_t observe_number;
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     // These two fields are needed in case we receive a composite observation
@@ -61,8 +64,8 @@ struct _anj_observe_observation_struct {
     // if effective_attr are not valid, the observation is not active
     bool observe_active;
 
-    anj_time_real_t last_notify_timestamp;
-    anj_time_real_t next_conf_notify_timestamp;
+    anj_time_monotonic_t last_notify_timestamp;
+    anj_time_monotonic_t next_conf_notify_timestamp;
 
     /* This field is used for the purpose of the "Change Value Conditions"
      * attributes handling. This value is written from data model when:

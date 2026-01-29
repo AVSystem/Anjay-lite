@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 36
 
 #include <assert.h>
 #include <stdbool.h>
@@ -336,11 +338,17 @@ int _anj_io_out_ctx_init(_anj_io_out_ctx_t *ctx,
     case ANJ_OP_INF_CANCEL_OBSERVE_COMP:
         break;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
+    case ANJ_OP_INF_CON_SEND:
+    case ANJ_OP_INF_NON_CON_SEND:
+        use_base_path = true;
+        assert(base_path);
+#ifdef ANJ_WITH_SENML_CBOR
+        encode_time = true;
+#endif // ANJ_WITH_SENML_CBOR
+        break;
     case ANJ_OP_INF_INITIAL_NOTIFY:
     case ANJ_OP_INF_NON_CON_NOTIFY:
     case ANJ_OP_INF_CON_NOTIFY:
-    case ANJ_OP_INF_CON_SEND:
-    case ANJ_OP_INF_NON_CON_SEND:
 #ifdef ANJ_WITH_SENML_CBOR
         encode_time = true;
 #endif // ANJ_WITH_SENML_CBOR

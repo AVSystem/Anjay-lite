@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -77,7 +77,7 @@ void _anj_observe_verify_effective_attributes(
         _anj_observe_observation_t *observation);
 
 void _anj_observe_refresh_timestamp(_anj_observe_ctx_t *ctx,
-                                    anj_time_real_t timestamp,
+                                    anj_time_monotonic_t timestamp,
                                     bool confirmable);
 
 #    endif // ANJ_WITH_OBSERVE

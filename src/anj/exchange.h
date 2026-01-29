@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -151,15 +151,15 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
  *
  * If any function of this API returns @ref ANJ_EXCHANGE_STATE_MSG_TO_SEND, the
  * user should send the message and than call @ref _anj_exchange_process with
- * the @p event set to @ref ANJ_EXCHANGE_EVENT_SEND_ACK, or cancel the exchange
- * if sending fails. If exchange is in @ref ANJ_EXCHANGE_STATE_WAITING_MSG
- * state, every incoming message should be passed to the function with @p event
- * set to @ref ANJ_EXCHANGE_EVENT_NEW_MSG. If there is no message to process, or
- * there is no information about sending result, this function should be called
- * in intervals with @p event set to @ref ANJ_EXCHANGE_EVENT_NONE. During that
- * call exchange module can decide to resend the message, or cancel the exchange
- * in case of timeout. The exchange can be canceled by calling @ref
- * _anj_exchange_terminate.
+ * the @p event set to @ref ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, or cancel the
+ * exchange if sending fails. If exchange is in @ref
+ * ANJ_EXCHANGE_STATE_WAITING_MSG state, every incoming message should be passed
+ * to the function with @p event set to @ref ANJ_EXCHANGE_EVENT_NEW_MSG. If
+ * there is no message to process, or there is no information about sending
+ * result, this function should be called in intervals with @p event set to @ref
+ * ANJ_EXCHANGE_EVENT_NONE. During that call exchange module can decide to
+ * resend the message, or cancel the exchange in case of timeout. The exchange
+ * can be canceled by calling @ref _anj_exchange_terminate.
  *
  * This module handles:
  *  - retransmissions and timeouts RFC 7252,

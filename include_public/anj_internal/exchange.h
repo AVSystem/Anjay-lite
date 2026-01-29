@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -209,7 +209,7 @@ typedef struct {
  * Single cache entry for messages older than the latest one
  */
 typedef struct {
-    anj_time_real_t expiration_time;
+    anj_time_monotonic_t expiration_time;
     uint16_t mid;
 } _anj_exchange_cache_msg_non_recent_t;
 
@@ -218,7 +218,7 @@ typedef struct {
  * Single cache entry for the latest message
  */
 typedef struct {
-    anj_time_real_t expiration_time;
+    anj_time_monotonic_t expiration_time;
     _anj_coap_msg_t response;
     uint8_t payload[ANJ_OUT_PAYLOAD_BUFFER_SIZE];
 } _anj_exchange_cache_msg_recent_t;

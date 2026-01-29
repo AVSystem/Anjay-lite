@@ -1,5 +1,5 @@
 ..
-   Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+   Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
    AVSystem Anjay Lite LwM2M SDK
    All rights reserved.
 
@@ -113,7 +113,7 @@ The ``fu_uri_write()`` handler starts the download using the provided URI.
         } else if (res) {
             return ANJ_DM_FW_UPDATE_RESULT_FAILED;
         }
-        return ANJ_DM_FW_UPDATE_RESULT_INITIAL;
+        return ANJ_DM_FW_UPDATE_RESULT_SUCCESS;
     }
 
 Process firmware download

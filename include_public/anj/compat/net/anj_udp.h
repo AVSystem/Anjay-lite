@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -14,7 +14,7 @@
  * @brief Network backend interface for UDP transport.
  *
  * Declares the UDP variant of the generic @ref anj_net_api.h
- * functions (create, connect, send, recv, shutdown, etc.).
+ * functions (create, connect, send, recv, etc.).
  *
  * These symbols are defined only if @ref ANJ_NET_WITH_UDP is
  * enabled. They provide the UDP binding used by
@@ -37,7 +37,6 @@ anj_net_connect_t anj_udp_connect;
 anj_net_create_ctx_t anj_udp_create_ctx;
 anj_net_send_t anj_udp_send;
 anj_net_recv_t anj_udp_recv;
-anj_net_shutdown_t anj_udp_shutdown;
 anj_net_cleanup_ctx_t anj_udp_cleanup_ctx;
 
 anj_net_get_inner_mtu_t anj_udp_get_inner_mtu;

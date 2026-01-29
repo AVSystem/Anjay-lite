@@ -1,5 +1,5 @@
 /*
- * Copyright 2023-2025 AVSystem <avsystem@avsystem.com>
+ * Copyright 2023-2026 AVSystem <avsystem@avsystem.com>
  * AVSystem Anjay Lite LwM2M SDK
  * All rights reserved.
  *
@@ -8,6 +8,8 @@
  */
 
 #include <anj/init.h>
+
+#define ANJ_LOG_SOURCE_FILE_ID 20
 
 #include <assert.h>
 #include <stdbool.h>
@@ -52,12 +54,13 @@ static void get_security_obj_ssid_value(anj_t *anj,
         *ssid = &disc_ctx->ssid;
     }
 }
-#    ifdef ANJ_WITH_OSCORE
+
 static void get_security_instance_ssid_for_oscore_obj(anj_t *anj,
                                                       anj_iid_t iid,
                                                       const uint16_t **ssid) {
     _anj_dm_data_model_t *dm = &anj->dm;
-    anj_dm_obj_t *security_object = _anj_dm_find_obj(dm, ANJ_OBJ_ID_SECURITY);
+    const anj_dm_obj_t *security_object =
+            _anj_dm_find_obj(dm, ANJ_OBJ_ID_SECURITY);
     if (!security_object) {
         *ssid = NULL;
         return;
@@ -83,7 +86,6 @@ static void get_security_instance_ssid_for_oscore_obj(anj_t *anj,
         }
     }
 }
-#    endif // ANJ_WITH_OSCORE
 
 static void get_ssid_and_uri(anj_t *anj,
                              const anj_dm_obj_t *obj,
@@ -128,14 +130,11 @@ static void get_ssid_and_uri(anj_t *anj,
             disc_ctx->ssid = (uint16_t) value.int_value;
             *ssid = &disc_ctx->ssid;
         }
-    }
-#    ifdef ANJ_WITH_OSCORE
-    else if (obj->oid == ANJ_OBJ_ID_OSCORE) {
+    } else if (obj->oid == ANJ_OBJ_ID_OSCORE) {
         // find Security Object Instance related with this OSCORE Instance and
         // read SSID
         get_security_instance_ssid_for_oscore_obj(anj, inst->iid, ssid);
     }
-#    endif // ANJ_WITH_OSCORE
 }
 
 int _anj_dm_begin_bootstrap_discover_op(anj_t *anj,
@@ -216,8 +215,14 @@ int _anj_dm_get_bootstrap_discover_record(anj_t *anj,
 #ifdef ANJ_WITH_DISCOVER
 int _anj_dm_begin_discover_op(anj_t *anj, const anj_uri_path_t *base_path) {
     assert(anj);
-    assert(base_path && anj_uri_path_has(base_path, ANJ_ID_OID)
-           && !anj_uri_path_has(base_path, ANJ_ID_RIID));
+    assert(base_path);
+    // path is not verified in anj_coap layer for Discover operation
+    // so we need to do it here
+    if (!anj_uri_path_has(base_path, ANJ_ID_OID)
+            || anj_uri_path_has(base_path, ANJ_ID_RIID)) {
+        dm_log(L_ERROR, "Invalid base path for Discover operation");
+        return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
+    }
     _anj_dm_data_model_t *dm = &anj->dm;
     _anj_dm_disc_ctx_t *disc_ctx = &dm->op_ctx.disc_ctx;
     dm->op_count = 0;
