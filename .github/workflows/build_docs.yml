@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: avsystemembedded/anjay-lite-build-docs:1.0
+    container: registry.avsystem.com/embedded-public/anjay-lite-build-docs:1.1/anjay-lite-build-docs:1.0
     steps:
       - name: Checkout
         uses: actions/checkout@v4
