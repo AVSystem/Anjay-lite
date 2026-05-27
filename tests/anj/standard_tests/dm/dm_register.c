@@ -156,7 +156,7 @@ ANJ_UNIT_TEST(dm_register, register_operation) {
 
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_REGISTER, false, NULL));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_REGISTER, false, NULL));
 
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     anj_uri_path_t path;

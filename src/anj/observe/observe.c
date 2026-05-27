@@ -7,12 +7,11 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 46
 
 #include <assert.h>
-#include <inttypes.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -185,7 +184,6 @@ int _anj_observe_check_if_value_condition_attributes_should_be_disabled(
                         &observation->last_sent_value, &res_value, &res_type);
             }
         } else {
-            observe_log(L_WARNING, "Can't read resource");
             return res;
         }
     }
@@ -219,7 +217,7 @@ static int calculate_effective_attr_set_init_values(
 
 #    ifdef ANJ_WITH_LWM2M12
     if (!_anj_observe_is_empty_attr(&observation->observation_attr)) {
-        observe_log(L_DEBUG, "Observation has assigned attributes. Ignoring "
+        observe_log(L_TRACE, "Observation has assigned attributes. Ignoring "
                              "write attr");
         *attr = observation->observation_attr;
     } else
@@ -255,18 +253,22 @@ void _anj_observe_remove_observation(_anj_observe_ctx_t *ctx) {
 
     base_observation->ssid = 0;
     base_observation->notification_to_send = false;
+    observe_log(L_INFO, "Observation removed %s (%s)",
+                _ANJ_DEBUG_URI_PATH(&base_observation->path),
+                _ANJ_DEBUG_COAP_TOKEN(&base_observation->token));
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
     if (base_observation->prev) {
         _anj_observe_observation_t *prev_observation = base_observation->prev;
         while (prev_observation != base_observation) {
             assert(prev_observation);
+            observe_log(L_INFO, "Observation removed %s",
+                        _ANJ_DEBUG_URI_PATH(&prev_observation->path));
             prev_observation->ssid = 0;
             prev_observation->notification_to_send = false;
             prev_observation = prev_observation->prev;
         }
     }
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
-    observe_log(L_INFO, "Observation removed");
 }
 
 void _anj_observe_set_uri_paths_and_format(anj_t *anj) {
@@ -303,7 +305,7 @@ static int observation_check_existence(_anj_observe_ctx_t *ctx,
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
         bool composite = observation->prev;
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
-        observe_log(L_DEBUG, "Observation already exists");
+        observe_log(L_INFO, "Observation already exists");
         if ((!anj_uri_path_equal(&observation->path, &request->uri)
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
              && !composite
@@ -495,16 +497,14 @@ static void observe_exchange_completion(void *arg_ptr,
     _anj_dm_observe_finalize_operation(anj, result);
     if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
         if (ctx->in_progress_type == MSG_TYPE_OBSERVE_RESPONSE) {
-            observe_log(L_ERROR, "Failed to add observation: %d", result);
+            observe_log(L_ERROR, "Observation addition failed");
             if (ctx->processing_observation) {
                 _anj_observe_remove_observation(ctx);
             }
-        } else if (ctx->in_progress_type == MSG_TYPE_CANCEL_OBSERVE_RESPONSE) {
-            observe_log(L_ERROR, "Failed to remove observation: %d", result);
         }
     } else {
         if (ctx->in_progress_type == MSG_TYPE_OBSERVE_RESPONSE) {
-            observe_log(L_INFO, "Observation added");
+            observe_log(L_TRACE, "Observation added");
         } else if (ctx->in_progress_type == MSG_TYPE_CANCEL_OBSERVE_RESPONSE) {
             _anj_observe_remove_observation(ctx);
         }
@@ -567,7 +567,6 @@ static int parse_request(anj_t *anj,
                          uint8_t *response_code,
                          uint16_t ssid) {
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
-    observe_log(L_TRACE, "Request received, ssid: %" PRIu16, ssid);
     int result = ANJ_COAP_CODE_METHOD_NOT_ALLOWED;
     bool composite = false;
     uint8_t positive_ret_val = ANJ_COAP_CODE_CONTENT;
@@ -578,13 +577,18 @@ static int parse_request(anj_t *anj,
         return -1;
     }
 
+    observe_log(L_INFO, "New %s request for %s path (%s)",
+                _anj_debug_coap_operation_to_string(request->operation),
+                _ANJ_DEBUG_URI_PATH(&request->uri),
+                _ANJ_DEBUG_COAP_TOKEN(&request->token));
+
     switch (request->operation) {
-    case ANJ_OP_DM_WRITE_ATTR:
+    case _ANJ_OP_DM_WRITE_ATTR:
         positive_ret_val = ANJ_COAP_CODE_CHANGED;
         result = _anj_observe_write_attr_handle(anj, request, ssid);
         refresh_after_write_attr(anj, &request->uri, ssid);
         break;
-    case ANJ_OP_INF_OBSERVE_COMP:
+    case _ANJ_OP_INF_OBSERVE_COMP:
         if (composite_are_not_enabled()) {
             break;
         }
@@ -594,7 +598,7 @@ static int parse_request(anj_t *anj,
             break;
         }
         // fall through
-    case ANJ_OP_INF_OBSERVE:
+    case _ANJ_OP_INF_OBSERVE:
         *out_handlers = (_anj_exchange_handlers_t) {
             .read_payload = _anj_observe_build_message,
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
@@ -622,7 +626,7 @@ static int parse_request(anj_t *anj,
         if (composite) {
             if (!ctx->observation_exists) {
                 result = _anj_io_in_ctx_init(&anj->anj_io.in_ctx,
-                                             ANJ_OP_INF_OBSERVE_COMP,
+                                             _ANJ_OP_INF_OBSERVE_COMP,
                                              NULL,
                                              request->content_format);
                 if (result == _ANJ_IO_ERR_UNSUPPORTED_FORMAT) {
@@ -662,12 +666,12 @@ static int parse_request(anj_t *anj,
             _anj_observe_set_uri_paths_and_format(anj);
         }
         break;
-    case ANJ_OP_INF_CANCEL_OBSERVE_COMP:
+    case _ANJ_OP_INF_CANCEL_OBSERVE_COMP:
         if (composite_are_not_enabled()) {
             break;
         }
         // fall through
-    case ANJ_OP_INF_CANCEL_OBSERVE:
+    case _ANJ_OP_INF_CANCEL_OBSERVE:
         *out_handlers = (_anj_exchange_handlers_t) {
             .read_payload = _anj_observe_build_message,
             .completion = observe_exchange_completion,
@@ -690,7 +694,7 @@ static int parse_request(anj_t *anj,
     }
 
 #    ifdef ANJ_WITH_OBSERVE_COMPOSITE
-    if (request->operation == ANJ_OP_INF_OBSERVE_COMP
+    if (request->operation == _ANJ_OP_INF_OBSERVE_COMP
             && result == ANJ_COAP_CODE_UNSUPPORTED_CONTENT_FORMAT) {
         *response_code = ANJ_COAP_CODE_UNSUPPORTED_CONTENT_FORMAT;
     } else
@@ -720,14 +724,12 @@ int _anj_observe_new_request(anj_t *anj,
                          server_state->ssid);
 }
 
-void _anj_observe_remove_all_observations(anj_t *anj, uint16_t ssid) {
-    assert(anj && ssid != 0);
+void _anj_observe_remove_all_observations(anj_t *anj) {
+    assert(anj);
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
+    observe_log(L_TRACE, "Removing all observations");
     for (size_t i = 0; i < ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER; i++) {
-        if (ctx->observations[i].ssid == ssid
-                || ssid == ANJ_OBSERVE_ANY_SERVER) {
-            ctx->observations[i].ssid = 0;
-        }
+        ctx->observations[i].ssid = 0;
     }
 }
 
@@ -743,6 +745,7 @@ void _anj_observe_update_last_mid(anj_t *anj, uint16_t mid) {
 
 void _anj_observe_cancel_observation_by_mid(anj_t *anj, uint16_t mid) {
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
+    observe_log(L_DEBUG, "Cancelling observation by RST");
     for (size_t i = 0; i < ANJ_OBSERVE_MAX_OBSERVATIONS_NUMBER; i++) {
         if (ctx->observations[i].last_sent_mid == mid
                 && ctx->observations[i].ssid != 0) {

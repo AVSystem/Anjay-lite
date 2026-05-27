@@ -185,7 +185,7 @@ ANJ_UNIT_TEST(dm_create, create) {
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     anj_iid_t iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
@@ -196,7 +196,7 @@ ANJ_UNIT_TEST(dm_create, create) {
 
     path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
@@ -204,7 +204,7 @@ ANJ_UNIT_TEST(dm_create, create) {
 
     path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
@@ -229,7 +229,7 @@ ANJ_UNIT_TEST(dm_create, create_with_write) {
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     anj_iid_t iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
@@ -241,7 +241,7 @@ ANJ_UNIT_TEST(dm_create, create_with_write) {
 
     path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
     anj_io_out_entry_t record = {
@@ -255,7 +255,7 @@ ANJ_UNIT_TEST(dm_create, create_with_write) {
 
     path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
@@ -280,7 +280,7 @@ ANJ_UNIT_TEST(dm_create, create_error_write_path) {
 
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     anj_iid_t iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
@@ -288,7 +288,7 @@ ANJ_UNIT_TEST(dm_create, create_error_write_path) {
 
     path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     iid = 1;
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_create_object_instance(&anj, iid),
                           ANJ_DM_ERR_BAD_REQUEST);
@@ -310,7 +310,7 @@ ANJ_UNIT_TEST(dm_create, callback_error) {
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     inst_create_return_eror = true;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     anj_iid_t iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_create_object_instance(&anj, iid), -1);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -330,7 +330,7 @@ ANJ_UNIT_TEST(dm_create, error_no_space) {
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     anj_iid_t iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
@@ -346,8 +346,9 @@ ANJ_UNIT_TEST(dm_create, error_no_space) {
     ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_SUCCESS);
 
     path = ANJ_MAKE_OBJECT_PATH(1);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_SUCCESS(
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_create_object_instance(&anj, iid),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 2);
@@ -362,7 +363,7 @@ ANJ_UNIT_TEST(dm_create, create_with_write_error) {
 
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     anj_iid_t iid = ANJ_ID_INVALID;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, iid));
     anj_io_out_entry_t record = {

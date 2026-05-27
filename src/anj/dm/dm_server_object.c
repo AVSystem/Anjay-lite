@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 28
 
@@ -203,6 +203,7 @@ static int validate_instance(anj_dm_server_instance_t *inst) {
             || inst->comm_retry_res.retry_count == 0
             || inst->comm_retry_res.seq_retry_count == 0
             || inst->default_notification_mode > 1) {
+        dm_log(L_ERROR, "Invalid Server Object instance configuration");
         return -1;
     }
     return 0;
@@ -543,7 +544,7 @@ int anj_dm_server_obj_install(anj_t *anj, anj_dm_server_obj_t *server_obj_ctx) {
     int res = anj_dm_add_obj(anj, &server_obj_ctx->obj);
     if (!res) {
         server_obj_ctx->installed = true;
-        dm_log(L_INFO, "Server object installed");
+        dm_log(L_INFO, "Server Object installed");
     }
     return res;
 }
@@ -583,6 +584,7 @@ int anj_dm_server_obj_store(anj_dm_server_obj_t *server_obj_ctx,
     assert(anj_persistence_direction(ctx) == ANJ_PERSISTENCE_STORE);
     assert(server_obj_ctx->installed);
 
+    dm_log(L_INFO, "Storing Server Object");
     if (server_obj_ctx->inst.iid == ANJ_ID_INVALID) {
         dm_log(L_ERROR, "No Server Object instance to store");
         return -1;
@@ -599,6 +601,7 @@ int anj_dm_server_obj_restore(anj_dm_server_obj_t *server_obj_ctx,
     assert(anj_persistence_direction(ctx) == ANJ_PERSISTENCE_RESTORE);
     assert(!server_obj_ctx->installed);
 
+    dm_log(L_INFO, "Restoring Server Object");
     if (anj_persistence_magic(ctx, g_persistence_header,
                               sizeof(g_persistence_header))) {
         return -1;

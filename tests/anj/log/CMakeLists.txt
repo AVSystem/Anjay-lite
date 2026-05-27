@@ -14,6 +14,7 @@ set(ANJ_LOG_ALT_IMPL_HEADER "log_alt_impl_header.h")
 set(ANJ_LOG_FILTERING_CONFIG_HEADER "log_filtering_config_header.h")
 
 set(anjay_lite_DIR "../../../cmake")
+set(CMAKE_BUILD_TYPE Debug)
 
 find_package(anjay_lite REQUIRED)
 target_compile_options(anj PRIVATE -Wall -Wextra -Werror)

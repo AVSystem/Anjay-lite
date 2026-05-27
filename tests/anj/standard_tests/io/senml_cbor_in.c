@@ -39,7 +39,7 @@ ANJ_UNIT_TEST(cbor_in_resource, single_instance) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -82,7 +82,7 @@ ANJ_UNIT_TEST(cbor_in_resource, single_instance_indefinite_array) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -125,7 +125,7 @@ ANJ_UNIT_TEST(cbor_in_resource, single_instance_indefinite_map) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -167,7 +167,7 @@ ANJ_UNIT_TEST(cbor_in_resource_permuted, single_instance) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -215,7 +215,7 @@ ANJ_UNIT_TEST(cbor_in_resource, single_instance_but_more_than_one) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -269,7 +269,7 @@ ANJ_UNIT_TEST(cbor_in_resource, single_instance_with_first_resource_unrelated) {
     // /13/26/2.
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -302,7 +302,7 @@ ANJ_UNIT_TEST(cbor_in_resource_permuted, single_instance_but_more_than_one) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -354,7 +354,7 @@ ANJ_UNIT_TEST(cbor_in_resource, multiple_instance) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -423,7 +423,7 @@ ANJ_UNIT_TEST(cbor_in_resource, multiple_instance_strings) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -478,7 +478,7 @@ ANJ_UNIT_TEST(cbor_in_resource_permuted, multiple_instance) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -539,7 +539,7 @@ ANJ_UNIT_TEST(cbor_in_instance, with_simple_resource) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_INSTANCE_PATH(13, 26), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -587,7 +587,7 @@ ANJ_UNIT_TEST(cbor_in_instance, with_more_than_one_resource) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_INSTANCE_PATH(13, 26), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -650,7 +650,7 @@ ANJ_UNIT_TEST(cbor_in_object, with_single_instance_and_some_resources) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &ANJ_MAKE_OBJECT_PATH(13),
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &ANJ_MAKE_OBJECT_PATH(13),
             _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -726,7 +726,7 @@ ANJ_UNIT_TEST(cbor_in_object, with_some_instances_and_some_resources) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &ANJ_MAKE_OBJECT_PATH(13),
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &ANJ_MAKE_OBJECT_PATH(13),
             _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCES, sizeof(RESOURCES) - 1, true));
@@ -813,7 +813,7 @@ ANJ_UNIT_TEST(cbor_in_value, explicit_null) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -847,7 +847,7 @@ ANJ_UNIT_TEST(cbor_in_value, boolean) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -882,7 +882,7 @@ ANJ_UNIT_TEST(cbor_in_value, string) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -920,7 +920,7 @@ ANJ_UNIT_TEST(cbor_in_value, bytes) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -956,7 +956,7 @@ ANJ_UNIT_TEST(cbor_in_value, value_too_large_for_int) {
                         "\x1B\x80\x00\x00\x00\x00\x00\x00\x00" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -990,7 +990,7 @@ ANJ_UNIT_TEST(cbor_in_value, unsigned_int) {
                         "\x1B\x80\x00\x00\x00\x00\x00\x00\x00" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1032,7 +1032,7 @@ ANJ_UNIT_TEST(cbor_in_value, negative_int) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1074,7 +1074,7 @@ ANJ_UNIT_TEST(cbor_in_value, negative_int_as_unsigned) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1108,7 +1108,7 @@ ANJ_UNIT_TEST(cbor_in_value, time_losing_precision_ok) {
                         "\xC1\xFB\x41\xD0\x93\xBD\x21\xAC\x6D\xCF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1141,7 +1141,7 @@ ANJ_UNIT_TEST(cbor_in_value, double) {
                         "\xFB\x41\xD0\x93\xBD\x21\xAC\x6D\xCF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1183,7 +1183,7 @@ ANJ_UNIT_TEST(cbor_in_value, u64_as_double_within_range) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1225,7 +1225,7 @@ ANJ_UNIT_TEST(cbor_in_value, u64_as_double_out_of_range) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1268,7 +1268,7 @@ ANJ_UNIT_TEST(cbor_in_value, i64_as_double_within_range) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1310,7 +1310,7 @@ ANJ_UNIT_TEST(cbor_in_value, i64_as_double_out_of_range) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1353,7 +1353,7 @@ ANJ_UNIT_TEST(cbor_in_value, float_as_i64_when_convertible) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1395,7 +1395,7 @@ ANJ_UNIT_TEST(cbor_in_value, float_as_i64_when_not_convertible) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1430,7 +1430,7 @@ ANJ_UNIT_TEST(cbor_in_value, double_as_i64_when_convertible) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1472,7 +1472,7 @@ ANJ_UNIT_TEST(cbor_in_value, float_as_u64_when_convertible) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1514,7 +1514,7 @@ ANJ_UNIT_TEST(cbor_in_value, float_as_u64_when_not_convertible) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1549,7 +1549,7 @@ ANJ_UNIT_TEST(cbor_in_value, double_as_u64_when_convertible) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1590,7 +1590,7 @@ ANJ_UNIT_TEST(cbor_in_value, double_as_huge_u64_when_convertible) {
                         "\xFB\x43\xEF\xFF\xFF\xFF\xFF\xFF\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1632,7 +1632,7 @@ ANJ_UNIT_TEST(cbor_in_value, double_as_i64_not_convertible) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1667,7 +1667,7 @@ ANJ_UNIT_TEST(cbor_in_value, half_read_as_double) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1710,7 +1710,7 @@ ANJ_UNIT_TEST(cbor_in_value, objlnk_valid) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1746,7 +1746,7 @@ ANJ_UNIT_TEST(cbor_in_value, objlnk_with_trash_at_the_end) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1774,7 +1774,7 @@ ANJ_UNIT_TEST(cbor_in_value, objlnk_with_overflow) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1802,7 +1802,7 @@ ANJ_UNIT_TEST(cbor_in_value, objlnk_too_long) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -1830,7 +1830,7 @@ ANJ_UNIT_TEST(cbor_in_composite, composite_read_mode_additional_payload) {
         "foo"
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_READ_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_READ_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -1856,7 +1856,7 @@ ANJ_UNIT_TEST(cbor_in_composite, composite_read_root_path) {
         "\x61/" // text(1)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_READ_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_READ_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -1888,7 +1888,7 @@ ANJ_UNIT_TEST(cbor_in_composite, composite_observe_with_value) {
         "foo"
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_READ_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_READ_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -1918,7 +1918,7 @@ ANJ_UNIT_TEST(cbor_in_composite, composite_observe_two_paths) {
         "\x68/14/27/2" // text(8)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_INF_OBSERVE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_INF_OBSERVE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -1963,7 +1963,7 @@ ANJ_UNIT_TEST(cbor_in_composite, composite_observe_two_paths_with_basename) {
         "\x62/2"     // text(2)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_INF_OBSERVE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_INF_OBSERVE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2001,7 +2001,7 @@ ANJ_UNIT_TEST(cbor_in_error, no_toplevel_array) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2030,7 +2030,7 @@ ANJ_UNIT_TEST(cbor_in_error, time_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2057,7 +2057,7 @@ ANJ_UNIT_TEST(cbor_in_error, bogus_map_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2084,7 +2084,7 @@ ANJ_UNIT_TEST(cbor_in_error, invalid_string_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2111,7 +2111,7 @@ ANJ_UNIT_TEST(cbor_in_error, invalid_long_string_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2138,7 +2138,7 @@ ANJ_UNIT_TEST(cbor_in_error, invalid_numeric_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2164,7 +2164,7 @@ ANJ_UNIT_TEST(cbor_in_error, unfinished_array) {
         "\x18\x2A"       // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2191,7 +2191,7 @@ ANJ_UNIT_TEST(cbor_in_error, out_of_range_id) {
         "\x18\x2A"             // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2218,7 +2218,7 @@ ANJ_UNIT_TEST(cbor_in_error, invalid_id_in_path) {
         "\x18\x2A"           // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2245,7 +2245,7 @@ ANJ_UNIT_TEST(cbor_in_error, empty_path) {
         "\x18\x2A" // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2272,7 +2272,7 @@ ANJ_UNIT_TEST(cbor_in_error, too_many_path_segments) {
         "\x18\x2A"       // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2301,7 +2301,7 @@ ANJ_UNIT_TEST(cbor_in_error, duplicate_name) {
         "\x18\x2A"     // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2328,7 +2328,7 @@ ANJ_UNIT_TEST(cbor_in_error, non_string_name) {
         "\x18\x2A"     // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2355,7 +2355,7 @@ ANJ_UNIT_TEST(cbor_in_error, name_too_long) {
         "\x18\x2A"                          // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2385,7 +2385,7 @@ ANJ_UNIT_TEST(cbor_in_error, multiple_values) {
         "foobar" // string(foobar)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2414,7 +2414,7 @@ ANJ_UNIT_TEST(cbor_in_error, duplicate_basename) {
         "\x18\x2A"     // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2441,7 +2441,7 @@ ANJ_UNIT_TEST(cbor_in_error, non_string_basename) {
         "\x18\x2A"     // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2465,7 +2465,7 @@ ANJ_UNIT_TEST(cbor_in_error, premature_eof_no_name) {
         "\x00" // unsigned(0) => SenML Name
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2489,7 +2489,7 @@ ANJ_UNIT_TEST(cbor_in_error, premature_eof_no_basename) {
         "\x21" // negative(1) => SenML Base Name
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2515,7 +2515,7 @@ ANJ_UNIT_TEST(cbor_in_error, premature_eof_no_value) {
         "\x02"         // unsigned(2) => SenML Value
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2543,7 +2543,7 @@ ANJ_UNIT_TEST(cbor_in_error, premature_eof_indefinite_map) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2570,7 +2570,7 @@ ANJ_UNIT_TEST(cbor_in_error, explicit_null_with_wrong_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2597,7 +2597,7 @@ ANJ_UNIT_TEST(cbor_in_error, boolean_with_wrong_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2625,7 +2625,7 @@ ANJ_UNIT_TEST(cbor_in_error, bytes_with_wrong_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2653,7 +2653,7 @@ ANJ_UNIT_TEST(cbor_in_error, string_with_wrong_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2680,7 +2680,7 @@ ANJ_UNIT_TEST(cbor_in_error, number_with_wrong_label) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2707,7 +2707,7 @@ ANJ_UNIT_TEST(cbor_in_error, number_incompatible_type_requested) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2735,7 +2735,7 @@ ANJ_UNIT_TEST(cbor_in_error, string_incompatible_type_requested) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2762,7 +2762,7 @@ ANJ_UNIT_TEST(cbor_in_error, invalid_disambiguation_and_double_eof) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_PATH(13, 26, 1), _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -2829,7 +2829,7 @@ ANJ_UNIT_TEST(cbor_in_basename, out_of_order_concatenation) {
         "\x63/21"   // text(3)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2871,7 +2871,7 @@ ANJ_UNIT_TEST(cbor_in_basename, basename_without_name) {
         "\x18\x2A"     // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2917,7 +2917,7 @@ ANJ_UNIT_TEST(cbor_in_basename, basename_persistence) {
         "\x19\x08\x59" // unsigned(2137)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -2976,7 +2976,7 @@ ANJ_UNIT_TEST(cbor_in_basename, concatenated_path_too_long) {
         "\x18\x2A"          // unsigned(42)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -3006,7 +3006,7 @@ ANJ_UNIT_TEST(cbor_in_basename, concatenated_path_too_long_string) {
         "foobar" // string(foobar)
     };
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -3141,7 +3141,7 @@ ANJ_UNIT_TEST(cbor_in_huge, huge_payload) {
     memcpy(RESOURCES, HUGE_PAYLOAD, sizeof(HUGE_PAYLOAD));
 
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -3376,7 +3376,7 @@ ANJ_UNIT_TEST(cbor_in_huge, huge_payload_split) {
 
         _anj_io_in_ctx_t ctx;
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-                &ctx, ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
+                &ctx, _ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
                 _ANJ_COAP_FORMAT_SENML_CBOR));
         ANJ_UNIT_ASSERT_SUCCESS(
                 _anj_io_in_ctx_feed_payload(&ctx, RESOURCES, split, false));
@@ -3869,7 +3869,7 @@ ANJ_UNIT_TEST(cbor_in_huge, huge_payload_byte_by_byte) {
     memcpy(RESOURCES, HUGE_PAYLOAD, sizeof(HUGE_PAYLOAD));
 
     _anj_io_in_ctx_t ctx;
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP,
                                                 &ANJ_MAKE_ROOT_PATH(),
                                                 _ANJ_COAP_FORMAT_SENML_CBOR));
     int result;

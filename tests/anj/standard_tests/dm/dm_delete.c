@@ -174,7 +174,7 @@ ANJ_UNIT_TEST(dm_delete, delete_last) {
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 2);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -194,7 +194,7 @@ ANJ_UNIT_TEST(dm_delete, delete_first) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 0);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[2].iid, ANJ_ID_INVALID);
@@ -212,7 +212,7 @@ ANJ_UNIT_TEST(dm_delete, delete_middle) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[2].iid, ANJ_ID_INVALID);
@@ -230,7 +230,7 @@ ANJ_UNIT_TEST(dm_delete, delete_all) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[2].iid, ANJ_ID_INVALID);
@@ -245,7 +245,7 @@ ANJ_UNIT_TEST(dm_delete, delete_all) {
 
     path = ANJ_MAKE_INSTANCE_PATH(1, 2);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[1].iid, ANJ_ID_INVALID);
@@ -259,7 +259,7 @@ ANJ_UNIT_TEST(dm_delete, delete_all) {
 
     path = ANJ_MAKE_INSTANCE_PATH(1, 0);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[0].iid, ANJ_ID_INVALID);
@@ -275,8 +275,8 @@ ANJ_UNIT_TEST(dm_delete, delete_error_no_exist) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 4);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false, &path),
                           ANJ_DM_ERR_NOT_FOUND);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -295,7 +295,7 @@ ANJ_UNIT_TEST(dm_delete, delete_error_removed) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[2].iid, ANJ_ID_INVALID);
@@ -308,8 +308,8 @@ ANJ_UNIT_TEST(dm_delete, delete_error_removed) {
     ANJ_UNIT_ASSERT_EQUAL(call_counter_delete, 1);
     ANJ_UNIT_ASSERT_EQUAL(call_result, ANJ_DM_TRANSACTION_SUCCESS);
 
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false, &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[2].iid, ANJ_ID_INVALID);
@@ -326,8 +326,8 @@ ANJ_UNIT_TEST(dm_delete, delete_error_no_callback) {
     TEST_INIT(anj, obj);
     handlers.inst_delete = NULL;
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false, &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
@@ -342,7 +342,7 @@ ANJ_UNIT_TEST(dm_delete, delete_error_callback_error_1) {
 
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 0);
     ANJ_UNIT_ASSERT_EQUAL(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path), -1);
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path), -1);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[0].iid, 0);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[1].iid, 1);
@@ -362,7 +362,7 @@ ANJ_UNIT_TEST(dm_delete, delete_error_callback_error_2) {
 
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 0);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_validate(&anj), -22);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[2].iid, ANJ_ID_INVALID);
@@ -380,12 +380,13 @@ ANJ_UNIT_TEST(dm_delete, delete_error_callback_error_2) {
 ANJ_UNIT_TEST(dm_delete, delete_error_invalid_path) {
     TEST_INIT(anj, obj);
 
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false,
                                                   &ANJ_MAKE_OBJECT_PATH(1)),
                           ANJ_DM_ERR_BAD_REQUEST);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false,
                                     &ANJ_MAKE_RESOURCE_PATH(1, 1, 0)),
             ANJ_DM_ERR_BAD_REQUEST);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -396,7 +397,7 @@ ANJ_UNIT_TEST(dm_delete, delete_res_last) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 2);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[0].iid, 0);
@@ -420,7 +421,7 @@ ANJ_UNIT_TEST(dm_delete, delete_res_first) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 0);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -445,7 +446,7 @@ ANJ_UNIT_TEST(dm_delete, delete_res_middle) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(obj.insts[0].iid, 0);
@@ -468,7 +469,7 @@ ANJ_UNIT_TEST(dm_delete, delete_res_all) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
@@ -485,7 +486,7 @@ ANJ_UNIT_TEST(dm_delete, delete_res_all) {
 
     path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 0);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(res_insts[0], 2);
@@ -501,7 +502,7 @@ ANJ_UNIT_TEST(dm_delete, delete_res_all) {
 
     path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 2);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
@@ -520,8 +521,8 @@ ANJ_UNIT_TEST(dm_delete, delete_res_all) {
 ANJ_UNIT_TEST(dm_delete, delete_res_error_path) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 1, 1);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false, &path),
                           ANJ_DM_ERR_NOT_FOUND);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
@@ -535,8 +536,8 @@ ANJ_UNIT_TEST(dm_delete, delete_res_error_no_instances) {
     TEST_INIT(anj, obj);
     res_insts[0] = ANJ_ID_INVALID;
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false, &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
@@ -553,7 +554,7 @@ ANJ_UNIT_TEST(dm_delete, delete_res_error_callback) {
     res_inst_operation_return_eror = true;
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 0);
     ANJ_UNIT_ASSERT_EQUAL(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false, &path), -1);
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE, false, &path), -1);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
@@ -568,14 +569,14 @@ ANJ_UNIT_TEST(dm_delete, delete_res_error_callback) {
 ANJ_UNIT_TEST(dm_delete, delete_res_error_not_authorized) {
     TEST_INIT(anj, obj);
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SECURITY, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false, &path),
                           ANJ_DM_ERR_UNAUTHORIZED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     path = ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_OSCORE, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_DELETE, false,
-                                                  &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_DELETE,
+                                                  false, &path),
                           ANJ_DM_ERR_UNAUTHORIZED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 

@@ -8,7 +8,9 @@
 cmake_minimum_required(VERSION 3.16.0)
 
 add_library(test_framework STATIC
-    anj_unit_test.c)
+    anj_unit_test.c
+)
 
 target_include_directories(test_framework INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR})
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)

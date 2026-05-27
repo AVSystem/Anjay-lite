@@ -160,7 +160,7 @@ init_obj_inst({{ obj.name_snake }}_obj_ctx_t *ctx, size_t index, anj_iid_t iid) 
 
 {% if dynamic_resources_instances %}
     memset(ctx->obj_insts[index].{{ res.name_snake }}_res_insts_ids,
-           ANJ_ID_INVALID,
+           255, // Fill with ANJ_ID_INVALID
            sizeof(ctx->obj_insts[index].{{ res.name_snake }}_res_insts_ids));
 
     // Initialize resource instances

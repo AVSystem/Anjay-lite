@@ -7,11 +7,11 @@
  * See the attached LICENSE file for details.
  */
 
-#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdbool.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <time.h>
 
 #include <anj/core.h>
 #include <anj/defs.h>
@@ -104,7 +104,8 @@ int main(int argc, char *argv[]) {
     while (true) {
         anj_core_step(&anj);
         fw_update_process();
-        usleep(50 * 1000);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
     }
     return 0;
 }

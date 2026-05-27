@@ -71,8 +71,8 @@ typedef struct {
 /**
  * @anj_internal_api_do_not_use
  * Data model context, do not modify this structure directly, its fields are
- * changed during dm API calls. Initialize it by calling @ref
- * _anj_dm_initialize. Objects can be added using @ref anj_dm_add_obj and
+ * changed during dm API calls. Initialize it by calling _anj_dm_initialize.
+ * Objects can be added using @ref anj_dm_add_obj and
  * removed with @ref anj_dm_remove_obj.
  */
 typedef struct {

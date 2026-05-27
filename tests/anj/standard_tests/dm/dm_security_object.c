@@ -271,7 +271,7 @@ ANJ_UNIT_TEST(dm_security_object, create_instance_minimal) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_install(&anj, &sec_obj));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_CREATE, true,
+            &anj, _ANJ_OP_DM_CREATE, true,
             &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SECURITY)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, 20));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(
@@ -318,7 +318,7 @@ ANJ_UNIT_TEST(dm_security_object, create_instance) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_install(&anj, &sec_obj));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_CREATE, true,
+            &anj, _ANJ_OP_DM_CREATE, true,
             &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SECURITY)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, 20));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(
@@ -469,7 +469,7 @@ ANJ_UNIT_TEST(dm_security_object, delete_instance) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_install(&anj, &sec_obj));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_DELETE, true,
+            &anj, _ANJ_OP_DM_DELETE, true,
             &ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SECURITY, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -480,7 +480,7 @@ ANJ_UNIT_TEST(dm_security_object, delete_instance) {
     RESOURCE_CHECK_INT(1, sec_obj.security_instances[1].ssid, 2);
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_DELETE, true,
+            &anj, _ANJ_OP_DM_DELETE, true,
             &ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SECURITY, 1)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -528,7 +528,7 @@ ANJ_UNIT_TEST(dm_security_object, errors) {
 
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_install(&anj, &sec_obj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, true,
+            &anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, true,
             &ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY, 0, 2)));
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_write_entry(
             &anj,

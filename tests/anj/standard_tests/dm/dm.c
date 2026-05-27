@@ -88,12 +88,31 @@ ANJ_UNIT_TEST(dm, add_remove_object) {
         .oid = 85
     };
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_85));
+    anj_dm_obj_t obj_86 = {
+        .oid = 86
+    };
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_86));
+    anj_dm_obj_t obj_87 = {
+        .oid = 87
+    };
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_87));
+    anj_dm_obj_t obj_88 = {
+        .oid = 88
+    };
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_88));
+
     anj_dm_obj_t obj_e3 = {
         .oid = 7
     };
     ANJ_UNIT_ASSERT_EQUAL(anj_dm_add_obj(&anj, &obj_e3), _ANJ_DM_ERR_MEMORY);
-    ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 15);
+    ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 18);
 
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_remove_obj(&anj, 86));
+    ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 17);
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_remove_obj(&anj, 85));
+    ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 16);
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_remove_obj(&anj, 84));
+    ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 15);
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_remove_obj(&anj, 4));
     ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 14);
     ANJ_UNIT_ASSERT_EQUAL(anj_dm_remove_obj(&anj, 4), ANJ_DM_ERR_NOT_FOUND);

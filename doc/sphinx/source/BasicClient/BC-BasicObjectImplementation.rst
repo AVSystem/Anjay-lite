@@ -613,7 +613,8 @@ inside the main loop of the application.
             if (!anj_core_ongoing_operation(&anj)) {
                 update_temperature_obj_value();
             }
-            usleep(50 * 1000);
+            struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+            nanosleep(&ts, NULL);
         }
         return 0;
     }

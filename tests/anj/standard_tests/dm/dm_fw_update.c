@@ -32,7 +32,7 @@
 #    define BEGIN_READ                                   \
         do {                                             \
         ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin( \
-                &anj, ANJ_OP_DM_READ, false, &ANJ_MAKE_OBJECT_PATH(5)))
+                &anj, _ANJ_OP_DM_READ, false, &ANJ_MAKE_OBJECT_PATH(5)))
 
 #    define END_READ                                             \
         _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS); \
@@ -290,8 +290,8 @@ ANJ_UNIT_TEST(dm_fw_update, simple_handlers_push_only) {
             anj_dm_fw_update_object_set_download_result(&anj, &fu_ctx, 0));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -310,8 +310,8 @@ ANJ_UNIT_TEST(dm_fw_update, simple_handlers_push_only) {
     err_to_return = ANJ_DM_FW_UPDATE_RESULT_SUCCESS;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -358,8 +358,8 @@ ANJ_UNIT_TEST(dm_fw_update, simple_handlers_pull_only) {
     result_to_return = ANJ_DM_FW_UPDATE_RESULT_SUCCESS;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -397,8 +397,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_uri) {
     result_to_return = ANJ_DM_FW_UPDATE_RESULT_SUCCESS;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -416,8 +416,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_uri) {
     record.value.bytes_or_string.chunk_length = 0;
     record.value.bytes_or_string.full_length_hint = 0;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -441,8 +441,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_uri) {
     result_to_return = ANJ_DM_FW_UPDATE_RESULT_INVALID_URI;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_write_entry(&anj, &record));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
@@ -485,8 +485,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_package_success) {
             anj_dm_fw_update_object_set_download_result(&anj, &fu_ctx, 0));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -504,8 +504,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_package_success) {
     record.value.bytes_or_string.offset = 250;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -549,8 +549,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_package_failed) {
             anj_dm_fw_update_object_set_download_result(&anj, &fu_ctx, 0));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -569,8 +569,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_package_failed) {
     result_to_return = ANJ_DM_FW_UPDATE_RESULT_FAILED;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_write_entry(&anj, &record));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     // write start, write, write finish
@@ -613,8 +613,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_package_failed_integrity) {
             anj_dm_fw_update_object_set_download_result(&anj, &fu_ctx, 0));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -633,8 +633,8 @@ ANJ_UNIT_TEST(dm_fw_update, write_package_failed_integrity) {
     result_to_return = ANJ_DM_FW_UPDATE_RESULT_INTEGRITY_FAILURE;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
-                                    &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    false, &ANJ_MAKE_RESOURCE_PATH(5, 0, 0)));
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_write_entry(&anj, &record));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     // write start, write, write finish and reset
@@ -673,7 +673,7 @@ ANJ_UNIT_TEST(dm_fw_update, execute) {
         result_to_return = ANJ_DM_FW_UPDATE_RESULT_SUCCESS;
 
         ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-                &anj, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
+                &anj, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, false,
                 &ANJ_MAKE_RESOURCE_PATH(5, 0, 1)));
         ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
         ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
@@ -683,7 +683,7 @@ ANJ_UNIT_TEST(dm_fw_update, execute) {
                 &anj, &fu_ctx, ANJ_DM_FW_UPDATE_RESULT_SUCCESS));
 
         ANJ_UNIT_ASSERT_SUCCESS(
-                _anj_dm_operation_begin(&anj, ANJ_OP_DM_EXECUTE, false,
+                _anj_dm_operation_begin(&anj, _ANJ_OP_DM_EXECUTE, false,
                                         &ANJ_MAKE_RESOURCE_PATH(5, 0, 2)));
         ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_execute(&anj, NULL, 0));
         _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);

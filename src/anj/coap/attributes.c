@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 1
 
@@ -18,6 +18,7 @@
 #include <string.h>
 
 #include <anj/defs.h>
+#include <anj/log.h>
 #include <anj/time.h>
 #include <anj/utils.h>
 
@@ -25,11 +26,14 @@
 #include "coap.h"
 #include "common.h"
 
+#define log(...) anj_log(coap, __VA_ARGS__)
+
 static int get_attr(const anj_coap_options_t *opts,
                     const char *attr,
                     uint32_t *uint_value,
                     double *double_value,
                     bool *is_present) {
+    // only one of uint_value and double_value can be set
     assert(!!uint_value != !!double_value);
 
     size_t it = 0;
@@ -45,6 +49,7 @@ static int get_attr(const anj_coap_options_t *opts,
         if (res == _ANJ_COAP_OPTION_MISSING) {
             return 0;
         } else if (res) {
+            log(L_ERROR, "ANJ_COAP_MAX_ATTR_OPTION_SIZE exceeded");
             return _ANJ_ERR_ATTR_BUFF;
         }
 
@@ -99,6 +104,7 @@ static int add_str_attr(anj_coap_options_t *opts,
 
     size_t name_len = strlen(attr_name);
     if (name_len >= ANJ_COAP_MAX_ATTR_OPTION_SIZE) {
+        log(L_ERROR, "ANJ_COAP_MAX_ATTR_OPTION_SIZE exceeded");
         return _ANJ_ERR_ATTR_BUFF;
     }
     memcpy(atrr_buff, attr_name, name_len);
@@ -109,6 +115,7 @@ static int add_str_attr(anj_coap_options_t *opts,
         atrr_buff[name_len] = '=';
 
         if (name_len + value_len + 1 >= ANJ_COAP_MAX_ATTR_OPTION_SIZE) {
+            log(L_ERROR, "ANJ_COAP_MAX_ATTR_OPTION_SIZE exceeded");
             return _ANJ_ERR_ATTR_BUFF;
         }
         memcpy(&atrr_buff[name_len + 1], attr_value, value_len);

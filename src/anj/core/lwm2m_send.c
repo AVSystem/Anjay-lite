@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 10
 
@@ -35,17 +35,13 @@
 int anj_send_new_request(anj_t *anj,
                          const anj_send_request_t *send_request,
                          uint16_t *out_send_id) {
-    assert(anj && send_request);
+    assert(anj && send_request && send_request->finished_handler
+           && send_request->records && send_request->records_cnt > 0);
 
-    if (!send_request->finished_handler || !send_request->records
-            || send_request->records_cnt == 0) {
-        log(L_ERROR, "Invalid Send request");
-        return ANJ_SEND_ERR_DATA_NOT_VALID;
-    }
     for (size_t i = 0; i < send_request->records_cnt; i++) {
         if (!anj_uri_path_has(&send_request->records[i].path, ANJ_ID_RID)) {
             // invalid path
-            log(L_ERROR, "Invalid Send request");
+            log(L_ERROR, "Invalid path in Send request");
             return ANJ_SEND_ERR_DATA_NOT_VALID;
         }
 #    ifdef ANJ_WITH_LWM2M_CBOR
@@ -55,7 +51,7 @@ int anj_send_new_request(anj_t *anj,
                 if (anj_uri_path_equal(&send_request->records[i].path,
                                        &send_request->records[j].path)) {
                     // duplicate path
-                    log(L_ERROR, "Invalid Send request");
+                    log(L_ERROR, "Invalid send request, duplicate path");
                     return ANJ_SEND_ERR_DATA_NOT_VALID;
                 }
             }
@@ -188,11 +184,9 @@ static uint8_t send_read_payload(void *arg_ptr,
 
     while (true) {
         if (!ctx->data_to_copy) {
-            res = _anj_io_out_ctx_new_entry(
-                    &anj->anj_io.out_ctx,
-                    &ctx->requests_queue[0]->records[ctx->op_count++]);
-            if (res) {
-                log(L_ERROR, "anj_io out ctx error %d", res);
+            if (_anj_io_out_ctx_new_entry(
+                        &anj->anj_io.out_ctx,
+                        &ctx->requests_queue[0]->records[ctx->op_count++])) {
                 return ANJ_COAP_CODE_INTERNAL_SERVER_ERROR;
             }
         }
@@ -210,7 +204,6 @@ static uint8_t send_read_payload(void *arg_ptr,
             ctx->data_to_copy = true;
             return _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED;
         } else if (res) {
-            log(L_ERROR, "anj_io out ctx error %d", res);
             ctx->data_to_copy = false;
             return ANJ_COAP_CODE_INTERNAL_SERVER_ERROR;
         }
@@ -248,9 +241,9 @@ static void send_completion_callback(void *arg_ptr,
         log(L_ERROR, "Send request internal error: %" PRIu16, ctx->ids[0]);
         send_result = ANJ_SEND_ERR_INTERNAL;
     } else {
-        if (response && response->operation == ANJ_OP_RESPONSE) {
+        if (response && _anj_coap_is_response(response->operation)) {
             log(L_ERROR, "Send request failed: %" PRIu16 " with %s error code",
-                ctx->ids[0], COAP_CODE_FORMAT(response->msg_code));
+                ctx->ids[0], _ANJ_DEBUG_COAP_RESPONSE_CODE(response->msg_code));
         } else {
             // Server responded with RST
             log(L_ERROR, "Server rejected request: %" PRIu16, ctx->ids[0]);
@@ -314,7 +307,7 @@ void _anj_lwm2m_send_process(anj_t *anj,
     _anj_send_ctx_t *ctx = &anj->send_ctx;
     assert(!ctx->active_exchange);
 
-    out_msg->operation = ANJ_OP_NONE;
+    out_msg->operation = _ANJ_OP_NONE;
     // there is no Send request to be sent
     if (ctx->ids[0] == 0) {
         return;
@@ -341,11 +334,10 @@ void _anj_lwm2m_send_process(anj_t *anj,
 
     anj_uri_path_t common_path =
             find_common_path(send_request->records, send_request->records_cnt);
-    int res = _anj_io_out_ctx_init(&anj->anj_io.out_ctx, ANJ_OP_INF_CON_SEND,
+    int res = _anj_io_out_ctx_init(&anj->anj_io.out_ctx, _ANJ_OP_INF_CON_SEND,
                                    &common_path, send_request->records_cnt,
                                    format);
     if (res) {
-        log(L_ERROR, "anj_io out ctx error %d", res);
         anj_send_abort(anj, ctx->ids[0]);
         return;
     }
@@ -354,7 +346,7 @@ void _anj_lwm2m_send_process(anj_t *anj,
         .read_payload = send_read_payload,
         .arg = anj
     };
-    out_msg->operation = ANJ_OP_INF_CON_SEND;
+    out_msg->operation = _ANJ_OP_INF_CON_SEND;
     ctx->active_exchange = true;
     ctx->data_to_copy = false;
     ctx->op_count = 0;

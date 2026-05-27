@@ -239,7 +239,7 @@ typedef struct {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_21));                   \
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));                  \
     ANJ_UNIT_ASSERT_SUCCESS(                                                  \
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DISCOVER, true, &Path));  \
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DISCOVER, true, &Path)); \
     for (size_t idx = Idx_start; idx <= Idx_end; idx++) {                     \
         ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));               \
         anj_uri_path_t out_path;                                              \

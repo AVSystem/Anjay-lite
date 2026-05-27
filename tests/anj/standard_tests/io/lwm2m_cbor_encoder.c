@@ -49,7 +49,7 @@ static void lwm2m_cbor_test_setup(lwm2m_cbor_test_env_t *env,
 
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_empty) {
     lwm2m_cbor_test_env_t env = { 0 };
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 0, ANJ_OP_DM_READ);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 0, _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.out_length));
     VERIFY_BYTES(env, "\xBF\xFF");
@@ -68,7 +68,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_single_record) {
                                     ANJ_MAKE_INSTANCE_PATH(3, 3),
                                     ANJ_MAKE_RESOURCE_PATH(3, 3, 3) };
     for (size_t i = 0; i < 4; ++i) {
-        lwm2m_cbor_test_setup(&env, &base_path[i], 1, ANJ_OP_INF_CON_SEND);
+        lwm2m_cbor_test_setup(&env, &base_path[i], 1, _ANJ_OP_INF_CON_SEND);
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry));
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
                 &env.ctx, env.buf, env.buffer_length, &env.out_length));
@@ -81,7 +81,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_single_record) {
 
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_record) {
     lwm2m_cbor_test_env_t env = { 0 };
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 1, ANJ_OP_DM_READ);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 1, _ANJ_OP_DM_READ);
     anj_io_out_entry_t entry = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
         .type = ANJ_DATA_TYPE_UINT,
@@ -96,7 +96,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_record) {
                       "\xFF\xFF\xFF");
 
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(3, 3), 1,
-                          ANJ_OP_DM_READ);
+                          _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.out_length));
@@ -106,7 +106,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_record) {
                       "\xFF\xFF\xFF");
 
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_RESOURCE_PATH(3, 3, 3), 1,
-                          ANJ_OP_DM_READ);
+                          _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.out_length));
@@ -118,7 +118,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_record) {
 
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_instance_record) {
     lwm2m_cbor_test_env_t env = { 0 };
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 1, ANJ_OP_DM_READ);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 1, _ANJ_OP_DM_READ);
     anj_io_out_entry_t entry = {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 3, 3, 3),
         .type = ANJ_DATA_TYPE_UINT,
@@ -133,7 +133,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_instance_record) {
                       "\xFF\xFF\xFF\xFF");
 
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(3, 3), 1,
-                          ANJ_OP_DM_READ);
+                          _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.out_length));
@@ -143,7 +143,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_instance_record) {
                       "\xFF\xFF\xFF\xFF");
 
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_RESOURCE_PATH(3, 3, 3), 1,
-                          ANJ_OP_DM_READ);
+                          _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.out_length));
@@ -153,7 +153,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_instance_record) {
                       "\xFF\xFF\xFF\xFF");
 
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 3, 3, 3), 1,
-                          ANJ_OP_DM_READ);
+                          _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.out_length));
@@ -165,7 +165,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, read_single_resource_instance_record) {
 
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_different_obj) {
     lwm2m_cbor_test_env_t env = { 0 };
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, ANJ_OP_INF_CON_SEND);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
@@ -200,7 +200,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_different_obj) {
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_different_inst) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
@@ -247,7 +247,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_different_res) {
     };
     size_t out_len = 0;
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(3, 3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &out_len));
@@ -267,7 +267,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_different_res) {
     // for base path as object path, payload should be the same
     out_len = 0;
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &out_len));
@@ -288,7 +288,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_different_res) {
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_resource_instances) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_RESOURCE_PATH(3, 3, 3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 3, 3, 0),
@@ -322,7 +322,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_resource_instances) {
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_resource_instances_different_res) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(3, 3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 3, 3, 0),
@@ -356,7 +356,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_resource_instances_different_res) {
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_resource_instances_different_inst) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 3, 3, 0),
@@ -389,7 +389,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_resource_instances_different_inst) {
 
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_resource_instances_different_obj) {
     lwm2m_cbor_test_env_t env = { 0 };
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, ANJ_OP_INF_CON_SEND);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(3, 3, 3, 0),
@@ -424,7 +424,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder,
               send_two_records_different_level_different_res) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(3, 3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
@@ -455,7 +455,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder,
                       "\xFF\xFF\xFF\xFF");
 
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(3, 3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
     out_len = 0;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_2));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
@@ -477,7 +477,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder,
               send_two_records_different_level_different_inst) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
@@ -508,7 +508,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder,
                       "\xFF\xFF\xFF\xFF");
 
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
     out_len = 0;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_2));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
@@ -529,7 +529,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder,
 ANJ_UNIT_TEST(lwm2m_cbor_encoder,
               send_two_records_different_level_different_obj) {
     lwm2m_cbor_test_env_t env = { 0 };
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, ANJ_OP_INF_CON_SEND);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
@@ -559,7 +559,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder,
                       "\x0B"
                       "\xFF\xFF\xFF\xFF");
 
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, ANJ_OP_INF_CON_SEND);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, _ANJ_OP_INF_CON_SEND);
     out_len = 0;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_2));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
@@ -580,7 +580,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder,
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, send_two_records_same_path) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_RESOURCE_PATH(3, 3, 3), 2,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
@@ -604,7 +604,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, biggest_possible_record) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(
             &env, &ANJ_MAKE_RESOURCE_INSTANCE_PATH(65534, 65534, 65534, 65534),
-            1, ANJ_OP_INF_CON_SEND);
+            1, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry = {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(65534, 65534, 65534, 65534),
@@ -625,7 +625,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, biggest_possible_record) {
 
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, biggest_possible_second_record) {
     lwm2m_cbor_test_env_t env = { 0 };
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, ANJ_OP_INF_CON_SEND);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(65533, 65533, 65533, 65533),
@@ -674,7 +674,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, single_record_chunk_read) {
     for (size_t chunk_len = 1; chunk_len < 18; chunk_len++) {
         size_t out_len = 0;
         lwm2m_cbor_test_setup(&env, &ANJ_MAKE_OBJECT_PATH(3), 1,
-                              ANJ_OP_DM_READ);
+                              _ANJ_OP_DM_READ);
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry));
         int res = -1;
         while (res) {
@@ -828,7 +828,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, all_data_types_notify_msg) {
     closed = false;
 #    endif // ANJ_WITH_EXTERNAL_DATA
     lwm2m_cbor_test_setup(&env, NULL, ANJ_ARRAY_SIZE(entries),
-                          ANJ_OP_INF_NON_CON_NOTIFY);
+                          _ANJ_OP_INF_NON_CON_NOTIFY);
 
     for (size_t i = 0; i < ANJ_ARRAY_SIZE(entries); i++) {
         size_t out_len = 0;
@@ -884,7 +884,7 @@ static char encoded_entries_chunks[] =
 ANJ_UNIT_TEST(lwm2m_cbor_encoder, all_data_types_chunk_read) {
     lwm2m_cbor_test_env_t env = { 0 };
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(8, 8),
-                          ANJ_ARRAY_SIZE(entries), ANJ_OP_DM_READ);
+                          ANJ_ARRAY_SIZE(entries), _ANJ_OP_DM_READ);
     size_t buff_len = 16;
 #    ifdef ANJ_WITH_EXTERNAL_DATA
     ext_data_size = sizeof(ext_data) - 1;
@@ -970,7 +970,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, extended_type_at_the_end) {
     char ext_data[] = "ABCDEFGHIJKLMNOPQRSTUVWXć";
     ptr_for_callback = ext_data;
     lwm2m_cbor_test_setup(&env, NULL, ANJ_ARRAY_SIZE(entries_extended),
-                          ANJ_OP_INF_NON_CON_NOTIFY);
+                          _ANJ_OP_INF_NON_CON_NOTIFY);
     opened = false;
     opened2 = false;
     closed = false;
@@ -1014,7 +1014,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, errors) {
         .value.int_value = 11
     };
     // one entry allowed
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 1, ANJ_OP_INF_CON_SEND);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 1, _ANJ_OP_INF_CON_SEND);
     size_t out_len = 0;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
@@ -1024,14 +1024,14 @@ ANJ_UNIT_TEST(lwm2m_cbor_encoder, errors) {
                           _ANJ_IO_ERR_LOGIC);
 
     // _anj_io_out_ctx_get_payload not called
-    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, ANJ_OP_INF_CON_SEND);
+    lwm2m_cbor_test_setup(&env, &ANJ_MAKE_ROOT_PATH(), 2, _ANJ_OP_INF_CON_SEND);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1));
     ANJ_UNIT_ASSERT_EQUAL(_anj_io_out_ctx_new_entry(&env.ctx, &entry_2),
                           _ANJ_IO_ERR_LOGIC);
 
     // path outside of the base path
     lwm2m_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(8, 8), 1,
-                          ANJ_OP_DM_READ);
+                          _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_EQUAL(_anj_io_out_ctx_new_entry(&env.ctx, &entry_1),
                           _ANJ_IO_ERR_INPUT_ARG);
 }

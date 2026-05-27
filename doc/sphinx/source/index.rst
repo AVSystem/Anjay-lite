@@ -25,3 +25,9 @@ Contents:
       PortingGuideForNonPOSIXPlatforms
       Integrations
       Tools
+      CommercialFeatures
+
+   .. toctree::
+      :titlesonly:
+
+      APIReference

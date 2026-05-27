@@ -109,7 +109,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, feed_payload_invalid_state_2) {
 
     _anj_cbor_ll_number_t decoded_number;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &decoded_number));
-    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(decoded_number.value.u64, 0);
 
     // payload already finished
@@ -132,8 +132,8 @@ static int test_decode_uint(test_data_t test_data, uint64_t expected_value) {
             || (result = anj_cbor_ll_decoder_number(&ctx, &decoded_number))) {
         return result;
     }
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_UINT);
-    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, _ANJ_CBOR_LL_VALUE_UINT);
     if (expected_value == DECODE_UINT_FAILURE) {
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx),
                               _ANJ_IO_ERR_FORMAT);
@@ -230,7 +230,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, large_uint_with_large_tag_unfinished_payload) {
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 0xAABBCCDD00112233ULL);
 
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx),
@@ -260,7 +260,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, large_uint_with_large_tag_split_payload) {
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 0xAABBCCDD00112233ULL);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -282,8 +282,8 @@ static int test_decode_negative_int(test_data_t test_data,
             || (result = anj_cbor_ll_decoder_number(&ctx, &decoded_number))) {
         return result;
     }
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_NEGATIVE_INT);
-    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, ANJ_CBOR_LL_VALUE_NEGATIVE_INT);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_NEGATIVE_INT);
+    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, _ANJ_CBOR_LL_VALUE_NEGATIVE_INT);
     if (expected_value == DECODE_NEGATIVE_INT_FAILURE) {
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx),
                               _ANJ_IO_ERR_FORMAT);
@@ -382,12 +382,12 @@ ANJ_UNIT_TEST(cbor_decoder_ll, bytes_short) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_UINT);
 
         _anj_cbor_ll_number_t decoded_number;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_number(&ctx, &decoded_number));
-        ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(decoded_number.value.u64, small_int);
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
     }
@@ -436,11 +436,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, bytes_indefinite) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_UINT);
 
     _anj_cbor_ll_number_t decoded_number;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &decoded_number));
-    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(decoded_number.value.u64, 7);
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
 #    else  // ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
@@ -478,11 +478,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, bytes_indefinite_empty) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_UINT);
 
     _anj_cbor_ll_number_t decoded_number;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &decoded_number));
-    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(decoded_number.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(decoded_number.value.u64, 7);
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
 #    else  // ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
@@ -896,7 +896,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, bytes_indefinite_and_then_value_split) {
 
             _anj_cbor_ll_number_t value;
             ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-            ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+            ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
             ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1);
 
             ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -917,7 +917,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, flat_array) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(ANJ_CBOR_LL_VALUE_ARRAY, type);
+    ANJ_UNIT_ASSERT_EQUAL(_ANJ_CBOR_LL_VALUE_ARRAY, type);
 
     size_t nesting_level;
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -932,21 +932,21 @@ ANJ_UNIT_TEST(cbor_decoder_ll, flat_array) {
             anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
     ANJ_UNIT_ASSERT_EQUAL(nesting_level, 1);
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1);
 
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
     ANJ_UNIT_ASSERT_EQUAL(nesting_level, 1);
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 2);
 
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
     ANJ_UNIT_ASSERT_EQUAL(nesting_level, 1);
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 3);
 
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -999,11 +999,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, flat_empty_array_with_uint_afterwards) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_UINT);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1);
 
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -1026,7 +1026,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, nested_array) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_ARRAY);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_ARRAY);
 
         size_t nesting_level;
         ANJ_UNIT_ASSERT_SUCCESS(
@@ -1049,28 +1049,28 @@ ANJ_UNIT_TEST(cbor_decoder_ll, nested_array) {
                 anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 2);
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1);
 
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 2);
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 2);
 
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 2);
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 3);
 
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 1);
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 4);
 
         ANJ_UNIT_ASSERT_SUCCESS(
@@ -1091,7 +1091,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, nested_array) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_ARRAY);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_ARRAY);
 
         size_t nesting_level;
         ANJ_UNIT_ASSERT_SUCCESS(
@@ -1107,7 +1107,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, nested_array) {
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 1);
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1);
 
         ANJ_UNIT_ASSERT_SUCCESS(
@@ -1121,21 +1121,21 @@ ANJ_UNIT_TEST(cbor_decoder_ll, nested_array) {
                 anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 2);
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 2);
 
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 2);
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 3);
 
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level));
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 2);
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 4);
 
         ANJ_UNIT_ASSERT_SUCCESS(
@@ -1242,7 +1242,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, array_indefinite) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_ARRAY);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_ARRAY);
 
     ptrdiff_t array_size;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_enter_array(&ctx, &array_size));
@@ -1265,7 +1265,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, indefinite_break_in_definite_array) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(ANJ_CBOR_LL_VALUE_ARRAY, type);
+    ANJ_UNIT_ASSERT_EQUAL(_ANJ_CBOR_LL_VALUE_ARRAY, type);
 
     size_t nesting_level;
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -1292,7 +1292,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, flat_map) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(ANJ_CBOR_LL_VALUE_MAP, type);
+    ANJ_UNIT_ASSERT_EQUAL(_ANJ_CBOR_LL_VALUE_MAP, type);
 
     size_t nesting_level;
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -1308,12 +1308,12 @@ ANJ_UNIT_TEST(cbor_decoder_ll, flat_map) {
 
     _anj_cbor_ll_number_t key;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &key));
-    ANJ_UNIT_ASSERT_EQUAL(key.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(key.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(key.value.u64, 42);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 300);
 
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -1342,18 +1342,18 @@ ANJ_UNIT_TEST(cbor_decoder_ll, empty_map) {
 #    endif // _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
 
 #    ifdef ANJ_WITH_CBOR_DECODE_HALF_FLOAT
-#        define TEST_HALF(Name, Value, Expected)                            \
-            ANJ_UNIT_TEST(cbor_decoder_ll, Name) {                          \
-                _anj_cbor_ll_decoder_t ctx;                                 \
-                anj_cbor_ll_decoder_init(&ctx);                             \
-                static const char data[] = "\xF9" Value;                    \
-                ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_feed_payload(   \
-                        &ctx, data, sizeof(data) - 1, true));               \
-                _anj_cbor_ll_number_t value;                                \
-                ANJ_UNIT_ASSERT_SUCCESS(                                    \
-                        anj_cbor_ll_decoder_number(&ctx, &value));          \
-                ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_FLOAT); \
-                ANJ_UNIT_ASSERT_EQUAL(value.value.f32, Expected);           \
+#        define TEST_HALF(Name, Value, Expected)                             \
+            ANJ_UNIT_TEST(cbor_decoder_ll, Name) {                           \
+                _anj_cbor_ll_decoder_t ctx;                                  \
+                anj_cbor_ll_decoder_init(&ctx);                              \
+                static const char data[] = "\xF9" Value;                     \
+                ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_feed_payload(    \
+                        &ctx, data, sizeof(data) - 1, true));                \
+                _anj_cbor_ll_number_t value;                                 \
+                ANJ_UNIT_ASSERT_SUCCESS(                                     \
+                        anj_cbor_ll_decoder_number(&ctx, &value));           \
+                ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_FLOAT); \
+                ANJ_UNIT_ASSERT_EQUAL(value.value.f32, Expected);            \
             }
 
 TEST_HALF(half_float_value, "\x50\x00", 32.0f)
@@ -1384,7 +1384,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, half_float_premature_eof) {
                     &ctx, data, sizeof(data), true));                          \
             _anj_cbor_ll_number_t value;                                       \
             ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value)); \
-            ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_FLOAT);        \
+            ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_FLOAT);       \
             ANJ_UNIT_ASSERT_EQUAL(value.value.f32, Value);                     \
         }
 
@@ -1414,7 +1414,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, float_premature_eof) {
                     &ctx, data, sizeof(data), true));                          \
             _anj_cbor_ll_number_t value;                                       \
             ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value)); \
-            ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);       \
+            ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);      \
             ANJ_UNIT_ASSERT_EQUAL(value.value.f64, Value);                     \
         }
 
@@ -1545,24 +1545,24 @@ static void encode_int(char **out_buffer, int64_t value) {
     *out_buffer += sizeof(encoded);
 }
 
-#        define TEST_TYPICAL_DECIMAL_FRACTION(Name, Exponent, Mantissa)      \
-            ANJ_UNIT_TEST(cbor_decoder_ll, typical_decimal_##Name) {         \
-                /* Tag(4), Array [ Exponent, Mantissa ] */                   \
-                char data[2 + 2 * (sizeof(uint8_t) + sizeof(uint64_t))] =    \
-                        "\xC4\x82";                                          \
-                char *integers = &data[2];                                   \
-                encode_int(&integers, (Exponent));                           \
-                encode_int(&integers, (Mantissa));                           \
-                _anj_cbor_ll_decoder_t ctx;                                  \
-                anj_cbor_ll_decoder_init(&ctx);                              \
-                ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_feed_payload(    \
-                        &ctx, data, sizeof(data), true));                    \
-                _anj_cbor_ll_number_t value;                                 \
-                ANJ_UNIT_ASSERT_SUCCESS(                                     \
-                        anj_cbor_ll_decoder_number(&ctx, &value));           \
-                ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE); \
-                ANJ_UNIT_ASSERT_EQUAL(value.value.f64,                       \
-                                      (Mantissa) *pow(10.0, (Exponent)));    \
+#        define TEST_TYPICAL_DECIMAL_FRACTION(Name, Exponent, Mantissa)       \
+            ANJ_UNIT_TEST(cbor_decoder_ll, typical_decimal_##Name) {          \
+                /* Tag(4), Array [ Exponent, Mantissa ] */                    \
+                char data[2 + 2 * (sizeof(uint8_t) + sizeof(uint64_t))] =     \
+                        "\xC4\x82";                                           \
+                char *integers = &data[2];                                    \
+                encode_int(&integers, (Exponent));                            \
+                encode_int(&integers, (Mantissa));                            \
+                _anj_cbor_ll_decoder_t ctx;                                   \
+                anj_cbor_ll_decoder_init(&ctx);                               \
+                ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_feed_payload(     \
+                        &ctx, data, sizeof(data), true));                     \
+                _anj_cbor_ll_number_t value;                                  \
+                ANJ_UNIT_ASSERT_SUCCESS(                                      \
+                        anj_cbor_ll_decoder_number(&ctx, &value));            \
+                ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE); \
+                ANJ_UNIT_ASSERT_EQUAL(value.value.f64,                        \
+                                      (Mantissa) *pow(10.0, (Exponent)));     \
             }
 
 TEST_TYPICAL_DECIMAL_FRACTION(small, 2, 3)
@@ -1582,11 +1582,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, decimal_fraction_and_then_value) {
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
     ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 300.0);
 
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 4);
 }
 
@@ -1611,18 +1611,18 @@ ANJ_UNIT_TEST(cbor_decoder_ll, decimal_fraction_and_then_value_split_payload) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_DOUBLE);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_DOUBLE);
 
         size_t nesting_level;
         anj_cbor_ll_decoder_nesting_level(&ctx, &nesting_level);
         ANJ_UNIT_ASSERT_EQUAL(nesting_level, 0);
 
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
         ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 300.0);
 
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 4);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -1701,7 +1701,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, decimal_fraction_tag_but_no_data) {
     _anj_cbor_ll_value_type_t value_type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &value_type));
-    ANJ_UNIT_ASSERT_EQUAL(value_type, ANJ_CBOR_LL_VALUE_DOUBLE);
+    ANJ_UNIT_ASSERT_EQUAL(value_type, _ANJ_CBOR_LL_VALUE_DOUBLE);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -1728,7 +1728,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, indefinite_map) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_MAP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_MAP);
 
     ptrdiff_t total_size;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_enter_map(&ctx, &total_size));
@@ -1743,7 +1743,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, indefinite_map) {
                                       sizeof("Stuff"));
     _anj_cbor_ll_number_t number;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &number));
-    ANJ_UNIT_ASSERT_EQUAL(number.type, ANJ_CBOR_LL_VALUE_NEGATIVE_INT);
+    ANJ_UNIT_ASSERT_EQUAL(number.type, _ANJ_CBOR_LL_VALUE_NEGATIVE_INT);
     ANJ_UNIT_ASSERT_EQUAL(number.value.i64, -2);
 
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -1818,11 +1818,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, timestamp_uint) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 0xAABBCCDD00112233ULL);
 
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -1847,11 +1847,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, timestamp_uint_split) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 0xAABBCCDD00112233ULL);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -1868,7 +1868,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, timestamp_uint_split) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -1879,10 +1879,10 @@ ANJ_UNIT_TEST(cbor_decoder_ll, timestamp_uint_split) {
 
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 0xAABBCCDD00112233ULL);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -1899,11 +1899,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, timestamp_uint_split) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
         ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 0xAABBCCDD00112233ULL);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx),
@@ -1928,11 +1928,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, timestamp_float) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_FLOAT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_FLOAT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.f32, 32.0f);
 
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -1951,7 +1951,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, timestamp_in_decimal_fraction_illegal) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_DOUBLE);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_DOUBLE);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -1971,7 +1971,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, decimal_fraction_in_timestamp_illegal) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -1992,11 +1992,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_simple) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1071340202);
 }
 
@@ -2013,11 +2013,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_with_fraction) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
     ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 1071340202.25);
 }
 
@@ -2034,11 +2034,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_with_timezone) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1071336602);
 }
 
@@ -2055,11 +2055,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_with_fraction_and_timezone) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
     ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 1071336602.25);
 }
 
@@ -2076,11 +2076,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_leap_year) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_UINT);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_UINT);
     ANJ_UNIT_ASSERT_EQUAL(value.value.u64, 1102962602);
 }
 
@@ -2097,11 +2097,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_max_length) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-    ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+    ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
     ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 1705407760.763933581);
 }
 
@@ -2118,7 +2118,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_too_long) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -2143,7 +2143,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_garbled_input) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -2157,21 +2157,21 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_limits) {
         _anj_cbor_ll_value_type_t type;
         double value;
     } data[] = { { "0000-01-01T00:00:00.000000000-99:59",
-                   ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62166859260 },
+                   _ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62166859260 },
                  { "0000-01-01T00:00:00.000000000-00:00",
-                   ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62167219200 },
+                   _ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62167219200 },
                  { "0000-01-01T00:00:00.000000000+00:00",
-                   ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62167219200 },
+                   _ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62167219200 },
                  { "0000-01-01T00:00:00.000000000+99:59",
-                   ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62167579140 },
+                   _ANJ_CBOR_LL_VALUE_NEGATIVE_INT, -62167579140 },
                  { "9999-12-31T23:59:60.999999999-99:59",
-                   ANJ_CBOR_LL_VALUE_DOUBLE, 253402660740.999999999 },
+                   _ANJ_CBOR_LL_VALUE_DOUBLE, 253402660740.999999999 },
                  { "9999-12-31T23:59:60.999999999-00:00",
-                   ANJ_CBOR_LL_VALUE_DOUBLE, 253402300800.999999999 },
+                   _ANJ_CBOR_LL_VALUE_DOUBLE, 253402300800.999999999 },
                  { "9999-12-31T23:59:60.999999999+00:00",
-                   ANJ_CBOR_LL_VALUE_DOUBLE, 253402300800.999999999 },
+                   _ANJ_CBOR_LL_VALUE_DOUBLE, 253402300800.999999999 },
                  { "9999-12-31T23:59:60.999999999+99:59",
-                   ANJ_CBOR_LL_VALUE_DOUBLE, 253401940860.999999999 } };
+                   _ANJ_CBOR_LL_VALUE_DOUBLE, 253401940860.999999999 } };
     for (size_t i = 0; i < ANJ_ARRAY_SIZE(data); ++i) {
         uint8_t buf[258] = "\xC0\x78";
         buf[2] = (uint8_t) strlen(data[i].data);
@@ -2187,16 +2187,16 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_limits) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
         ANJ_UNIT_ASSERT_EQUAL(value.type, data[i].type);
         switch (value.type) {
-        case ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
+        case _ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
             ANJ_UNIT_ASSERT_EQUAL(value.value.i64, (int64_t) data[i].value);
             break;
-        case ANJ_CBOR_LL_VALUE_DOUBLE:
+        case _ANJ_CBOR_LL_VALUE_DOUBLE:
             ANJ_UNIT_ASSERT_EQUAL(value.value.f64, data[i].value);
             break;
         default:
@@ -2229,7 +2229,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_out_of_limits) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -2250,7 +2250,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_superfluous_data) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -2277,11 +2277,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_split) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
         ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 1705407760.763933581);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -2297,7 +2297,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_split) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),
@@ -2307,7 +2307,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_split) {
                 &ctx, data + split, sizeof(data) - 1 - split, true));
 
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
         ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 1705407760.763933581);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx), _ANJ_IO_EOF);
@@ -2324,11 +2324,11 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_split) {
         _anj_cbor_ll_value_type_t type;
         ANJ_UNIT_ASSERT_SUCCESS(
                 anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-        ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+        ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
         _anj_cbor_ll_number_t value;
         ANJ_UNIT_ASSERT_SUCCESS(anj_cbor_ll_decoder_number(&ctx, &value));
-        ANJ_UNIT_ASSERT_EQUAL(value.type, ANJ_CBOR_LL_VALUE_DOUBLE);
+        ANJ_UNIT_ASSERT_EQUAL(value.type, _ANJ_CBOR_LL_VALUE_DOUBLE);
         ANJ_UNIT_ASSERT_EQUAL(value.value.f64, 1705407760.763933581);
 
         ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_errno(&ctx),
@@ -2354,7 +2354,7 @@ ANJ_UNIT_TEST(cbor_decoder_ll, string_time_wrong_type) {
     _anj_cbor_ll_value_type_t type;
     ANJ_UNIT_ASSERT_SUCCESS(
             anj_cbor_ll_decoder_current_value_type(&ctx, &type));
-    ANJ_UNIT_ASSERT_EQUAL(type, ANJ_CBOR_LL_VALUE_TIMESTAMP);
+    ANJ_UNIT_ASSERT_EQUAL(type, _ANJ_CBOR_LL_VALUE_TIMESTAMP);
 
     _anj_cbor_ll_number_t value;
     ANJ_UNIT_ASSERT_EQUAL(anj_cbor_ll_decoder_number(&ctx, &value),

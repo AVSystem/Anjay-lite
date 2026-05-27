@@ -7,13 +7,12 @@
  * See the attached LICENSE file for details.
  */
 
-#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <sys/types.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <anj/compat/time.h>
 #include <anj/core.h>
@@ -169,7 +168,8 @@ int main(int argc, char *argv[]) {
     }
 
     while (true) {
-        usleep(50 * 1000);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
         anj_ntp_step(&ntp);
 
         if (g_time_synced) {

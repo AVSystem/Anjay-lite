@@ -31,7 +31,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_read) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_READ);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 4);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 3);
@@ -63,7 +63,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_write_replace) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_WRITE_REPLACE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_WRITE_REPLACE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 5);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 0);
@@ -97,7 +97,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_write_replace_with_block) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_WRITE_REPLACE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_WRITE_REPLACE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 5);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 0);
@@ -112,7 +112,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_write_replace_with_block) {
     ANJ_UNIT_ASSERT_EQUAL(out_data.token.size, 8);
     ANJ_UNIT_ASSERT_EQUAL(out_data.payload_size, 3);
     ANJ_UNIT_ASSERT_EQUAL((intptr_t) out_data.payload, (intptr_t) &MSG[23]);
-    ANJ_UNIT_ASSERT_EQUAL(out_data.block.block_type, ANJ_OPTION_BLOCK_1);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.block.block_type, _ANJ_OPTION_BLOCK_1);
     ANJ_UNIT_ASSERT_EQUAL(out_data.block.size, 1024);
     ANJ_UNIT_ASSERT_EQUAL(out_data.block.more_flag, true);
     ANJ_UNIT_ASSERT_EQUAL(out_data.block.number, 14);
@@ -131,7 +131,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_discover) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_DISCOVER);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_DISCOVER);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 2);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 5);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 5);
@@ -162,7 +162,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_discover_with_depth) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_DISCOVER);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_DISCOVER);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 2);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 5);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 5);
@@ -191,7 +191,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_bootstrap_finish) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_BOOTSTRAP_FINISH);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_BOOTSTRAP_FINISH);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.accept, _ANJ_COAP_FORMAT_NOT_DEFINED);
     ANJ_UNIT_ASSERT_EQUAL(out_data.content_format,
@@ -219,7 +219,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_read_composite) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_READ_COMP);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_READ_COMP);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.accept, _ANJ_COAP_FORMAT_OMA_LWM2M_JSON);
     ANJ_UNIT_ASSERT_EQUAL(out_data.content_format, _ANJ_COAP_FORMAT_PLAINTEXT);
@@ -250,7 +250,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_observe_with_pmin_pmax) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_INF_OBSERVE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_INF_OBSERVE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 5);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 5);
@@ -294,7 +294,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_observe_composite_with_params) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_INF_OBSERVE_COMP);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_INF_OBSERVE_COMP);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.message_id, 0x3721);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
@@ -333,7 +333,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_cancel_observation) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_INF_CANCEL_OBSERVE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_INF_CANCEL_OBSERVE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 5);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 5);
@@ -353,7 +353,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_cancel_composite) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_INF_CANCEL_OBSERVE_COMP);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_INF_CANCEL_OBSERVE_COMP);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.payload_size, 10);
     ANJ_UNIT_ASSERT_EQUAL((intptr_t) out_data.payload, (intptr_t) &MSG[15]);
@@ -374,7 +374,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_write_partial) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_WRITE_PARTIAL_UPDATE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 2);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 15);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 2);
@@ -406,7 +406,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_write_partial_with_resource_path) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_WRITE_PARTIAL_UPDATE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 15);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 2);
@@ -449,7 +449,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_write_attributes) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_WRITE_ATTR);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_WRITE_ATTR);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 15);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 2);
@@ -500,14 +500,14 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_write_composite) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_WRITE_COMP);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_WRITE_COMP);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.content_format, _ANJ_COAP_FORMAT_CBOR);
     ANJ_UNIT_ASSERT_EQUAL(out_data.payload_size, 10);
     ANJ_UNIT_ASSERT_EQUAL((intptr_t) out_data.payload, (intptr_t) &MSG[15]);
 }
 
-ANJ_UNIT_TEST(anj_decode_udp, decode_execute) {
+ANJ_UNIT_TEST(anj_decode_udp, decode_confirmable_execute) {
     uint8_t MSG[] = "\x48"         // header v 0x01, Confirmable, tkl 8
                     "\x02\x37\x21" // POST code 0.2
                     "\x12\x34\x56\x78\x11\x11\x11\x11" // token
@@ -523,7 +523,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_execute) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_EXECUTE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_EXECUTE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 15);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 2);
@@ -531,6 +531,36 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_execute) {
     ANJ_UNIT_ASSERT_EQUAL(out_data.content_format, _ANJ_COAP_FORMAT_PLAINTEXT);
     ANJ_UNIT_ASSERT_EQUAL(out_data.payload_size, 10);
     ANJ_UNIT_ASSERT_EQUAL((intptr_t) out_data.payload, (intptr_t) &MSG[22]);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
+                          _ANJ_COAP_UDP_TYPE_CONFIRMABLE);
+}
+
+ANJ_UNIT_TEST(anj_decode_udp, decode_non_confirmable_execute) {
+    uint8_t MSG[] = "\x58"         // header v 0x01, Non-Confirmable, tkl 8
+                    "\x02\x37\x21" // POST code 0.2
+                    "\x12\x34\x56\x78\x11\x11\x11\x11" // token
+                    "\xB2\x31\x35" // uri-path_1 URI_PATH 11 /15
+                    "\x01\x32"     // uri-path_2             /2
+                    "\x02\x31\x32" // uri-path_3             /12
+                    "\x10"         // content_format 12 PLAIN-TEXT 0
+                    "\xFF"         // payload marker
+                    "\x77\x44\x55\x33\x44\x55\x33\x33\x33\x33" // payload
+            ;
+
+    _anj_coap_msg_t out_data = { 0 };
+    ANJ_UNIT_ASSERT_SUCCESS(
+            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
+
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_EXECUTE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 3);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 15);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 2);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[2], 12);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.content_format, _ANJ_COAP_FORMAT_PLAINTEXT);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.payload_size, 10);
+    ANJ_UNIT_ASSERT_EQUAL((intptr_t) out_data.payload, (intptr_t) &MSG[22]);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
+                          _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE);
 }
 
 ANJ_UNIT_TEST(anj_decode_udp, decode_create) {
@@ -547,7 +577,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_create) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_CREATE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_CREATE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 1);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 33639);
     ANJ_UNIT_ASSERT_EQUAL(out_data.content_format, _ANJ_COAP_FORMAT_CBOR);
@@ -569,7 +599,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_delete) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_DM_DELETE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_DM_DELETE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.uri_len, 2);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[0], 33639);
     ANJ_UNIT_ASSERT_EQUAL(out_data.uri.ids[1], 1);
@@ -587,9 +617,9 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_response) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_RESPONSE_CON_OR_ACK);
     ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
-                          ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT);
+                          _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_CHANGED);
 }
 
@@ -600,41 +630,41 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_ping) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_COAP_PING_UDP);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_COAP_PING_UDP);
     ANJ_UNIT_ASSERT_EQUAL(out_data.token.size, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
-                          ANJ_COAP_UDP_TYPE_CONFIRMABLE);
+                          _ANJ_COAP_UDP_TYPE_CONFIRMABLE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_EMPTY);
 }
 
 ANJ_UNIT_TEST(anj_decode_udp, decode_reset_message) {
-    uint8_t MSG[] = "\x70"          // ACK, tkl 0
+    uint8_t MSG[] = "\x70"          // RST, tkl 0
                     "\x00\x22\x22"; // empty msg
 
     _anj_coap_msg_t out_data = { 0 };
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_COAP_RESET);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_COAP_RESET);
     ANJ_UNIT_ASSERT_EQUAL(out_data.token.size, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
-                          ANJ_COAP_UDP_TYPE_RESET);
+                          _ANJ_COAP_UDP_TYPE_RESET);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_EMPTY);
 }
 
 ANJ_UNIT_TEST(anj_decode_udp, decode_empty_message) {
     uint8_t MSG[] = "\x60"         // header v 0x01, Ack
-                    "\x00\x37\x21" // empty code 2.4
+                    "\x00\x37\x21" // empty code 0.00
             ;
 
     _anj_coap_msg_t out_data = { 0 };
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_COAP_EMPTY_MSG);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_COAP_EMPTY_MSG);
     ANJ_UNIT_ASSERT_EQUAL(out_data.token.size, 0);
     ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
-                          ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT);
+                          _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_EMPTY);
 }
 
@@ -648,9 +678,9 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_con_response) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_RESPONSE_CON_OR_ACK);
     ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
-                          ANJ_COAP_UDP_TYPE_CONFIRMABLE);
+                          _ANJ_COAP_UDP_TYPE_CONFIRMABLE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_CHANGED);
 }
 
@@ -664,9 +694,9 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_non_con_response) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_RESPONSE_NON_CON);
     ANJ_UNIT_ASSERT_EQUAL(out_data.coap_binding_data.type,
-                          ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE);
+                          _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_CHANGED);
 }
 
@@ -681,7 +711,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_response_with_etag) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_RESPONSE_CON_OR_ACK);
     ANJ_UNIT_ASSERT_EQUAL(out_data.attr.downloader_attr.etag.size, 3);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
             "332", out_data.attr.downloader_attr.etag.bytes, 3);
@@ -701,7 +731,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_response_with_etag_and_size) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_RESPONSE_CON_OR_ACK);
     ANJ_UNIT_ASSERT_EQUAL(out_data.attr.downloader_attr.etag.size, 3);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
             "332", out_data.attr.downloader_attr.etag.bytes, 3);
@@ -727,7 +757,7 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_response_with_location_path) {
             ((uint8_t[]){ 0x12, 0x34, 0x56, 0x78, 0x11, 0x11, 0x11, 0x11 }),
             8);
     ANJ_UNIT_ASSERT_EQUAL(out_data.token.size, 8);
-    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, ANJ_OP_RESPONSE);
+    ANJ_UNIT_ASSERT_EQUAL(out_data.operation, _ANJ_OP_RESPONSE_CON_OR_ACK);
     ANJ_UNIT_ASSERT_EQUAL(out_data.msg_code, ANJ_COAP_CODE_CREATED);
     ANJ_UNIT_ASSERT_EQUAL(out_data.location_path.location_len[0], 2);
     ANJ_UNIT_ASSERT_EQUAL(out_data.location_path.location_len[1], 4);
@@ -736,44 +766,6 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_response_with_location_path) {
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(
             out_data.location_path.location[1], "5a3f", 4);
     ANJ_UNIT_ASSERT_EQUAL(out_data.location_path.location_count, 2);
-}
-
-ANJ_UNIT_TEST(anj_decode_udp, decode_error_compromited_msg) {
-    uint8_t MSG[] = "\x54"             // header v 0x01, Non-confirmable, tkl 4
-                    "\x43\x21\x37"     // code 2.3
-                    "\x12\x34\x56\x78" // token
-                    "\x51\x30"         // opt 1
-                    "\x53\x31\x32\x33" // opt 2
-                    "\xFF"             // payload marker
-                    "\x78\x78\x78"     // payload
-            ;
-
-    _anj_coap_msg_t out_data = { 0 };
-
-    uint8_t aux;
-    // incorrect version number
-    aux = MSG[0];
-    MSG[0] = 0x14;
-    ANJ_UNIT_ASSERT_FAILED(
-            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
-    MSG[0] = aux;
-
-    // incorrect token length
-    aux = MSG[0];
-    MSG[0] = 0x53;
-    ANJ_UNIT_ASSERT_FAILED(
-            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
-    MSG[0] = aux;
-
-    // no payload marker
-    aux = MSG[14];
-    MSG[14] = 0x11;
-    ANJ_UNIT_ASSERT_FAILED(
-            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
-    MSG[14] = aux;
-
-    ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
 }
 
 ANJ_UNIT_TEST(anj_decode_udp, decode_error_too_long_uri) {
@@ -811,6 +803,69 @@ ANJ_UNIT_TEST(anj_decode_udp, decode_error_attr) {
             "\xd7\x02\x70\x6d\x69\x6e\x3d\x6e\x30" // URI_QUERY 15 pmin=n0
             ;
 
+    _anj_coap_msg_t out_data = { 0 };
+    ANJ_UNIT_ASSERT_FAILED(
+            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
+}
+
+ANJ_UNIT_TEST(anj_decode_udp, decode_error_no_payload_marker) {
+    uint8_t MSG[] = "\x48"         // header v 0x01, Confirmable, tkl 8
+                    "\x02\x37\x21" // POST code 0.2
+                    "\x12\x34\x56\x78\x11\x11\x11\x11" // token
+                    "\xB2\x31\x35" // uri-path_1 URI_PATH 11 /15
+                    "\x01\x32"     // uri-path_2             /2
+                    "\x02\x31\x32" // uri-path_3             /12
+                    "\x10"         // content_format 12 PLAIN-TEXT 0
+                    "\x77\x44\x55\x33\x44\x55\x33\x33\x33\x33" // payload
+            ;
+    _anj_coap_msg_t out_data = { 0 };
+    ANJ_UNIT_ASSERT_FAILED(
+            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
+}
+
+ANJ_UNIT_TEST(anj_decode_udp, decode_error_incorrect_token_length) {
+    uint8_t MSG[] = "\x43"         // header v 0x01, Confirmable, tkl 3
+                    "\x02\x37\x21" // POST code 0.2
+                    "\x12\x34\x56\x78\x11\x11\x11\x11" // token
+                    "\xB2\x31\x35" // uri-path_1 URI_PATH 11 /15
+                    "\x01\x32"     // uri-path_2             /2
+                    "\x02\x31\x32" // uri-path_3             /12
+                    "\x10"         // content_format 12 PLAIN-TEXT 0
+                    "\xFF"         // payload marker
+                    "\x77\x44\x55\x33\x44\x55\x33\x33\x33\x33" // payload
+            ;
+    _anj_coap_msg_t out_data = { 0 };
+    ANJ_UNIT_ASSERT_FAILED(
+            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
+}
+
+ANJ_UNIT_TEST(anj_decode_udp, decode_error_incorrect_version) {
+    uint8_t MSG[] = "\x08"         // header v 0x00, Confirmable, tkl 8
+                    "\x02\x37\x21" // POST code 0.2
+                    "\x12\x34\x56\x78\x11\x11\x11\x11" // token
+                    "\xB2\x31\x35" // uri-path_1 URI_PATH 11 /15
+                    "\x01\x32"     // uri-path_2             /2
+                    "\x02\x31\x32" // uri-path_3             /12
+                    "\x10"         // content_format 12 PLAIN-TEXT 0
+                    "\xFF"         // payload marker
+                    "\x77\x44\x55\x33\x44\x55\x33\x33\x33\x33" // payload
+            ;
+    _anj_coap_msg_t out_data = { 0 };
+    ANJ_UNIT_ASSERT_FAILED(
+            _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));
+}
+
+ANJ_UNIT_TEST(anj_decode_udp, decode_error_token_to_long) {
+    uint8_t MSG[] = "\x49"         // header v 0x01, Confirmable, tkl 9
+                    "\x02\x37\x21" // POST code 0.2
+                    "\x12\x34\x56\x78\x11\xDE\xAD\xBE\xEF" // token
+                    "\xB2\x31\x35" // uri-path_1 URI_PATH 11 /15
+                    "\x01\x32"     // uri-path_2             /2
+                    "\x02\x31\x32" // uri-path_3             /12
+                    "\x10"         // content_format 12 PLAIN-TEXT 0
+                    "\xFF"         // payload marker
+                    "\x77\x44\x55\x33\x44\x55\x33\x33\x33\x33" // payload
+            ;
     _anj_coap_msg_t out_data = { 0 };
     ANJ_UNIT_ASSERT_FAILED(
             _anj_coap_decode_udp(MSG, sizeof(MSG) - 1, &out_data));

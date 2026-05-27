@@ -172,7 +172,7 @@ static anj_dm_obj_t obj_4 = {
             _anj_exchange_handlers_t out_handlers;                             \
             _anj_exchange_init(&exchange_ctx);                                 \
             _anj_coap_msg_t inout_msg = {                                      \
-                .operation = ANJ_OP_INF_OBSERVE_COMP,                          \
+                .operation = _ANJ_OP_INF_OBSERVE_COMP,                         \
                 .payload = Payload,                                            \
                 .payload_size = sizeof(Payload) - 1,                           \
                 .attr.notification_attr = (_anj_attr_notification_t) Attr,     \
@@ -193,7 +193,7 @@ static anj_dm_obj_t obj_4 = {
             ASSERT_EQ(_anj_exchange_new_server_request(                        \
                               &exchange_ctx, response_code, &inout_msg,        \
                               &out_handlers, payload_buff, payload_buff_len),  \
-                      ANJ_EXCHANGE_STATE_MSG_TO_SEND);                         \
+                      _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                        \
             size_t out_msg_size = 0;                                           \
             ASSERT_EQ(anj.observe_ctx.already_processed, AlreadyProcessed);    \
             ASSERT_OK(_anj_coap_encode_udp(&inout_msg, out_buff, out_buff_len, \
@@ -223,7 +223,7 @@ static anj_dm_obj_t obj_4 = {
                               &exchange_ctx,                                   \
                               ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,            \
                               &inout_msg),                                     \
-                      ANJ_EXCHANGE_STATE_FINISHED);
+                      _ANJ_EXCHANGE_STATE_FINISHED);
 
 #        define OBSERVE_COMP_OP_TEST_WITH_SETTABLE_ALREADY_PROCESS(          \
                 Payload, AlreadyProcessed)                                   \
@@ -437,13 +437,13 @@ ANJ_UNIT_TEST(
                 ASSERT_EQ(_anj_exchange_new_server_request(                    \
                                   &exchange_ctx, response_code, &inout_msg,    \
                                   &out_handlers, payload_buff, 100),           \
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);                     \
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                    \
                                                                                \
             } else {                                                           \
                 ASSERT_EQ(_anj_exchange_process(&exchange_ctx,                 \
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,    \
                                                 &inout_msg),                   \
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);                     \
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                    \
             }                                                                  \
                                                                                \
             ASSERT_OK(_anj_coap_encode_udp(&inout_msg, out_buff, out_buff_len, \
@@ -455,8 +455,8 @@ ANJ_UNIT_TEST(
                               &exchange_ctx,                                   \
                               ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,            \
                               &inout_msg),                                     \
-                      Last ? ANJ_EXCHANGE_STATE_FINISHED                       \
-                           : ANJ_EXCHANGE_STATE_WAITING_MSG);
+                      Last ? _ANJ_EXCHANGE_STATE_FINISHED                      \
+                           : _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
 ANJ_UNIT_TEST(observe_comp_op, composite_observation_four_records_block) {
     _anj_observe_ctx_t ctx_ref;
@@ -488,12 +488,12 @@ ANJ_UNIT_TEST(observe_comp_op, composite_observation_four_records_block) {
     };
 
     _anj_coap_msg_t inout_msg = {
-        .operation = ANJ_OP_INF_OBSERVE_COMP,
+        .operation = _ANJ_OP_INF_OBSERVE_COMP,
         .payload = payload,
         .payload_size = 16,
         .content_format = _ANJ_COAP_FORMAT_SENML_CBOR,
         .accept = _ANJ_COAP_FORMAT_SENML_CBOR,
-        .block.block_type = ANJ_OPTION_BLOCK_1,
+        .block.block_type = _ANJ_OPTION_BLOCK_1,
         .block.size = block_size,
         .block.number = 0,
         .block.more_flag = true
@@ -516,7 +516,7 @@ ANJ_UNIT_TEST(observe_comp_op, composite_observation_four_records_block) {
     EXPECTED1[1] = ANJ_COAP_CODE_CONTINUE;
 
     REQUEST_BLOCK_TRANSFER(true, false, EXPECTED1);
-    inout_msg.operation = ANJ_OP_INF_OBSERVE_COMP;
+    inout_msg.operation = _ANJ_OP_INF_OBSERVE_COMP;
     inout_msg.payload = &payload[block_size];
     inout_msg.payload_size = 16;
     inout_msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
@@ -530,7 +530,7 @@ ANJ_UNIT_TEST(observe_comp_op, composite_observation_four_records_block) {
     EXPECTED2[1] = ANJ_COAP_CODE_CONTINUE;
 
     REQUEST_BLOCK_TRANSFER(false, false, EXPECTED2);
-    inout_msg.operation = ANJ_OP_INF_OBSERVE_COMP;
+    inout_msg.operation = _ANJ_OP_INF_OBSERVE_COMP;
     inout_msg.payload = &payload[2 * block_size];
     inout_msg.payload_size = sizeof(payload) - 2 * block_size - 1;
     inout_msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
@@ -597,12 +597,12 @@ ANJ_UNIT_TEST(observe_comp_op,
     };
 
     _anj_coap_msg_t inout_msg = {
-        .operation = ANJ_OP_INF_OBSERVE_COMP,
+        .operation = _ANJ_OP_INF_OBSERVE_COMP,
         .payload = payload,
         .payload_size = 16,
         .content_format = _ANJ_COAP_FORMAT_SENML_CBOR,
         .accept = _ANJ_COAP_FORMAT_SENML_CBOR,
-        .block.block_type = ANJ_OPTION_BLOCK_1,
+        .block.block_type = _ANJ_OPTION_BLOCK_1,
         .block.size = block_size,
         .block.number = 0,
         .block.more_flag = true
@@ -631,7 +631,7 @@ ANJ_UNIT_TEST(observe_comp_op,
     EXPECTED1[1] = ANJ_COAP_CODE_CONTINUE;
 
     REQUEST_BLOCK_TRANSFER(true, false, EXPECTED1);
-    inout_msg.operation = ANJ_OP_INF_OBSERVE_COMP;
+    inout_msg.operation = _ANJ_OP_INF_OBSERVE_COMP;
     inout_msg.payload = &payload[block_size];
     inout_msg.payload_size = sizeof(payload) - block_size - 1;
     inout_msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
@@ -828,7 +828,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_inactive_to_active) {
 
     compare_observations(&anj.observe_ctx, &ctx_ref);
 
-    inout_msg.operation = ANJ_OP_DM_WRITE_ATTR;
+    inout_msg.operation = _ANJ_OP_DM_WRITE_ATTR;
     inout_msg.uri = ANJ_MAKE_RESOURCE_PATH(3, 0, 2);
     _anj_attr_notification_t new_attr = {
         .has_min_eval_period = true,
@@ -845,11 +845,11 @@ ANJ_UNIT_TEST(observe_comp_op, observe_inactive_to_active) {
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
                                                &inout_msg, &out_handlers,
                                                payload_buff, payload_buff_len),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &inout_msg),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     ctx_ref.observations[0].effective_attr = (_anj_attr_notification_t) {
         .has_min_eval_period = true,
         .min_eval_period = 20,
@@ -1511,7 +1511,7 @@ ANJ_UNIT_TEST(observe_comp_op,
     };
     uint16_t accept_option = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     inout_msg.token.bytes[0] = 0x23;
-    inout_msg.operation = ANJ_OP_INF_OBSERVE_COMP;
+    inout_msg.operation = _ANJ_OP_INF_OBSERVE_COMP;
     inout_msg.accept = accept_option;
     inout_msg.payload = payload2;
     inout_msg.payload_size = sizeof(payload2) - 1;
@@ -1521,11 +1521,11 @@ ANJ_UNIT_TEST(observe_comp_op,
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
                                                &inout_msg, &out_handlers,
                                                payload_buff, payload_buff_len),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &inout_msg),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(anj.observe_ctx.observations[0].accept_opt,
               _ANJ_COAP_FORMAT_SENML_CBOR);
     ASSERT_EQ(anj.observe_ctx.observations[1].accept_opt, accept_option);
@@ -1817,7 +1817,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
     };
 
     _anj_coap_msg_t inout_msg = {
-        .operation = ANJ_OP_INF_OBSERVE_COMP,
+        .operation = _ANJ_OP_INF_OBSERVE_COMP,
         .payload = payload,
         .payload_size = sizeof(payload) - 1,
         .content_format = _ANJ_COAP_FORMAT_SENML_CBOR,
@@ -1836,7 +1836,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
                                                &inout_msg, &out_handlers,
                                                payload_buff, 16),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     size_t out_msg_size = 0;
     ASSERT_OK(_anj_coap_encode_udp(&inout_msg, out_buff, out_buff_len,
                                    &out_msg_size));
@@ -1881,14 +1881,14 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
     compare_observations(&anj.observe_ctx, &ctx_ref);
 
     ASSERT_EQ(inout_msg.block.number, 0);
-    ASSERT_EQ(inout_msg.block.block_type, ANJ_OPTION_BLOCK_2);
+    ASSERT_EQ(inout_msg.block.block_type, _ANJ_OPTION_BLOCK_2);
 
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &inout_msg),
-              ANJ_EXCHANGE_STATE_WAITING_MSG);
-    inout_msg.operation = ANJ_OP_INF_OBSERVE_COMP;
-    inout_msg.block.block_type = ANJ_OPTION_BLOCK_2;
+              _ANJ_EXCHANGE_STATE_WAITING_MSG);
+    inout_msg.operation = _ANJ_OP_INF_OBSERVE_COMP;
+    inout_msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     inout_msg.block.number = 1;
     inout_msg.block.more_flag = false;
     inout_msg.payload_size = 0;
@@ -1896,9 +1896,9 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
 
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
                                     &inout_msg),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(inout_msg.block.number, 1);
-    ASSERT_EQ(inout_msg.block.block_type, ANJ_OPTION_BLOCK_2);
+    ASSERT_EQ(inout_msg.block.block_type, _ANJ_OPTION_BLOCK_2);
     ASSERT_OK(_anj_coap_encode_udp(&inout_msg, out_buff, out_buff_len,
                                    &out_msg_size));
     ASSERT_EQ(anj.observe_ctx.already_processed, 2);
@@ -1913,7 +1913,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &inout_msg),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 1);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 1);
 }
@@ -1926,7 +1926,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
                 .ssid = 1,                                                     \
             };                                                                 \
             _anj_coap_msg_t inout_msg = {                                      \
-                .operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP,                   \
+                .operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP,                  \
                 .payload = Payload,                                            \
                 .payload_size = sizeof(Payload) - 1,                           \
                 .content_format = Format,                                      \
@@ -1946,7 +1946,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
             ASSERT_EQ(_anj_exchange_new_server_request(                        \
                               &exchange_ctx, response_code, &inout_msg,        \
                               &out_handlers, payload_buff, payload_buff_len),  \
-                      ANJ_EXCHANGE_STATE_MSG_TO_SEND);                         \
+                      _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                        \
             ASSERT_EQ(anj.observe_ctx.already_processed,                       \
                       Msg_Code == ANJ_COAP_CODE_CONTENT                        \
                               ? *(uint8_t *) Payload - 0x80                    \
@@ -1979,7 +1979,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_block) {
                               &exchange_ctx,                                   \
                               ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,            \
                               &inout_msg),                                     \
-                      ANJ_EXCHANGE_STATE_FINISHED);
+                      _ANJ_EXCHANGE_STATE_FINISHED);
 
 ANJ_UNIT_TEST(observe_comp_op, observe_cancel_four_paths) {
     TEST_INIT();
@@ -2106,12 +2106,12 @@ ANJ_UNIT_TEST(observe_comp_op, observe_cancel_four_paths_block) {
     anj.observe_ctx.observations[3].accept_opt = _ANJ_COAP_FORMAT_SENML_CBOR;
 
     _anj_coap_msg_t inout_msg = {
-        .operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP,
+        .operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP,
         .payload = payload,
         .payload_size = 16,
         .content_format = _ANJ_COAP_FORMAT_SENML_CBOR,
         .accept = _ANJ_COAP_FORMAT_SENML_CBOR,
-        .block.block_type = ANJ_OPTION_BLOCK_1,
+        .block.block_type = _ANJ_OPTION_BLOCK_1,
         .block.size = block_size,
         .block.number = 0,
         .block.more_flag = true
@@ -2134,7 +2134,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_cancel_four_paths_block) {
     EXPECTED1[1] = ANJ_COAP_CODE_CONTINUE;
 
     REQUEST_BLOCK_TRANSFER(true, false, EXPECTED1);
-    inout_msg.operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP;
+    inout_msg.operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP;
     inout_msg.payload = &payload[block_size];
     inout_msg.payload_size = 16;
     inout_msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
@@ -2148,7 +2148,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_cancel_four_paths_block) {
     EXPECTED2[1] = ANJ_COAP_CODE_CONTINUE;
 
     REQUEST_BLOCK_TRANSFER(false, false, EXPECTED2);
-    inout_msg.operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP;
+    inout_msg.operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP;
     inout_msg.payload = &payload[2 * block_size];
     inout_msg.payload_size = sizeof(payload) - 2 * block_size - 1;
     inout_msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
@@ -2229,12 +2229,12 @@ ANJ_UNIT_TEST(observe_comp_op, observe_cancel_two_paths_block) {
     anj.observe_ctx.observations[3].accept_opt = _ANJ_COAP_FORMAT_NOT_DEFINED;
 
     _anj_coap_msg_t inout_msg = {
-        .operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP,
+        .operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP,
         .payload = payload,
         .payload_size = 16,
         .content_format = _ANJ_COAP_FORMAT_SENML_CBOR,
         .accept = _ANJ_COAP_FORMAT_SENML_CBOR,
-        .block.block_type = ANJ_OPTION_BLOCK_1,
+        .block.block_type = _ANJ_OPTION_BLOCK_1,
         .block.size = block_size,
         .block.number = 0,
         .block.more_flag = true
@@ -2258,7 +2258,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_cancel_two_paths_block) {
 
     REQUEST_BLOCK_TRANSFER(true, false, EXPECTED1);
 
-    inout_msg.operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP;
+    inout_msg.operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP;
     inout_msg.payload = &payload[block_size];
     inout_msg.payload_size = sizeof(payload) - block_size - 1;
     inout_msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
@@ -2696,7 +2696,7 @@ ANJ_UNIT_TEST(observe_comp_op,
     }
 
     _anj_coap_msg_t request_observe = {
-        .operation = ANJ_OP_INF_OBSERVE,
+        .operation = _ANJ_OP_INF_OBSERVE,
         .uri = ANJ_MAKE_RESOURCE_PATH(3, 0, 2),
         .payload_size = 0,
     };
@@ -2707,11 +2707,11 @@ ANJ_UNIT_TEST(observe_comp_op,
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
                                                &request_observe, &out_handlers,
                                                payload_buff, payload_buff_len),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &request_observe),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
 
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 1);
     ASSERT_EQ((size_t) anj.observe_ctx.observations[0].prev, 0);
@@ -2738,7 +2738,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_comp_turn_off) {
     };
 
     _anj_coap_msg_t inout_msg = {
-        .operation = ANJ_OP_INF_OBSERVE_COMP,
+        .operation = _ANJ_OP_INF_OBSERVE_COMP,
         .payload = payload,
         .payload_size = sizeof(payload) - 1,
         .content_format = _ANJ_COAP_FORMAT_SENML_CBOR,
@@ -2758,7 +2758,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_comp_turn_off) {
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
                                                &inout_msg, &out_handlers,
                                                payload_buff, payload_buff_len),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     size_t out_msg_size = 0;
     ASSERT_OK(_anj_coap_encode_udp(&inout_msg, out_buff, out_buff_len,
                                    &out_msg_size));
@@ -2770,7 +2770,7 @@ ANJ_UNIT_TEST(observe_comp_op, observe_comp_turn_off) {
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &inout_msg),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
 }
 
 ANJ_UNIT_TEST(observe_comp_op, cancel_observe_comp_turn_off) {
@@ -2794,7 +2794,7 @@ ANJ_UNIT_TEST(observe_comp_op, cancel_observe_comp_turn_off) {
     };
 
     _anj_coap_msg_t inout_msg = {
-        .operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP,
+        .operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP,
         .payload = payload,
         .payload_size = sizeof(payload) - 1,
         .content_format = _ANJ_COAP_FORMAT_SENML_CBOR,
@@ -2814,7 +2814,7 @@ ANJ_UNIT_TEST(observe_comp_op, cancel_observe_comp_turn_off) {
     ASSERT_EQ(_anj_exchange_new_server_request(&exchange_ctx, response_code,
                                                &inout_msg, &out_handlers,
                                                payload_buff, payload_buff_len),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     size_t out_msg_size = 0;
     ASSERT_OK(_anj_coap_encode_udp(&inout_msg, out_buff, out_buff_len,
                                    &out_msg_size));
@@ -2826,7 +2826,7 @@ ANJ_UNIT_TEST(observe_comp_op, cancel_observe_comp_turn_off) {
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &inout_msg),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
 }
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
 
@@ -2859,11 +2859,11 @@ ANJ_UNIT_TEST(observe_comp_op, remove_observations) {
     anj.observe_ctx.observations[3].token.size = 1;
     anj.observe_ctx.observations[3].token.bytes[0] = 0x23;
 
-    _anj_observe_remove_all_observations(&anj, 1);
+    _anj_observe_remove_all_observations(&anj);
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 0);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 0);
     ASSERT_EQ(anj.observe_ctx.observations[2].ssid, 0);
-    ASSERT_EQ(anj.observe_ctx.observations[3].ssid, 2);
+    ASSERT_EQ(anj.observe_ctx.observations[3].ssid, 0);
     ASSERT_EQ(anj.observe_ctx.observations[4].ssid, 0);
 }
 

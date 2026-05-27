@@ -27,7 +27,7 @@
 
 #define TEST_ENV(Data, Path, PayloadFinished)                                \
     _anj_io_in_ctx_t ctx;                                                    \
-    ASSERT_OK(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,      \
+    ASSERT_OK(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,     \
                                   &(Path), _ANJ_COAP_FORMAT_OMA_LWM2M_TLV)); \
     const anj_res_value_t *value;                                            \
     const anj_uri_path_t *path;                                              \
@@ -764,7 +764,7 @@ ANJ_UNIT_TEST(tlv_in_general_tests, check_want_disambiguation) {
     char *in_tlv = "\xC7\x05"
                    "1234567";
     _anj_io_in_ctx_t ctx;
-    ASSERT_OK(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+    ASSERT_OK(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                   &TEST_INSTANCE_PATH,
                                   _ANJ_COAP_FORMAT_OMA_LWM2M_TLV));
     anj_data_type_t type_bitmask = ANJ_DATA_TYPE_ANY;
@@ -801,7 +801,7 @@ ANJ_UNIT_TEST(tlv_in_general_tests, string_in_chunks) {
     static char DATA3[] = "2137Papaj";
 
     _anj_io_in_ctx_t ctx;
-    ASSERT_OK(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+    ASSERT_OK(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                   &TEST_INSTANCE_PATH,
                                   _ANJ_COAP_FORMAT_OMA_LWM2M_TLV));
     const anj_res_value_t *value = NULL;
@@ -873,7 +873,7 @@ ANJ_UNIT_TEST(tlv_in_general_tests, instance_with_rid_of_different_type) {
 
 ANJ_UNIT_TEST(tlv_in_general_tests, get_entry_count) {
     _anj_io_in_ctx_t ctx;
-    ASSERT_OK(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+    ASSERT_OK(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                   &TEST_INSTANCE_PATH,
                                   _ANJ_COAP_FORMAT_OMA_LWM2M_TLV));
     size_t out_count;

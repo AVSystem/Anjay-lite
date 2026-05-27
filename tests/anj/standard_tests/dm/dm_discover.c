@@ -151,44 +151,44 @@ typedef struct {
     const char *version;
 } discover_record_t;
 
-#define DISCOVER_TEST(Path, Idx_start, Idx_end)                               \
-    anj_t anj = { 0 };                                                        \
-    _anj_dm_initialize(&anj);                                                 \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_0));                    \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_1));                    \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3));                    \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_5));                    \
-    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_55));                   \
-    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));                  \
-    ANJ_UNIT_ASSERT_SUCCESS(                                                  \
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_DISCOVER, false, &Path)); \
-    for (size_t idx = Idx_start; idx <= Idx_end; idx++) {                     \
-        ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));               \
-        anj_uri_path_t out_path;                                              \
-        const char *out_version;                                              \
-        const uint16_t *out_dim;                                              \
-        int res = _anj_dm_get_discover_record(                                \
-                &anj, &out_path, &out_version, &out_dim);                     \
-        ANJ_UNIT_ASSERT_TRUE(                                                 \
-                anj_uri_path_equal(&out_path, &disc_records[idx].path));      \
-        if (disc_records[idx].version) {                                      \
-            ANJ_UNIT_ASSERT_FALSE(                                            \
-                    strcmp(out_version, disc_records[idx].version));          \
-        } else {                                                              \
-            ANJ_UNIT_ASSERT_NULL(out_version);                                \
-        }                                                                     \
-        if (disc_records[idx].dim != ANJ_ID_INVALID) {                        \
-            ANJ_UNIT_ASSERT_TRUE(*out_dim == disc_records[idx].dim);          \
-        } else {                                                              \
-            ANJ_UNIT_ASSERT_NULL(out_dim);                                    \
-        }                                                                     \
-        if (idx == Idx_end) {                                                 \
-            ANJ_UNIT_ASSERT_EQUAL(res, _ANJ_DM_LAST_RECORD);                  \
-        } else {                                                              \
-            ANJ_UNIT_ASSERT_EQUAL(res, 0);                                    \
-        }                                                                     \
-    }                                                                         \
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);                  \
+#define DISCOVER_TEST(Path, Idx_start, Idx_end)                                \
+    anj_t anj = { 0 };                                                         \
+    _anj_dm_initialize(&anj);                                                  \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_0));                     \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_1));                     \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3));                     \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_5));                     \
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_55));                    \
+    ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));                   \
+    ANJ_UNIT_ASSERT_SUCCESS(                                                   \
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_DISCOVER, false, &Path)); \
+    for (size_t idx = Idx_start; idx <= Idx_end; idx++) {                      \
+        ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));                \
+        anj_uri_path_t out_path;                                               \
+        const char *out_version;                                               \
+        const uint16_t *out_dim;                                               \
+        int res = _anj_dm_get_discover_record(                                 \
+                &anj, &out_path, &out_version, &out_dim);                      \
+        ANJ_UNIT_ASSERT_TRUE(                                                  \
+                anj_uri_path_equal(&out_path, &disc_records[idx].path));       \
+        if (disc_records[idx].version) {                                       \
+            ANJ_UNIT_ASSERT_FALSE(                                             \
+                    strcmp(out_version, disc_records[idx].version));           \
+        } else {                                                               \
+            ANJ_UNIT_ASSERT_NULL(out_version);                                 \
+        }                                                                      \
+        if (disc_records[idx].dim != ANJ_ID_INVALID) {                         \
+            ANJ_UNIT_ASSERT_TRUE(*out_dim == disc_records[idx].dim);           \
+        } else {                                                               \
+            ANJ_UNIT_ASSERT_NULL(out_dim);                                     \
+        }                                                                      \
+        if (idx == Idx_end) {                                                  \
+            ANJ_UNIT_ASSERT_EQUAL(res, _ANJ_DM_LAST_RECORD);                   \
+        } else {                                                               \
+            ANJ_UNIT_ASSERT_EQUAL(res, 0);                                     \
+        }                                                                      \
+    }                                                                          \
+    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);                   \
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 
 /**

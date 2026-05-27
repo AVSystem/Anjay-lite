@@ -7,12 +7,11 @@
  * See the attached LICENSE file for details.
  */
 
-#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <anj/core.h>
 #include <anj/defs.h>
@@ -67,39 +66,6 @@ static int install_security_obj(anj_t *anj,
     return 0;
 }
 
-#ifdef __APPLE__
-#    include <time.h>
-static int clock_nanosleep(clockid_t clock_id,
-                           int flags,
-                           const struct timespec *req,
-                           struct timespec *rem) {
-    (void) clock_id; // Ignore clock ID
-    (void) flags;    // Ignore flags
-    return nanosleep(req, rem);
-}
-#endif
-
-static void connection_status_callback(void *arg,
-                                       anj_t *anj,
-                                       anj_conn_status_t conn_status) {
-    (void) arg;
-
-    if (conn_status == ANJ_CONN_STATUS_QUEUE_MODE) {
-        anj_time_duration_t time = anj_core_next_step_time(anj);
-        uint64_t time_ms =
-                (uint64_t) anj_time_duration_to_scalar(time, ANJ_TIME_UNIT_MS);
-
-        // Simulate entering low power mode for period of time returned by
-        // previous function
-        struct timespec ts = {
-            // Warning: unchecked cast
-            .tv_sec = (time_t) (time_ms / 1000),
-            .tv_nsec = (long) ((time_ms % 1000) * 1000000L)
-        };
-        clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
-    }
-}
-
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         log(L_ERROR, "No endpoint name given");
@@ -115,7 +81,6 @@ int main(int argc, char *argv[]) {
         .endpoint_name = argv[1],
         .queue_mode_enabled = true,
         .queue_mode_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S),
-        .connection_status_cb = connection_status_callback
     };
     if (anj_core_init(&anj, &config)) {
         log(L_ERROR, "Failed to initialize Anjay Lite");
@@ -130,7 +95,25 @@ int main(int argc, char *argv[]) {
 
     while (true) {
         anj_core_step(&anj);
-        usleep(50 * 1000);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
+
+        anj_time_duration_t time = anj_core_next_step_time(&anj);
+        if (!anj_time_duration_eq(time, ANJ_TIME_DURATION_ZERO)) {
+            uint64_t time_ms =
+                    (uint64_t) anj_time_duration_to_scalar(time,
+                                                           ANJ_TIME_UNIT_MS);
+            log(L_INFO, "Next action in %" PRIu64 " seconds", time_ms / 1000);
+
+            // Simulate entering low power mode for period of time returned by
+            // previous function
+            struct timespec sleep_time = {
+                // Warning: unchecked cast
+                .tv_sec = (time_t) (time_ms / 1000),
+                .tv_nsec = (long) ((time_ms % 1000) * 1000000L)
+            };
+            nanosleep(&sleep_time, NULL);
+        }
     }
     return 0;
 }

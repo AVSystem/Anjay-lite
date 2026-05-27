@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_SRC_LWM2M_SEND_H
 #    define ANJ_SRC_LWM2M_SEND_H
@@ -20,7 +20,7 @@
 /**
  * This function checks if any LwM2M Send request should be sent. Function
  * should be called periodically in order to properly handle the Send operation.
- * If <c>operation</c> field in @p out_msg is set to @ref ANJ_OP_INF_CON_SEND,
+ * If <c>operation</c> field in @p out_msg is set to @ref _ANJ_OP_INF_CON_SEND,
  * then Send request needs to be sent.
  *
  * Function can't be called if there is an ongoing exchange.

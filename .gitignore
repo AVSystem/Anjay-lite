@@ -33,10 +33,16 @@ __pycache__/
 libanj.a
 
 /doc/sphinx/conf.py
+/doc/sphinx/source_api/api_generated
 /anj_config
 /cxx_header_check
+mbedtls_install/
+public/
 
 # Python venv
 /venv/
 dist/
 tools/deploy_utils.egg-info/
+
+# pytest
+.pytest_cache/

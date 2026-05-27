@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 11
 
@@ -33,6 +33,7 @@
 #include "../dm/dm_integration.h"
 #include "../exchange.h"
 #include "../exchange_cache.h"
+#include "../utils.h"
 #include "core.h"
 #include "core_utils.h"
 #include "reg_session.h"
@@ -114,22 +115,16 @@ static void update_observe_parameters(anj_t *anj) {
     if (!res && res_val.int_value >= 0 && res_val.int_value <= UINT32_MAX) {
         anj->server_instance.observe_state.default_min_period =
                 (uint32_t) res_val.int_value;
-    } else if (res != ANJ_DM_ERR_NOT_FOUND) {
-        log(L_ERROR, "Could not read default pmin resource");
     }
     path.ids[ANJ_ID_RID] = SERVER_OBJ_DEFAULT_PMAX_RID;
     res = anj_dm_res_read(anj, &path, &res_val);
     if (!res && res_val.int_value >= 0 && res_val.int_value <= UINT32_MAX) {
         anj->server_instance.observe_state.default_max_period =
                 (uint32_t) res_val.int_value;
-    } else if (res != ANJ_DM_ERR_NOT_FOUND) {
-        log(L_ERROR, "Could not read default pmax resource");
     }
     path.ids[ANJ_ID_RID] = SERVER_OBJ_NOTIFICATION_STORING_RID;
     if (!anj_dm_res_read(anj, &path, &res_val)) {
         anj->server_instance.observe_state.notify_store = res_val.bool_value;
-    } else {
-        log(L_ERROR, "Could not read default notification storing resource");
     }
 #    ifdef ANJ_WITH_LWM2M12
     path.ids[ANJ_ID_RID] = SERVER_OBJ_DEFAULT_NOTIFICATION_MODE_RID;
@@ -138,8 +133,6 @@ static void update_observe_parameters(anj_t *anj) {
         // 0 = NonConfirmable, 1 = Confirmable.
         anj->server_instance.observe_state.default_con =
                 (res_val.int_value == 1);
-    } else if (res != ANJ_DM_ERR_NOT_FOUND) {
-        log(L_ERROR, "Could not read default notification mode resource");
     }
 #    endif // ANJ_WITH_LWM2M12
 }
@@ -147,14 +140,12 @@ static void update_observe_parameters(anj_t *anj) {
 
 static void get_lifetime(anj_t *anj) {
     anj_res_value_t res_val;
-    if (anj_dm_res_read(anj,
-                        &ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER,
-                                                anj->server_instance.iid,
-                                                SERVER_OBJ_LIFETIME_RID),
-                        &res_val)
-            || res_val.int_value < 0 || res_val.int_value > UINT32_MAX) {
-        log(L_ERROR, "Could not read lifetime resource");
-    } else {
+    if (!anj_dm_res_read(anj,
+                         &ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER,
+                                                 anj->server_instance.iid,
+                                                 SERVER_OBJ_LIFETIME_RID),
+                         &res_val)
+            && res_val.int_value > 0 && res_val.int_value <= UINT32_MAX) {
         // in case of error, the value is not changed
         anj->server_instance.lifetime =
                 anj_time_duration_new(res_val.int_value, ANJ_TIME_UNIT_S);
@@ -169,7 +160,6 @@ static void get_mute_send(anj_t *anj) {
                                                 anj->server_instance.iid,
                                                 SERVER_OBJ_MUTE_SEND_RID),
                         &res_val)) {
-        log(L_ERROR, "Could not read mute send resource");
         // "If true or the Resource is not present, the LwM2M Client Send
         // command capability is de-activated"
         anj->server_instance.mute_send = true;
@@ -192,20 +182,18 @@ void _anj_reg_session_refresh_registration_related_resources(anj_t *anj) {
 
 static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     _anj_coap_msg_t msg;
+    _anj_exchange_handlers_t exchange_handlers = { 0 };
+    uint8_t response_code = 0;
+
     int res = _anj_coap_decode_udp(anj->in_buffer, msg_size, &msg);
     if (res) {
-        ANJ_CORE_LOG_COAP_ERROR(res);
         // ignore invalid messages
         return 0;
     }
 
-    _anj_exchange_handlers_t exchange_handlers = { 0 };
-    uint8_t response_code = 0;
-
 #ifdef ANJ_WITH_CACHE
     // check if it's a retransmission
-    int cache_try = _anj_exchange_cache_check(&anj->exchange_cache,
-                                              msg.coap_binding_data.message_id);
+    int cache_try = _anj_exchange_cache_check(&anj->exchange_cache, &msg);
     if (cache_try == _ANJ_EXCHANGE_CACHE_HIT_RECENT) {
         return _ANJ_REG_SESSION_NEW_EXCHANGE;
     } else if (cache_try == _ANJ_EXCHANGE_CACHE_HIT_NON_RECENT) {
@@ -215,63 +203,67 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
 #endif // ANJ_WITH_CACHE
 
     // find the right module to handle the message
-    switch (msg.operation) {
-    case ANJ_OP_DM_READ:
-    case ANJ_OP_DM_DISCOVER:
-    case ANJ_OP_DM_WRITE_REPLACE:
-    case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
-    case ANJ_OP_DM_EXECUTE:
-    case ANJ_OP_DM_CREATE:
-    case ANJ_OP_DM_DELETE:
+    {
+        switch (msg.operation) {
+        case _ANJ_OP_DM_READ:
+        case _ANJ_OP_DM_DISCOVER:
+        case _ANJ_OP_DM_WRITE_REPLACE:
+        case _ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
+        case _ANJ_OP_DM_EXECUTE:
+        case _ANJ_OP_DM_CREATE:
+        case _ANJ_OP_DM_DELETE:
+            _anj_dm_process_request(anj, &msg, anj->server_instance.ssid,
+                                    &response_code, &exchange_handlers);
+            break;
+        case _ANJ_OP_DM_READ_COMP:
+        case _ANJ_OP_DM_WRITE_COMP:
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_READ_COMP:
-    case ANJ_OP_DM_WRITE_COMP:
-#endif // ANJ_WITH_COMPOSITE_OPERATIONS
-        _anj_dm_process_request(anj, &msg, anj->server_instance.ssid,
-                                &response_code, &exchange_handlers);
-        break;
-#ifndef ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_READ_COMP:
-    case ANJ_OP_DM_WRITE_COMP:
-        log(L_WARNING, "Composite operations not supported");
-        response_code = ANJ_COAP_CODE_NOT_IMPLEMENTED;
-        break;
+            _anj_dm_process_request(anj, &msg, anj->server_instance.ssid,
+                                    &response_code, &exchange_handlers);
+            break;
+#else  // ANJ_WITH_COMPOSITE_OPERATIONS
+            log(L_WARNING, "Composite operations not supported");
+            response_code = ANJ_COAP_CODE_NOT_IMPLEMENTED;
+            break;
 #endif // NOT ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_WRITE_ATTR:
-    case ANJ_OP_INF_OBSERVE:
-    case ANJ_OP_INF_OBSERVE_COMP:
-    case ANJ_OP_INF_CANCEL_OBSERVE:
-    case ANJ_OP_INF_CANCEL_OBSERVE_COMP:
+
+        case _ANJ_OP_DM_WRITE_ATTR:
+        case _ANJ_OP_INF_OBSERVE:
+        case _ANJ_OP_INF_OBSERVE_COMP:
+        case _ANJ_OP_INF_CANCEL_OBSERVE:
+        case _ANJ_OP_INF_CANCEL_OBSERVE_COMP:
 #ifdef ANJ_WITH_OBSERVE
-    {
-        _anj_observe_new_request(anj,
-                                 &exchange_handlers,
-                                 &anj->server_instance.observe_state,
-                                 &msg,
-                                 &response_code);
-        break;
-    }
+        {
+            _anj_observe_new_request(anj,
+                                     &exchange_handlers,
+                                     &anj->server_instance.observe_state,
+                                     &msg,
+                                     &response_code);
+            break;
+        }
 #else  // ANJ_WITH_OBSERVE
-    {
-        log(L_WARNING, "Observe operation not supported");
-        response_code = ANJ_COAP_CODE_NOT_IMPLEMENTED;
-        break;
-    }
+        {
+            log(L_WARNING, "Observe module disabled");
+            response_code = ANJ_COAP_CODE_NOT_IMPLEMENTED;
+            break;
+        }
 #endif // ANJ_WITH_OBSERVE
 #ifdef ANJ_WITH_RST_AS_CANCEL_OBSERVE
-    case ANJ_OP_COAP_RESET: {
-        // non-confirmable notifications cancel by RST is handled here
-        _anj_observe_cancel_observation_by_mid(
-                anj, msg.coap_binding_data.message_id);
-        return 0;
-    }
+        case _ANJ_OP_COAP_RESET: {
+            // non-confirmable notifications cancel by RST is handled here
+            _anj_observe_cancel_observation_by_mid(
+                    anj, msg.coap_binding_data.message_id);
+            return 0;
+        }
 #endif // ANJ_WITH_RST_AS_CANCEL_OBSERVE
-    case ANJ_OP_COAP_PING_UDP:
-        break; // PING is handled by the exchange module
-    default: {
-        log(L_WARNING, "Invalid operation: %d", (int) msg.operation);
-        return 0;
-    }
+        case _ANJ_OP_COAP_PING_UDP:
+            break; // PING is handled by the exchange module
+        default: {
+            log(L_WARNING, "Invalid operation: %s",
+                _anj_debug_coap_operation_to_string(msg.operation));
+            return 0;
+        }
+        }
     }
 
     if (_anj_srv_conn_prepare_server_request(anj, &msg, response_code,
@@ -324,10 +316,10 @@ static int handle_send(anj_t *anj) {
     memset(&msg, 0, sizeof(msg));
     _anj_exchange_handlers_t exchange_handlers = { 0 };
     _anj_lwm2m_send_process(anj, &exchange_handlers, &msg);
-    if (msg.operation != ANJ_OP_INF_CON_SEND) {
+    if (msg.operation != _ANJ_OP_INF_CON_SEND) {
         return 0;
     }
-    log(L_DEBUG, "Sending LwM2M Send");
+    log(L_DEBUG, "Preparing LwM2M Send request");
     if (_anj_srv_conn_prepare_client_request(anj, &msg, &exchange_handlers)) {
         return -1;
     }
@@ -342,11 +334,11 @@ static int handle_observe(anj_t *anj) {
     _anj_exchange_handlers_t exchange_handlers = { 0 };
     _anj_observe_process(anj, &exchange_handlers,
                          &anj->server_instance.observe_state, &msg);
-    if (msg.operation != ANJ_OP_INF_CON_NOTIFY
-            && msg.operation != ANJ_OP_INF_NON_CON_NOTIFY) {
+    if (msg.operation != _ANJ_OP_INF_CON_NOTIFY
+            && msg.operation != _ANJ_OP_INF_NON_CON_NOTIFY) {
         return 0;
     }
-    log(L_DEBUG, "Sending notification");
+    log(L_DEBUG, "Preparing notification");
     if (_anj_srv_conn_prepare_client_request(anj, &msg, &exchange_handlers)) {
         return -1;
     }
@@ -389,6 +381,7 @@ static uint8_t get_new_state_for_new_exchange(uint8_t current_state,
 
 _anj_core_next_action_t
 _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
+
     switch (anj->server_state.details.registered.internal_state) {
     case _ANJ_SRV_MAN_STATE_IDLE_IN_PROGRESS: {
         int res;
@@ -422,7 +415,6 @@ _anj_reg_session_process_registered(anj_t *anj, anj_conn_status_t *out_status) {
                 return _ANJ_CORE_NEXT_ACTION_CONTINUE;
             }
         } else if (!anj_net_is_again(res)) {
-            log(L_ERROR, "Error while receiving message: %d", res);
             anj->server_state.details.registered.internal_state =
                     _ANJ_SRV_MAN_STATE_DISCONNECT_IN_PROGRESS;
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
@@ -597,7 +589,6 @@ _anj_reg_session_process_suspended(anj_t *anj, anj_conn_status_t *out_status) {
         anj->server_state.enable_time = ANJ_TIME_MONOTONIC_ZERO;
         anj->server_state.enable_time_user_triggered = ANJ_TIME_MONOTONIC_ZERO;
         *out_status = ANJ_CONN_STATUS_INITIAL;
-        log(L_INFO, "Server leaving suspended state");
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }
     // stay in ANJ_CONN_STATUS_SUSPENDED

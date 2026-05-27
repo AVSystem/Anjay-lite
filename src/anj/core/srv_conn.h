@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_SRC_CORE_SRV_CONN_H
 #    define ANJ_SRC_CORE_SRV_CONN_H
@@ -20,6 +20,8 @@
 #    include <anj/core.h>
 #    include <anj/defs.h>
 #    include <anj/time.h>
+
+#    include "../coap/coap.h"
 
 /**
  * Establishes a connection to the server. If @ref ANJ_NET_EINPROGRESS is
@@ -91,21 +93,23 @@ int _anj_srv_conn_receive(_anj_server_connection_ctx_t *ctx,
  * Calculation is based on given arguments and the MTU of the network
  * socket.
  *
- * @param      ctx                 Server connection context.
+ * @param      anj                 Anjay instance.
  * @param      msg                 Pointer to the CoAP message.
  * @param      payload_buff_size   Size of the payload buffer.
  * @param      out_msg_buffer_size Size of the message buffer.
- * @param      server_request      Indicates if the message is a server request.
+ * @param      outgoing_msg_kind   Indicates whether the outgoing message is a
+ *                                 request or a response.
  * @param[out] out_payload_size    Pointer to the calculated payload size.
  *
  * @return 0 on success, a negative value in case of an error.
  */
-int _anj_srv_conn_calculate_max_payload_size(_anj_server_connection_ctx_t *ctx,
-                                             _anj_coap_msg_t *msg,
-                                             size_t payload_buff_size,
-                                             size_t out_msg_buffer_size,
-                                             bool server_request,
-                                             size_t *out_payload_size);
+int _anj_srv_conn_calculate_max_payload_size(
+        anj_t *anj,
+        _anj_coap_msg_t *msg,
+        size_t payload_buff_size,
+        size_t out_msg_buffer_size,
+        _anj_coap_outgoing_msg_kind_t outgoing_msg_kind,
+        size_t *out_payload_size);
 
 /**
  * Handles the LwM2M request. If @ref ANJ_NET_EAGAIN or @ref ANJ_NET_EINPROGRESS

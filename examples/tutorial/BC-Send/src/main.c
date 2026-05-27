@@ -7,13 +7,12 @@
  * See the attached LICENSE file for details.
  */
 
-#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <anj/compat/time.h>
 #include <anj/core.h>
@@ -144,7 +143,8 @@ int main(int argc, char *argv[]) {
     while (true) {
         anj_core_step(&anj);
         update_temperature_obj_value();
-        usleep(50 * 1000);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
         if (anj_time_monotonic_lt(next_read_time, anj_time_monotonic_now())) {
             next_read_time = anj_time_monotonic_add(
                     anj_time_monotonic_now(),

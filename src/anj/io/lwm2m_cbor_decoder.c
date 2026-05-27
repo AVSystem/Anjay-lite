@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 37
 
@@ -51,7 +51,7 @@ static int read_id(_anj_cbor_ll_decoder_t *ctx, uint16_t *out_id) {
     if (result) {
         return result;
     }
-    if (number.type != ANJ_CBOR_LL_VALUE_UINT
+    if (number.type != _ANJ_CBOR_LL_VALUE_UINT
             || number.value.u64 >= ANJ_ID_INVALID) {
         return _ANJ_IO_ERR_FORMAT;
     }
@@ -113,7 +113,7 @@ decode_path_fragment_and_update_stack(_anj_lwm2m_cbor_decoder_t *ctx) {
     int result;
     _anj_cbor_ll_value_type_t type;
     if (ctx->in_path_array) {
-        type = ANJ_CBOR_LL_VALUE_ARRAY;
+        type = _ANJ_CBOR_LL_VALUE_ARRAY;
     } else {
         size_t nesting_level;
         if ((result = anj_cbor_ll_decoder_nesting_level(&ctx->ctx,
@@ -141,7 +141,7 @@ decode_path_fragment_and_update_stack(_anj_lwm2m_cbor_decoder_t *ctx) {
         }
     }
 
-    if (type == ANJ_CBOR_LL_VALUE_ARRAY) {
+    if (type == _ANJ_CBOR_LL_VALUE_ARRAY) {
         if (!ctx->in_path_array) {
             if ((result = anj_cbor_ll_decoder_enter_array(&ctx->ctx, NULL))) {
                 return result;
@@ -162,7 +162,7 @@ decode_path_fragment_and_update_stack(_anj_lwm2m_cbor_decoder_t *ctx) {
                 return result;
             }
         }
-    } else if (type == ANJ_CBOR_LL_VALUE_UINT) {
+    } else if (type == _ANJ_CBOR_LL_VALUE_UINT) {
         if ((result = read_and_add_path_id(ctx))) {
             return result;
         }
@@ -214,7 +214,7 @@ int _anj_lwm2m_cbor_decoder_get_entry(_anj_io_in_ctx_t *ctx,
                          &lwm2m_cbor->ctx, &type))) {
                 return result;
             }
-            if (type == ANJ_CBOR_LL_VALUE_MAP) {
+            if (type == _ANJ_CBOR_LL_VALUE_MAP) {
                 lwm2m_cbor->expects_map = true;
             }
         }
@@ -236,7 +236,7 @@ int _anj_lwm2m_cbor_decoder_get_entry(_anj_io_in_ctx_t *ctx,
         return _ANJ_IO_ERR_FORMAT;
     }
     *out_path = &lwm2m_cbor->path_stack.path;
-    if (type == ANJ_CBOR_LL_VALUE_NULL) {
+    if (type == _ANJ_CBOR_LL_VALUE_NULL) {
         *inout_type_bitmask = ANJ_DATA_TYPE_NULL;
         if ((result = anj_cbor_ll_decoder_null(&lwm2m_cbor->ctx))) {
             return result;

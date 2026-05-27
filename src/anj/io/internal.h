@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef SRC_ANJ_IO_INTERNAL_H
 #    define SRC_ANJ_IO_INTERNAL_H

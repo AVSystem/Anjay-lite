@@ -24,12 +24,6 @@ extern "C" {
 
 #ifdef ANJ_WITH_OBSERVE
 
-/**
- * @anj_internal_api_do_not_use
- * A constant that may be used to address all servers.
- */
-#    define ANJ_OBSERVE_ANY_SERVER UINT16_MAX
-
 /** @anj_internal_api_do_not_use */
 typedef union {
     int64_t int_value;

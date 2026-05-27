@@ -82,7 +82,8 @@ Next, we make a few modifications to the loop in which we call
     while (true) {
         anj_core_step(&anj);
         update_temperature_obj_value();
-        usleep(50 * 1000);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
         if (anj_time_monotonic_lt(next_read_time, anj_time_monotonic_now())) {
             next_read_time = anj_time_monotonic_add(
                     anj_time_monotonic_now(),

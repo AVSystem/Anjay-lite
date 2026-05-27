@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 7
 
@@ -61,7 +61,7 @@ static void bootstrap_request_completion_callback(
 
 static void prepare_bootstrap_request(_anj_coap_msg_t *msg,
                                       const char *endpoint) {
-    msg->operation = ANJ_OP_BOOTSTRAP_REQ;
+    msg->operation = _ANJ_OP_BOOTSTRAP_REQ;
     msg->attr.bootstrap_attr.has_preferred_content_format = true;
     // One from SenML CBOR or LwM2M CBOR must be enabled
     msg->attr.bootstrap_attr.preferred_content_format =
@@ -133,9 +133,7 @@ void _anj_bootstrap_finish_request(anj_t *anj,
         res = _anj_dm_bootstrap_validation(anj);
     }
     if (res) {
-        bootstrap_log(L_ERROR,
-                      "No correct instance of /0 or /1 Object, error: %d",
-                      res);
+        bootstrap_log(L_ERROR, "Bootstrap data model validation failed");
         ctx->error_code = _ANJ_BOOTSTRAP_ERR_DATA_MODEL_VALIDATION;
         *out_response_code = ANJ_COAP_CODE_NOT_ACCEPTABLE;
     } else {

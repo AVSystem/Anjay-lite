@@ -7,16 +7,18 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 36
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <anj/defs.h>
+#include <anj/log.h>
 #include <anj/utils.h>
 
 #include "../coap/coap.h"
@@ -30,6 +32,8 @@
 #include "text_decoder.h"
 #include "text_encoder.h"
 #include "tlv_decoder.h"
+
+#define log(...) anj_log(io, __VA_ARGS__)
 
 ANJ_STATIC_ASSERT(_ANJ_IO_CTX_BUFFER_LENGTH >= ANJ_CBOR_LL_SINGLE_CALL_MAX_LEN,
                   CBOR_buffer_too_small);
@@ -73,6 +77,7 @@ check_format(uint16_t given_format, size_t items_count, _anj_op_t op) {
         }
     }
     if (!is_present) {
+        log(L_ERROR, "Unsupported content format: %" PRIu16, given_format);
         return _ANJ_IO_ERR_UNSUPPORTED_FORMAT;
     }
     // OPAQUE, CBOR and PLAINTEXT formats are allowed only for single record and
@@ -81,8 +86,12 @@ check_format(uint16_t given_format, size_t items_count, _anj_op_t op) {
          || given_format == _ANJ_COAP_FORMAT_CBOR
          || given_format == _ANJ_COAP_FORMAT_PLAINTEXT)
             && (items_count > 1
-                || (op != ANJ_OP_DM_READ && op != ANJ_OP_INF_OBSERVE
-                    && op != ANJ_OP_INF_CANCEL_OBSERVE))) {
+                || (op != _ANJ_OP_DM_READ && op != _ANJ_OP_INF_OBSERVE
+                    && op != _ANJ_OP_INF_CANCEL_OBSERVE))) {
+        log(L_ERROR,
+            "Content format %" PRIu16 " is not supported for multiple records "
+            "or this operation",
+            given_format);
         return _ANJ_IO_ERR_FORMAT;
     }
     return 0;
@@ -326,29 +335,28 @@ int _anj_io_out_ctx_init(_anj_io_out_ctx_t *ctx,
 #endif // ANJ_WITH_SENML_CBOR
 
     switch (operation_type) {
-    case ANJ_OP_DM_READ:
-    case ANJ_OP_INF_OBSERVE:
-    case ANJ_OP_INF_CANCEL_OBSERVE:
+    case _ANJ_OP_DM_READ:
+    case _ANJ_OP_INF_OBSERVE:
+    case _ANJ_OP_INF_CANCEL_OBSERVE:
         use_base_path = true;
         assert(base_path);
         break;
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_READ_COMP:
-    case ANJ_OP_INF_OBSERVE_COMP:
-    case ANJ_OP_INF_CANCEL_OBSERVE_COMP:
+    case _ANJ_OP_DM_READ_COMP:
+    case _ANJ_OP_INF_OBSERVE_COMP:
+    case _ANJ_OP_INF_CANCEL_OBSERVE_COMP:
         break;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_INF_CON_SEND:
-    case ANJ_OP_INF_NON_CON_SEND:
+    case _ANJ_OP_INF_CON_SEND:
         use_base_path = true;
         assert(base_path);
 #ifdef ANJ_WITH_SENML_CBOR
         encode_time = true;
 #endif // ANJ_WITH_SENML_CBOR
         break;
-    case ANJ_OP_INF_INITIAL_NOTIFY:
-    case ANJ_OP_INF_NON_CON_NOTIFY:
-    case ANJ_OP_INF_CON_NOTIFY:
+    case _ANJ_OP_INF_INITIAL_NOTIFY:
+    case _ANJ_OP_INF_NON_CON_NOTIFY:
+    case _ANJ_OP_INF_CON_NOTIFY:
 #ifdef ANJ_WITH_SENML_CBOR
         encode_time = true;
 #endif // ANJ_WITH_SENML_CBOR
@@ -411,7 +419,7 @@ int _anj_io_out_ctx_init(_anj_io_out_ctx_t *ctx,
         return _anj_lwm2m_cbor_encoder_init(ctx, &path, items_count);
 #endif // ANJ_WITH_LWM2M_CBOR
     default:
-        // not implemented yet
+        // should not happen due to check_format() above
         return _ANJ_IO_ERR_UNSUPPORTED_FORMAT;
     }
 }
@@ -689,8 +697,10 @@ int _anj_io_in_ctx_init(_anj_io_in_ctx_t *ctx,
     case _ANJ_COAP_FORMAT_OMA_LWM2M_TLV:
         return _anj_tlv_decoder_init(ctx, base_path);
 #endif // ANJ_WITH_TLV
-    default:
+    default: {
+        log(L_ERROR, "Unsupported input format: %" PRIu16, format);
         return _ANJ_IO_ERR_UNSUPPORTED_FORMAT;
+    }
     }
 }
 

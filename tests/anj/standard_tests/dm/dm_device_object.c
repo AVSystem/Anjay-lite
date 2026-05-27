@@ -45,14 +45,14 @@
     ANJ_UNIT_ASSERT_EQUAL_STRING((Out).value.bytes_or_string.data, (Value)); \
     ANJ_UNIT_ASSERT_EQUAL((Out).type, ANJ_DATA_TYPE_STRING);
 
-#define CHECK_AND_VERIFY_STRING_RESOURCE(Anj, Path, Value, Record, Count)     \
-    ANJ_UNIT_ASSERT_SUCCESS(                                                  \
-            _anj_dm_operation_begin(&(Anj), ANJ_OP_DM_READ, false, &(Path))); \
-    _anj_dm_get_readable_res_count(&(Anj), &(Count));                         \
-    ANJ_UNIT_ASSERT_EQUAL(1, (Count));                                        \
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&(Anj), &(Record)),          \
-                          _ANJ_DM_LAST_RECORD);                               \
-    VERIFY_STR_ENTRY((Record), &(Path), (Value));                             \
+#define CHECK_AND_VERIFY_STRING_RESOURCE(Anj, Path, Value, Record, Count)      \
+    ANJ_UNIT_ASSERT_SUCCESS(                                                   \
+            _anj_dm_operation_begin(&(Anj), _ANJ_OP_DM_READ, false, &(Path))); \
+    _anj_dm_get_readable_res_count(&(Anj), &(Count));                          \
+    ANJ_UNIT_ASSERT_EQUAL(1, (Count));                                         \
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&(Anj), &(Record)),           \
+                          _ANJ_DM_LAST_RECORD);                                \
+    VERIFY_STR_ENTRY((Record), &(Path), (Value));                              \
     _anj_dm_operation_end(&(Anj), ANJ_DM_TRANSACTION_SUCCESS);
 
 #define MANUFACTURER_STR "manufacturer"
@@ -112,7 +112,7 @@ ANJ_UNIT_TEST(dm_device_object, resources_execute) {
     ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 3);
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 4)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 4)));
     ANJ_UNIT_ASSERT_EQUAL(g_reboot_execute_counter, 0);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_execute(&anj, NULL, 0));
     ANJ_UNIT_ASSERT_EQUAL(g_reboot_execute_counter, 1);
@@ -121,22 +121,24 @@ ANJ_UNIT_TEST(dm_device_object, resources_execute) {
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 0)));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 1)));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 2)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 2)));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 3)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 3)));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 11)));
+    ANJ_UNIT_ASSERT_FAILED(
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_EXECUTE, false,
+                                    &ANJ_MAKE_RESOURCE_PATH(3, 0, 11)));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 16)));
+    ANJ_UNIT_ASSERT_FAILED(
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_EXECUTE, false,
+                                    &ANJ_MAKE_RESOURCE_PATH(3, 0, 16)));
 }
 
 ANJ_UNIT_TEST(dm_device_object, execute_on_missing_resource) {
@@ -156,7 +158,7 @@ ANJ_UNIT_TEST(dm_device_object, execute_on_missing_resource) {
     ANJ_UNIT_ASSERT_EQUAL(anj.dm.objs_count, 3);
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 4)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(3, 0, 4)));
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_execute(&anj, NULL, 0));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 }
@@ -235,7 +237,7 @@ ANJ_UNIT_TEST(dm_device_object, err_codes) {
 
     // object initialized - no error code
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(out_res_count, 1);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&anj, &out_record),

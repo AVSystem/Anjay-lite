@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 21
 
@@ -48,7 +48,7 @@ int _anj_dm_execute(anj_t *anj,
             anj, dm->entity_ptrs.obj, dm->entity_ptrs.inst->iid,
             dm->entity_ptrs.res->rid, execute_arg, execute_arg_len);
     if (result) {
-        dm_log(L_ERROR, "res_execute handler failed.");
+        dm_log(L_ERROR, "Execute handler failed");
         return result;
     }
     return 0;

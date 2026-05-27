@@ -424,9 +424,17 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
     mock_time_advance(anj_time_duration_new(50, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
+    // 10 seconds left until next register request
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(10, ANJ_TIME_UNIT_S)));
 
     // second register request
     mock_time_advance(anj_time_duration_new(20, ANJ_TIME_UNIT_S));
+    // next attempt should start immediately as we are 10 seconds after
+    // scheduled time
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                              ANJ_TIME_DURATION_ZERO));
     anj_core_step(&anj);
     COPY_TOKEN_AND_MSG_ID(expected_register);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
@@ -441,6 +449,9 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(120, ANJ_TIME_UNIT_S)));
 
     // next register request will be sent in 120 seconds
     mock_time_advance(anj_time_duration_new(110, ANJ_TIME_UNIT_S));
@@ -463,11 +474,18 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(240, ANJ_TIME_UNIT_S)));
 
     // next register request will be sent in 240 seconds
     mock_time_advance(anj_time_duration_new(230, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
+    // still 10 seconds left until next register request
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(10, ANJ_TIME_UNIT_S)));
 
     // fourth register try - this time not allow to connect
     mock_time_advance(anj_time_duration_new(20, ANJ_TIME_UNIT_S));
@@ -479,6 +497,9 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
     mock.call_result[ANJ_NET_FUN_CONNECT] = 0;
 
     // next register request will be sent in 480 seconds
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(480, ANJ_TIME_UNIT_S)));
     mock_time_advance(anj_time_duration_new(479, ANJ_TIME_UNIT_S));
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
@@ -507,6 +528,9 @@ ANJ_UNIT_TEST(server_register, register_error_response) {
 
     // seq retry count is not increased so cleanup should not be called
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 0);
+    // client is registered - next step time should be 0
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                              ANJ_TIME_DURATION_ZERO));
 }
 
 ANJ_UNIT_TEST(server_register, register_fail_network_errors) {
@@ -526,6 +550,10 @@ ANJ_UNIT_TEST(server_register, register_fail_network_errors) {
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
                           ANJ_CONN_STATUS_REGISTERING);
+    // next register attempt will be in 1000 seconds (seq_delay_timer)
+    ANJ_UNIT_ASSERT_TRUE(
+            anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                 anj_time_duration_new(1000, ANJ_TIME_UNIT_S)));
 
     // seq_retry_count was increased - cleanup should be called
     ANJ_UNIT_ASSERT_EQUAL(mock.call_count[ANJ_NET_FUN_CLEANUP], 1);
@@ -539,6 +567,10 @@ ANJ_UNIT_TEST(server_register, register_fail_network_errors) {
 
     // second attempt - send error
     mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
+    // next register request will be sent immediately as we are 1 second after
+    // scheduled time
+    ANJ_UNIT_ASSERT_TRUE(anj_time_duration_eq((anj_core_next_step_time(&anj)),
+                                              ANJ_TIME_DURATION_ZERO));
     anj_core_step(&anj);
     anj_core_step(&anj);
     anj_core_step(&anj);
@@ -675,7 +707,7 @@ ANJ_UNIT_TEST(server_register, register_retransmisions) {
     // starts
     anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_get_state(&anj.exchange_ctx),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     anj_core_step(&anj);
 
     // next register request will be sent in 60 seconds

@@ -120,6 +120,13 @@ conn_status_cb(void *arg, anj_t *anj, anj_conn_status_t conn_status) {
     mock.bytes_to_recv = sizeof(Response) - 1; \
     mock.data_to_recv = (uint8_t *) Response
 
+#define ADD_RESPONSE_WITHOUT_TOKEN(Response)   \
+    COPY_TOKEN_AND_MSG_ID(Response, 0);        \
+    mock.bytes_to_recv = sizeof(Response) - 1; \
+    mock.data_to_recv = (uint8_t *) Response
+
+#define INCREMENT_MSG_ID(Msg) Msg[3]++;
+
 static char register_response[] =
         "\x68"                             // header v 0x01, Ack, tkl 8
         "\x41\x00\x00"                     // CREATED code 2.1
@@ -188,6 +195,7 @@ ANJ_UNIT_TEST(registration_session, lifetime_check) {
 
     // next update should be sent after 50 seconds
     mock_time_advance(anj_time_duration_new(49, ANJ_TIME_UNIT_S));
+    anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
     mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
@@ -206,6 +214,7 @@ ANJ_UNIT_TEST(registration_session, lifetime_check) {
     // next update should be sent after 500-MAX_TRANSMIT_WAIT
     mock_time_advance(anj_time_duration_new((500 - MAX_TRANSMIT_WAIT - 1),
                                             ANJ_TIME_UNIT_S));
+    anj_core_step(&anj);
     ANJ_UNIT_ASSERT_EQUAL(mock.bytes_sent, 0);
     mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
@@ -339,6 +348,124 @@ ANJ_UNIT_TEST(registration_session, update_with_block_data_model) {
     // next update doesn't contain data model
     mock_time_advance(anj_time_duration_new(76, ANJ_TIME_UNIT_S));
     HANDLE_UPDATE(update);
+}
+
+static char expected_ack[] = "\x60"
+                             "\x00\xDE\xAD";
+
+static void update_with_separate_block_data_model(bool confirmable) {
+    char update_response_block_1_local[sizeof(update_response_block_1)];
+    memcpy(update_response_block_1_local, update_response_block_1,
+           sizeof(update_response_block_1));
+    update_response_block_1_local[0] = confirmable ? '\x48' : '\x58';
+
+    char update_response_block_2_local[sizeof(update_response_block_2)];
+    memcpy(update_response_block_2_local, update_response_block_2,
+           sizeof(update_response_block_2));
+    update_response_block_2_local[0] = confirmable ? '\x48' : '\x58';
+
+    char expected_ack_local[sizeof(expected_ack)];
+    memcpy(expected_ack_local, expected_ack, sizeof(expected_ack));
+
+    EXTENDED_INIT();
+    PROCESS_REGISTRATION();
+    // first update is without data model
+
+    mock_time_advance(anj_time_duration_new(76, ANJ_TIME_UNIT_S));
+    HANDLE_UPDATE(update);
+
+    // anj_core_data_model_changed is called in anj_dm_add_obj
+    anj_dm_obj_t obj_x[7] = { 0 };
+    for (int i = 0; i < 7; i++) {
+        obj_x[i].oid = 9900 + i;
+        ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &(obj_x[i])));
+    }
+
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(update_with_data_model_block_1, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      update_with_data_model_block_1,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(update_with_data_model_block_1) - 1,
+                          mock.bytes_sent);
+
+    ADD_RESPONSE_WITHOUT_TOKEN(expected_ack_local);
+    anj_core_step(&anj);
+
+    mock.call_count[ANJ_NET_FUN_SEND] = 0;
+    ADD_RESPONSE(update_response_block_1_local);
+    INCREMENT_MSG_ID(update_response_block_1_local);
+    anj_core_step(&anj);
+    // confirmable -> ACK + second block
+    // non-confirmable -> only second block
+    ASSERT_EQ(mock.call_count[ANJ_NET_FUN_SEND], confirmable ? 2 : 1);
+
+    COPY_TOKEN_AND_MSG_ID(update_with_data_model_block_2, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      update_with_data_model_block_2,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(update_with_data_model_block_2) - 1,
+                          mock.bytes_sent);
+
+    ADD_RESPONSE_WITHOUT_TOKEN(expected_ack_local);
+    anj_core_step(&anj);
+
+    mock.call_count[ANJ_NET_FUN_SEND] = 0;
+    ADD_RESPONSE(update_response_block_2_local);
+    INCREMENT_MSG_ID(update_response_block_2_local);
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+    if (confirmable) {
+        COPY_TOKEN_AND_MSG_ID(expected_ack_local, 0);
+        INCREMENT_MSG_ID(expected_ack_local);
+        ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                          expected_ack_local, mock.bytes_sent);
+        ANJ_UNIT_ASSERT_EQUAL(sizeof(expected_ack_local) - 1, mock.bytes_sent);
+    }
+    ASSERT_EQ(mock.call_count[ANJ_NET_FUN_SEND], confirmable ? 1 : 0);
+
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
+
+    // next update doesn't contain data model
+    mock_time_advance(anj_time_duration_new(76, ANJ_TIME_UNIT_S));
+    HANDLE_UPDATE(update);
+}
+
+// Client send block-wise Update. Server send Confirmable separate responses.
+// Client LwM2M          |         Server LwM2M
+// --------------------------------------------
+// UPDATE w/o payload   ---->
+//                               <---- ACK response
+// UPDATE block1 0      ---->
+//                               <---- ACK empty
+//                               <---- CON response
+// ACK empty            ---->
+// UPDATE block2 0      ---->
+//                               <---- ACK empty
+//                               <---- CON response
+// ACK empty            ---->
+// UPDATE w/o payload   ---->
+//                               <---- ACK response
+ANJ_UNIT_TEST(registration_session, update_with_separate_con_block_data_model) {
+    update_with_separate_block_data_model(true);
+}
+
+// Client send block-wise Update. Server send Non-confirmable separate
+// responses. Client LwM2M          |         Server LwM2M
+// --------------------------------------------
+// UPDATE w/o payload   ---->
+//                               <---- ACK response
+// UPDATE block1 0      ---->
+//                               <---- ACK empty
+//                               <---- NON response
+// UPDATE block2 0      ---->
+//                               <---- ACK empty
+//                               <---- NON response
+// UPDATE w/o payload   ---->
+//                               <---- ACK response
+ANJ_UNIT_TEST(registration_session, update_with_separate_non_block_data_model) {
+    update_with_separate_block_data_model(false);
 }
 
 ANJ_UNIT_TEST(registration_session, update_retransmissions) {
@@ -525,6 +652,10 @@ ANJ_UNIT_TEST(registration_session, server_requests) {
     anj_core_step(&anj);
     // lifetime changed next update contains lifetime
     HANDLE_UPDATE(update_with_lifetime);
+
+    // restore previous request
+    write_request[11] = 0x32;
+    write_request[2] = 0x47;
 }
 
 static char read_ivalid_path[] = "\x62"         // ACK, tkl 3
@@ -1531,7 +1662,20 @@ static char execute_request[] =
         "\x01\x30"     // Uri-Path: /0
         "\x01\x34";    // Uri-Path: /4
 
+static char execute_request_non_confirmable[] =
+        "\x52"         // Header: Ver=1, Type=1 (NON), TKL=2
+        "\x02\x47\x25" // Code=EXECUTE (0.05), MID=0x4725
+        "\x12\x34"     // Token
+        "\xB1\x33"     // Uri-Path: /3
+        "\x01\x30"     // Uri-Path: /0
+        "\x01\x34";    // Uri-Path: /4
+
 static char execute_ack_response[] = "\x62"      // Ver=1, Type=2 (ACK), TKL=2
+                                     "\x44"      // Code=2.04 (Changed)
+                                     "\x47\x25"  // Message ID = 0x4725
+                                     "\x12\x34"; // Token = 0x1234
+
+static char execute_non_response[] = "\x52"      // Ver=1, Type=1 (NON), TKL=2
                                      "\x44"      // Code=2.04 (Changed)
                                      "\x47\x25"  // Message ID = 0x4725
                                      "\x12\x34"; // Token = 0x1234
@@ -1579,6 +1723,35 @@ ANJ_UNIT_TEST(registration_session, retransmission_latest_execute) {
     ADD_REQUEST(execute_request);
     anj_core_step(&anj);
     CHECK_RESPONSE(execute_ack_response);
+    // counter not incremented - request was not executed, only responded to
+    ASSERT_EQ(g_reboot_execute_counter, 1);
+}
+
+/**
+ * Send request and expect responses as follows:
+ * - send Non-confirmable execute request
+ * - expect execution and response
+ * - send same execute request
+ * - expect no execution but same response
+ */
+ANJ_UNIT_TEST(registration_session,
+              retransmission_latest_execute_non_confirmable) {
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    ADD_REQUEST(execute_request_non_confirmable);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(execute_non_response);
+    ASSERT_EQ(g_reboot_execute_counter, 1);
+
+    // clear response buffer
+    mock.bytes_sent = 0;
+    memset(mock.send_data_buffer, 0, 100);
+
+    ADD_REQUEST(execute_request_non_confirmable);
+    anj_core_step(&anj);
+    CHECK_RESPONSE(execute_non_response);
     // counter not incremented - request was not executed, only responded to
     ASSERT_EQ(g_reboot_execute_counter, 1);
 }
@@ -1700,7 +1873,7 @@ static char read_serial_number_request[] =
         "\xB1\x33"     // Uri-Path: "3"
         "\x01\x30"     // Uri-Path: "0"
         "\x01\x32"     // Uri-Path: "2"
-        "\x61\x00";    // Accept: 0 (text/plain)
+        "\x60";        // Accept: 0 (text/plain)
 
 static char read_serial_number_response[] =
         "\x62"     // ACK
@@ -1789,7 +1962,7 @@ ANJ_UNIT_TEST(registration_session, send_cached_during_another_exchange) {
 /**
  * - open an exchange and wait for response
  * - receive read request and respond with 5.03
- * - recevie response and close the exchange
+ * - receive response and close the exchange
  * - receive same read request
  * - send cached 5.03 again
  */
@@ -1833,7 +2006,7 @@ static char read_path_that_dont_exists[] =
         "\xB1\x39"     // Uri-Path: "9"
         "\x01\x39"     // Uri-Path: "9"
         "\x01\x39"     // Uri-Path: "9"
-        "\x61\x00";    // Accept: 0 (text/plain)
+        "\x60";        // Accept: 0 (text/plain)
 
 static char read_path_that_dont_exists_response[] = "\x62"     // ACK
                                                     "\x84"     // 4.04 Not found
@@ -1901,6 +2074,11 @@ static char ret_update_response_block_3[] =
         "\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF" // token
         "\xd1\x0e\x22";                    // block1 2, size 64
 
+#define SEND_READ_REQUEST                    \
+    ADD_REQUEST(read_serial_number_request); \
+    anj_core_step(&anj);                     \
+    CHECK_RESPONSE(read_serial_number_response)
+
 ANJ_UNIT_TEST(registration_session,
               upstream_block_request_retransmission_previous_downlink_request) {
     EXTENDED_INIT();
@@ -1908,9 +2086,7 @@ ANJ_UNIT_TEST(registration_session,
     PROCESS_REGISTRATION();
 
     // receive read request and respond properly
-    ADD_REQUEST(read_serial_number_request);
-    anj_core_step(&anj);
-    CHECK_RESPONSE(read_serial_number_response);
+    SEND_READ_REQUEST;
 
     // change serial number value
     snprintf(serial_number, ANJ_ARRAY_SIZE(serial_number), "new-value");
@@ -1931,9 +2107,7 @@ ANJ_UNIT_TEST(registration_session,
                           mock.bytes_sent);
 
     // send the same request and see if it's handled same way again
-    ADD_REQUEST(read_serial_number_request);
-    anj_core_step(&anj);
-    CHECK_RESPONSE(read_serial_number_response);
+    SEND_READ_REQUEST;
 
     ADD_RESPONSE(update_response_block_1);
     anj_core_step(&anj);
@@ -1945,9 +2119,7 @@ ANJ_UNIT_TEST(registration_session,
                           mock.bytes_sent);
 
     // send the same request and see if it's handled same way again
-    ADD_REQUEST(read_serial_number_request);
-    anj_core_step(&anj);
-    CHECK_RESPONSE(read_serial_number_response);
+    SEND_READ_REQUEST;
 
     ADD_RESPONSE(ret_update_response_block_2);
     anj_core_step(&anj);
@@ -1960,14 +2132,254 @@ ANJ_UNIT_TEST(registration_session,
                           mock.bytes_sent);
 
     // send the same request and see if it's handled same way again
-    ADD_REQUEST(read_serial_number_request);
-    anj_core_step(&anj);
-    CHECK_RESPONSE(read_serial_number_response);
+    SEND_READ_REQUEST;
 
     ADD_RESPONSE(ret_update_response_block_3);
     anj_core_step(&anj);
 
     ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
+}
+
+static void
+upstream_separate_block_request_retransmission_previous_downlink_request(
+        bool confirmable) {
+
+    char update_response_block1_local[sizeof(update_response_block_1)];
+    memcpy(update_response_block1_local, update_response_block_1,
+           sizeof(update_response_block_1));
+    update_response_block1_local[0] = confirmable ? '\x48' : '\x58';
+
+    char ret_update_response_block_2_local[sizeof(ret_update_response_block_2)];
+    memcpy(ret_update_response_block_2_local, ret_update_response_block_2,
+           sizeof(ret_update_response_block_2));
+    ret_update_response_block_2_local[0] = confirmable ? '\x48' : '\x58';
+
+    char ret_update_response_block_3_local[sizeof(ret_update_response_block_3)];
+    memcpy(ret_update_response_block_3_local, ret_update_response_block_3,
+           sizeof(ret_update_response_block_3));
+    ret_update_response_block_3_local[0] = confirmable ? '\x48' : '\x58';
+
+    char expected_ack_local[sizeof(expected_ack)];
+    memcpy(expected_ack_local, expected_ack, sizeof(expected_ack));
+
+    EXTENDED_INIT();
+    ADD_DEVICE_OBJECT();
+    PROCESS_REGISTRATION();
+
+    // receive read request and respond properly
+    SEND_READ_REQUEST;
+
+    // change serial number value
+    snprintf(serial_number, ANJ_ARRAY_SIZE(serial_number), "new-value");
+
+    // anj_core_data_model_changed is called in anj_dm_add_obj
+    anj_dm_obj_t obj_x[12] = { 0 };
+    for (int i = 0; i < 12; i++) {
+        obj_x[i].oid = 9900 + i;
+        ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &(obj_x[i])));
+    }
+
+    anj_core_step(&anj);
+    COPY_TOKEN_AND_MSG_ID(ret_update_with_data_model_block_1, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      ret_update_with_data_model_block_1,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(ret_update_with_data_model_block_1) - 1,
+                          mock.bytes_sent);
+
+    // send the same request and see if it's handled same way again
+    SEND_READ_REQUEST;
+
+    ADD_RESPONSE_WITHOUT_TOKEN(expected_ack_local);
+    anj_core_step(&anj);
+
+    // send the same request and see if it's handled same way again
+    SEND_READ_REQUEST;
+
+    mock.call_count[ANJ_NET_FUN_SEND] = 0;
+    ADD_RESPONSE(update_response_block1_local);
+    INCREMENT_MSG_ID(update_response_block1_local);
+    anj_core_step(&anj);
+    // confirmable -> ACK + second block
+    // non-confirmable -> only second block
+    ASSERT_EQ(mock.call_count[ANJ_NET_FUN_SEND], confirmable ? 2 : 1);
+
+    COPY_TOKEN_AND_MSG_ID(ret_update_with_data_model_block_2, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      ret_update_with_data_model_block_2,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(ret_update_with_data_model_block_2) - 1,
+                          mock.bytes_sent);
+
+    // send the same request and see if it's handled same way again
+    SEND_READ_REQUEST;
+
+    ADD_RESPONSE_WITHOUT_TOKEN(expected_ack_local);
+    anj_core_step(&anj);
+
+    // send the same request and see if it's handled same way again
+    SEND_READ_REQUEST;
+
+    mock.call_count[ANJ_NET_FUN_SEND] = 0;
+    ADD_RESPONSE(ret_update_response_block_2_local);
+    INCREMENT_MSG_ID(ret_update_response_block_2_local);
+    anj_core_step(&anj);
+    // confirmable -> ACK + third block
+    // non-confirmable -> only third block
+    ASSERT_EQ(mock.call_count[ANJ_NET_FUN_SEND], confirmable ? 2 : 1);
+
+    COPY_TOKEN_AND_MSG_ID(ret_update_with_data_model_block_3, 8);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                      ret_update_with_data_model_block_3,
+                                      mock.bytes_sent);
+    ANJ_UNIT_ASSERT_EQUAL(sizeof(ret_update_with_data_model_block_3) - 1,
+                          mock.bytes_sent);
+
+    // send the same request and see if it's handled same way again
+    SEND_READ_REQUEST;
+
+    ADD_RESPONSE_WITHOUT_TOKEN(expected_ack_local);
+    anj_core_step(&anj);
+
+    // send the same request and see if it's handled same way again
+    SEND_READ_REQUEST;
+
+    mock.call_count[ANJ_NET_FUN_SEND] = 0;
+    ADD_RESPONSE(ret_update_response_block_3_local);
+    INCREMENT_MSG_ID(ret_update_response_block_3_local);
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+    if (confirmable) {
+        COPY_TOKEN_AND_MSG_ID(expected_ack_local, 0);
+        INCREMENT_MSG_ID(expected_ack_local);
+        ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(mock.send_data_buffer,
+                                          expected_ack_local, mock.bytes_sent);
+        ANJ_UNIT_ASSERT_EQUAL(sizeof(expected_ack_local) - 1, mock.bytes_sent);
+    }
+    ASSERT_EQ(mock.call_count[ANJ_NET_FUN_SEND], confirmable ? 1 : 0);
+
+    // send the same request and see if it's handled same way again
+    SEND_READ_REQUEST;
+
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
+}
+
+// Client send block-wise Update. Server send Confirmable separate responses.
+// While processing this exchange, a server request that has already been
+// handled appears. They should be handled by cache.
+// Client LwM2M          |         Server LwM2M
+// --------------------------------------------
+//                              <---- READ
+// ACK response         ---->
+// UPDATE block1 0      ---->
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- ACK empty
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- CON response
+// ACK empty            ---->
+// UPDATE block2 0      ---->
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- ACK empty
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- CON response
+// ACK empty            ---->
+// UPDATE block3 0      ---->
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- ACK empty
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- CON response
+// ACK empty            ---->
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+ANJ_UNIT_TEST(
+        registration_session,
+        upstream_separate_con_block_request_retransmission_previous_downlink_request) {
+    upstream_separate_block_request_retransmission_previous_downlink_request(
+            true);
+}
+
+// Client send block-wise Update. Server send Non-confirmable separate
+// responses. While processing this exchange, a server request that has already
+// been handled appears. They should be handled by cache. Client LwM2M | Server
+// LwM2M
+// --------------------------------------------
+//                              <---- READ
+// ACK response         ---->
+// UPDATE block1 0      ---->
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- ACK empty
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- NON response
+// UPDATE block2 0      ---->
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- ACK empty
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- NON response
+// UPDATE block3 0      ---->
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- ACK empty
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+// --------------------------------------------
+//                               <---- NON response
+// --------------------------------------------
+// Same request again
+//                               <---- READ
+// ACK response         ---->
+ANJ_UNIT_TEST(
+        registration_session,
+        upstream_separate_non_block_request_retransmission_previous_downlink_request) {
+    upstream_separate_block_request_retransmission_previous_downlink_request(
+            false);
 }
 
 ANJ_UNIT_TEST(registration_session, retransmission_einprogress) {
@@ -2180,5 +2592,41 @@ ANJ_UNIT_TEST(registration_session, retransmission_write_block) {
     ANJ_UNIT_ASSERT_EQUAL_BYTES(res_buff,
                                 "very long string split into three requests");
 
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
+}
+
+static char read_request_no_token[] = "\x40" // header v 0x01, Confirmable
+                                      "\x01\x45\x41" // GET code 0.1, msg id
+                                      "\xB1\x31"     //  URI_PATH 11 /1
+                                      "\x01\x31"     //              /1
+                                      "\x01\x31"     //              /1
+                                      "\x60";        // accept 17 plaintext
+
+static char read_response_no_token[] = "\x60"         // ACK, tkl 0
+                                       "\x45\x45\x41" // CONTENT 0x45
+                                       "\xC0" // content_format: plaintext
+                                       "\xFF"
+                                       "\x31\x35\x30"; // 150
+
+// CoAP request with no token set should be handled properly and not cause any
+// issues with the exchange context
+ANJ_UNIT_TEST(registration_session, server_request_with_no_token) {
+    EXTENDED_INIT();
+    PROCESS_REGISTRATION();
+
+    // read request with no token
+    ADD_REQUEST(read_request_no_token);
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+    CHECK_RESPONSE(read_response_no_token);
+    ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
+
+    // send another request to see if exchange context is working properly
+    ADD_REQUEST(read_request);
+    anj_core_step(&anj);
+    ANJ_UNIT_ASSERT_EQUAL(anj.server_state.conn_status,
+                          ANJ_CONN_STATUS_REGISTERED);
+    CHECK_RESPONSE(read_response);
     ANJ_UNIT_ASSERT_FALSE(_anj_exchange_ongoing_exchange(&anj.exchange_ctx));
 }

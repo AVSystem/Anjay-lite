@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_SRC_CORE_BOOTSTRAP_H
 #    define ANJ_SRC_CORE_BOOTSTRAP_H

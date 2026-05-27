@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 12
 
@@ -62,6 +62,9 @@ static void request_completion_callback(void *arg_ptr,
                     register_log(L_ERROR, "Location path too long");
                     return;
                 }
+                register_log(L_TRACE, "Location path: %.*s",
+                             (int) response->location_path.location_len[i],
+                             response->location_path.location[i]);
                 memcpy(ctx->location_path[i],
                        response->location_path.location[i],
                        response->location_path.location_len[i]);
@@ -123,7 +126,7 @@ void _anj_register_register(anj_t *anj,
     ctx->with_payload = true;
 
     out_msg->attr.register_attr = *attr;
-    out_msg->operation = ANJ_OP_REGISTER;
+    out_msg->operation = _ANJ_OP_REGISTER;
     ctx->internal_state = REGISTER_INTERNAL_STATE_REGISTERING;
 }
 
@@ -154,7 +157,7 @@ void _anj_register_update(anj_t *anj,
         };
     }
     ctx->with_payload = with_payload;
-    out_msg->operation = ANJ_OP_UPDATE;
+    out_msg->operation = _ANJ_OP_UPDATE;
     write_location_paths(ctx, &out_msg->location_path);
     ctx->internal_state = REGISTER_INTERNAL_STATE_UPDATING;
 }
@@ -166,7 +169,7 @@ void _anj_register_deregister(anj_t *anj,
     _anj_register_ctx_t *ctx = &anj->register_ctx;
 
     register_log(L_DEBUG, "Preparing De-register request");
-    out_msg->operation = ANJ_OP_DEREGISTER;
+    out_msg->operation = _ANJ_OP_DEREGISTER;
     write_location_paths(ctx, &out_msg->location_path);
     *out_handlers = (_anj_exchange_handlers_t) {
         .completion = request_completion_callback,

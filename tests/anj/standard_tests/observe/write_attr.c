@@ -247,7 +247,7 @@ static void compare_attr(_anj_attr_notification_t *attr1,
         _anj_exchange_handlers_t out_handlers = { 0 };                        \
         _anj_exchange_init(&anj.exchange_ctx);                                \
         _anj_coap_msg_t inout_msg = {                                         \
-            .operation = ANJ_OP_DM_WRITE_ATTR,                                \
+            .operation = _ANJ_OP_DM_WRITE_ATTR,                               \
             .uri = Path,                                                      \
             .attr.notification_attr = Attr,                                   \
             .payload_size = 0,                                                \
@@ -267,7 +267,7 @@ static void compare_attr(_anj_attr_notification_t *attr1,
         ASSERT_EQ(_anj_exchange_new_server_request(                           \
                           &anj.exchange_ctx, response_code, &inout_msg,       \
                           &out_handlers, payload_buff, payload_buff_len),     \
-                  ANJ_EXCHANGE_STATE_MSG_TO_SEND);                            \
+                  _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                           \
         size_t out_msg_size = 0;                                              \
         /* Write-Attributes can't be blockwise, so the flag is not set */     \
         ASSERT_FALSE(anj_core_ongoing_operation(&anj));                       \
@@ -281,7 +281,7 @@ static void compare_attr(_anj_attr_notification_t *attr1,
         ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx,                    \
                                         ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, \
                                         &inout_msg),                          \
-                  ANJ_EXCHANGE_STATE_FINISHED);                               \
+                  _ANJ_EXCHANGE_STATE_FINISHED);                              \
         ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 
 ANJ_UNIT_TEST(write_attr, write_basic) {

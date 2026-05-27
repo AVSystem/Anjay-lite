@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 22
 
@@ -22,7 +22,10 @@
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
 #include <anj/dm/fw_update.h>
+#include <anj/log.h>
 #include <anj/utils.h>
+
+#include "dm_core.h"
 
 #ifdef ANJ_WITH_DEFAULT_FOTA_OBJ
 
@@ -244,9 +247,10 @@ static int res_write(anj_t *anj,
         // handle state machine reset with an empty write
         if (is_reset_request_package(value)) {
             entity->repr.result = ANJ_DM_FW_UPDATE_RESULT_INITIAL;
+            dm_log(L_INFO, "Reset request received");
             reset(anj, entity);
-            fw_data_model_changed(
-                    anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
+            fw_data_model_changed(anj, entity,
+                                  ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
             return 0;
         }
 
@@ -261,12 +265,13 @@ static int res_write(anj_t *anj,
 
         // handle first chunk if needed
         if (!entity->repr.write_start_called) {
+            dm_log(L_INFO, "Starting Push-mode download");
             result = entity->repr.user_handlers->package_write_start_handler(
                     entity->repr.user_ptr);
             if (result != ANJ_DM_FW_UPDATE_RESULT_SUCCESS) {
                 entity->repr.result = (int8_t) result;
-                fw_data_model_changed(
-                        anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
+                fw_data_model_changed(anj, entity,
+                                      ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
                 return ANJ_DM_ERR_INTERNAL;
             }
             entity->repr.write_start_called = true;
@@ -280,26 +285,27 @@ static int res_write(anj_t *anj,
         if (result != ANJ_DM_FW_UPDATE_RESULT_SUCCESS) {
             entity->repr.result = (int8_t) result;
             reset(anj, entity);
-            fw_data_model_changed(
-                    anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
+            fw_data_model_changed(anj, entity,
+                                  ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
             return ANJ_DM_ERR_INTERNAL;
         }
 
         // check if that's the last chunk (block)
         if (writing_last_data_chunk(value)) {
+            dm_log(L_DEBUG, "Writing last data chunk");
             result = entity->repr.user_handlers->package_write_finish_handler(
                     entity->repr.user_ptr);
             if (result != ANJ_DM_FW_UPDATE_RESULT_SUCCESS) {
                 entity->repr.result = (int8_t) result;
                 reset(anj, entity);
-                fw_data_model_changed(
-                        anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
+                fw_data_model_changed(anj, entity,
+                                      ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
                 return ANJ_DM_ERR_INTERNAL;
             } else {
                 entity->repr.result = ANJ_DM_FW_UPDATE_RESULT_INITIAL;
                 entity->repr.state = ANJ_DM_FW_UPDATE_STATE_DOWNLOADED;
-                fw_data_model_changed(
-                        anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
+                fw_data_model_changed(anj, entity,
+                                      ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
                 fw_data_model_changed(anj, entity, ANJ_DM_FW_UPDATE_RID_STATE);
             }
         }
@@ -318,9 +324,10 @@ static int res_write(anj_t *anj,
         // handle state machine reset with an empty write
         if (is_reset_request_uri(value)) {
             entity->repr.result = ANJ_DM_FW_UPDATE_RESULT_INITIAL;
+            dm_log(L_INFO, "Reset request received");
             reset(anj, entity);
-            fw_data_model_changed(
-                    anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
+            fw_data_model_changed(anj, entity,
+                                  ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
             return 0;
         }
 
@@ -339,13 +346,15 @@ static int res_write(anj_t *anj,
             return 0;
         }
 
+        dm_log(L_INFO, "Starting Pull-mode download from URI: %s",
+               entity->repr.uri);
         anj_dm_fw_update_result_t result =
                 entity->repr.user_handlers->uri_write_handler(
                         entity->repr.user_ptr, entity->repr.uri);
         if (result != ANJ_DM_FW_UPDATE_RESULT_SUCCESS) {
             entity->repr.result = (int8_t) result;
-            fw_data_model_changed(
-                    anj, entity, ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
+            fw_data_model_changed(anj, entity,
+                                  ANJ_DM_FW_UPDATE_RID_UPDATE_RESULT);
             return ANJ_DM_ERR_BAD_REQUEST;
         }
 
@@ -437,10 +446,11 @@ static int res_execute(anj_t *anj,
             ANJ_CONTAINER_OF(obj, anj_dm_fw_update_entity_ctx_t, obj);
 
     switch (rid) {
-    case ANJ_DM_FW_UPDATE_RID_UPDATE:
+    case ANJ_DM_FW_UPDATE_RID_UPDATE: {
         if (entity->repr.state != ANJ_DM_FW_UPDATE_STATE_DOWNLOADED) {
             return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
         }
+        dm_log(L_INFO, "Starting firmware update process");
         int result = entity->repr.user_handlers->update_start_handler(
                 entity->repr.user_ptr);
         if (result) {
@@ -454,6 +464,7 @@ static int res_execute(anj_t *anj,
         entity->repr.state = ANJ_DM_FW_UPDATE_STATE_UPDATING;
         fw_data_model_changed(anj, entity, ANJ_DM_FW_UPDATE_RID_STATE);
         break;
+    }
     default:
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
@@ -470,25 +481,20 @@ int anj_dm_fw_update_object_install(anj_t *anj,
                                     anj_dm_fw_update_entity_ctx_t *entity_ctx,
                                     anj_dm_fw_update_handlers_t *handlers,
                                     void *user_ptr) {
-    if (!anj || !entity_ctx || !handlers || !handlers->update_start_handler
-            || !handlers->reset_handler) {
-        return -1;
-    }
+    assert(anj && entity_ctx && handlers && handlers->update_start_handler
+           && handlers->reset_handler);
+
     memset(entity_ctx, 0, sizeof(*entity_ctx));
 
 #    ifdef ANJ_FOTA_WITH_PUSH_METHOD
-    if (!handlers->package_write_start_handler
-            || !handlers->package_write_handler
-            || !handlers->package_write_finish_handler) {
-        return -1;
-    }
+    assert(handlers->package_write_start_handler
+           && handlers->package_write_handler
+           && handlers->package_write_finish_handler);
     entity_ctx->repr.write_start_called = false;
 #    endif // ANJ_FOTA_WITH_PUSH_METHOD
 
 #    ifdef ANJ_FOTA_WITH_PULL_METHOD
-    if (!handlers->uri_write_handler) {
-        return -1;
-    }
+    assert(handlers->uri_write_handler);
 #    endif // ANJ_FOTA_WITH_PULL_METHOD
 
     entity_ctx->repr.user_ptr = user_ptr;
@@ -506,7 +512,11 @@ int anj_dm_fw_update_object_install(anj_t *anj,
     entity_ctx->inst.resources = RES;
     entity_ctx->inst.res_count = ANJ_DM_FW_UPDATE_RESOURCES_COUNT;
 
-    return anj_dm_add_obj(anj, &entity_ctx->obj);
+    int res = anj_dm_add_obj(anj, &entity_ctx->obj);
+    if (!res) {
+        dm_log(L_INFO, "Firmware Update Object installed");
+    }
+    return res;
 }
 
 void anj_dm_fw_update_object_set_update_result(

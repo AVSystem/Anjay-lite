@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 16
 
@@ -61,7 +61,8 @@ uint16_t _anj_dm_count_obj_insts(const anj_dm_obj_t *obj) {
     return count;
 }
 
-const anj_dm_obj_t *_anj_dm_find_obj(_anj_dm_data_model_t *dm, anj_oid_t oid) {
+const anj_dm_obj_t *_anj_dm_find_obj(const _anj_dm_data_model_t *dm,
+                                     anj_oid_t oid) {
     for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
         if (dm->objs[idx]->oid == oid) {
             return dm->objs[idx];
@@ -72,8 +73,8 @@ const anj_dm_obj_t *_anj_dm_find_obj(_anj_dm_data_model_t *dm, anj_oid_t oid) {
     return NULL;
 }
 
-static const anj_dm_obj_inst_t *_anj_dm_find_inst(const anj_dm_obj_t *obj,
-                                                  anj_iid_t iid) {
+const anj_dm_obj_inst_t *_anj_dm_find_inst(const anj_dm_obj_t *obj,
+                                           anj_iid_t iid) {
     for (uint16_t idx = 0; idx < obj->max_inst_count; idx++) {
         if (obj->insts[idx].iid == iid) {
             return &obj->insts[idx];
@@ -109,7 +110,11 @@ bool _anj_dm_res_inst_exists(const anj_dm_res_t *res, anj_riid_t riid) {
 
 int _anj_dm_call_transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     if (obj->handlers->transaction_begin) {
-        return obj->handlers->transaction_begin(anj, obj);
+        int res = obj->handlers->transaction_begin(anj, obj);
+        if (res) {
+            dm_log(L_ERROR, "Transaction begin handler failed");
+            return res;
+        }
     }
     return 0;
 }
@@ -149,7 +154,7 @@ int _anj_dm_get_obj_ptrs(const anj_dm_obj_t *obj,
 
     inst = _anj_dm_find_inst(obj, path->ids[ANJ_ID_IID]);
     if (!inst) {
-        dm_log(L_WARNING, "Instance not found");
+        dm_log(L_WARNING, "Instance not found %s", _ANJ_DEBUG_URI_PATH(path));
         return ANJ_DM_ERR_NOT_FOUND;
     }
     if (!anj_uri_path_has(path, ANJ_ID_RID)) {
@@ -158,19 +163,21 @@ int _anj_dm_get_obj_ptrs(const anj_dm_obj_t *obj,
 
     res = _anj_dm_find_res(inst, path->ids[ANJ_ID_RID]);
     if (!res) {
-        dm_log(L_ERROR, "Resource not found");
+        dm_log(L_ERROR, "Resource not found %s", _ANJ_DEBUG_URI_PATH(path));
         return ANJ_DM_ERR_NOT_FOUND;
     }
     if (!anj_uri_path_has(path, ANJ_ID_RIID)) {
         goto finalize;
     }
     if (!_anj_dm_is_multi_instance_resource(res->kind)) {
-        dm_log(L_ERROR, "Resource is not multi-instance");
+        dm_log(L_ERROR, "Resource is not multi-instance %s",
+               _ANJ_DEBUG_URI_PATH(path));
         return ANJ_DM_ERR_NOT_FOUND;
     }
 
     if (!_anj_dm_res_inst_exists(res, path->ids[ANJ_ID_RIID])) {
-        dm_log(L_WARNING, "Resource Instance not found");
+        dm_log(L_WARNING, "Resource Instance not found %s",
+               _ANJ_DEBUG_URI_PATH(path));
         return ANJ_DM_ERR_NOT_FOUND;
     }
     riid = path->ids[ANJ_ID_RIID];
@@ -190,7 +197,7 @@ int _anj_dm_get_entity_ptrs(_anj_dm_data_model_t *dm,
     assert(anj_uri_path_has(path, ANJ_ID_OID));
     const anj_dm_obj_t *obj = _anj_dm_find_obj(dm, path->ids[ANJ_ID_OID]);
     if (!obj) {
-        dm_log(L_ERROR, "Object not found");
+        dm_log(L_ERROR, "Object not found /%" PRIu16, path->ids[ANJ_ID_OID]);
         return ANJ_DM_ERR_NOT_FOUND;
     }
     return _anj_dm_get_obj_ptrs(obj, path, out_ptrs);
@@ -217,19 +224,19 @@ int _anj_dm_operation_begin(anj_t *anj,
 
     switch (operation) {
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_READ_COMP:
+    case _ANJ_OP_DM_READ_COMP:
         dm->op_count = 0;
         dm->comp_read_current_object = 0;
         return 0;
-    case ANJ_OP_DM_WRITE_COMP:
+    case _ANJ_OP_DM_WRITE_COMP:
         dm->is_transactional = true;
         dm->op_ctx.write_ctx.path.uri_len = 0;
         return 0;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_REGISTER:
-    case ANJ_OP_UPDATE:
+    case _ANJ_OP_REGISTER:
+    case _ANJ_OP_UPDATE:
         return _anj_dm_begin_register_op(anj);
-    case ANJ_OP_DM_DISCOVER:
+    case _ANJ_OP_DM_DISCOVER:
 #ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
         if (dm->bootstrap_operation) {
             return _anj_dm_begin_bootstrap_discover_op(anj, path);
@@ -240,26 +247,22 @@ int _anj_dm_operation_begin(anj_t *anj,
             return _anj_dm_begin_discover_op(anj, path);
         }
 #endif // ANJ_WITH_DISCOVER
-        {
-            dm_log(L_ERROR, "Discover operation is not supported");
-            return ANJ_DM_ERR_NOT_IMPLEMENTED;
-        }
-    case ANJ_OP_DM_EXECUTE:
+        { return ANJ_DM_ERR_NOT_IMPLEMENTED; }
+    case _ANJ_OP_DM_EXECUTE:
         return _anj_dm_begin_execute_op(anj, path);
-    case ANJ_OP_DM_READ:
+    case _ANJ_OP_DM_READ:
         return _anj_dm_begin_read_op(anj, path);
-    case ANJ_OP_DM_WRITE_REPLACE:
-    case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
+    case _ANJ_OP_DM_WRITE_REPLACE:
+    case _ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
         return _anj_dm_begin_write_op(anj, path);
-    case ANJ_OP_DM_CREATE:
+    case _ANJ_OP_DM_CREATE:
         return _anj_dm_begin_create_op(anj, path);
-    case ANJ_OP_DM_DELETE:
+    case _ANJ_OP_DM_DELETE:
         return _anj_dm_process_delete_op(anj, path);
     default:
+        dm_log(L_ERROR, "Unsupported operation %d", operation);
         break;
     }
-
-    dm_log(L_ERROR, "Incorrect operation type");
     return _ANJ_DM_ERR_INPUT_ARG;
 }
 
@@ -273,6 +276,12 @@ int _anj_dm_operation_validate(anj_t *anj) {
         const anj_dm_obj_t *obj = dm->objs[idx];
         if (dm->in_transaction[idx] && obj->handlers->transaction_validate) {
             res = obj->handlers->transaction_validate(anj, obj);
+            if (res) {
+                dm_log(L_ERROR,
+                       "Transaction validation failed for Object /%" PRIu16
+                       ": %s",
+                       obj->oid, _ANJ_DEBUG_COAP_RESPONSE_CODE(res));
+            }
         }
     }
     return res;
@@ -344,11 +353,13 @@ static int check_res(const anj_dm_obj_t *obj, const anj_dm_res_t *res) {
     return 0;
 
 res_error:
-    dm_log(L_ERROR, "Incorrectly defined resource %" PRIu16, res->rid);
+    dm_log(L_ERROR, "Incorrectly defined resource /%" PRIu16, res->rid);
     return _ANJ_DM_ERR_INPUT_ARG;
 }
 
 int _anj_dm_check_obj(const anj_dm_obj_t *obj) {
+    anj_iid_t last_iid = 0;
+
     if (obj->max_inst_count == 0) {
         return 0;
     }
@@ -356,7 +367,6 @@ int _anj_dm_check_obj(const anj_dm_obj_t *obj) {
         goto obj_error;
     }
 
-    anj_iid_t last_iid = 0;
     for (uint16_t idx = 0; idx < obj->max_inst_count; idx++) {
         anj_iid_t iid = obj->insts[idx].iid;
         if ((idx != 0 && iid <= last_iid)
@@ -371,12 +381,14 @@ int _anj_dm_check_obj(const anj_dm_obj_t *obj) {
     return 0;
 
 obj_error:
-    dm_log(L_ERROR, "Incorrectly defined object %" PRIu16, obj->oid);
+    dm_log(L_ERROR, "Incorrectly defined object /%" PRIu16, obj->oid);
     return _ANJ_DM_ERR_INPUT_ARG;
 }
 
 int _anj_dm_check_obj_instance(const anj_dm_obj_t *obj,
                                const anj_dm_obj_inst_t *inst) {
+    anj_rid_t last_rid = 0;
+
     if (inst->res_count && !inst->resources) {
         goto instance_error;
     }
@@ -384,7 +396,6 @@ int _anj_dm_check_obj_instance(const anj_dm_obj_t *obj,
         return 0;
     }
 
-    anj_rid_t last_rid = 0;
     for (uint16_t res_idx = 0; res_idx < inst->res_count; res_idx++) {
         const anj_dm_res_t *res = &inst->resources[res_idx];
         if (res->rid == ANJ_ID_INVALID || (res_idx != 0 && res->rid <= last_rid)
@@ -396,7 +407,7 @@ int _anj_dm_check_obj_instance(const anj_dm_obj_t *obj,
     return 0;
 
 instance_error:
-    dm_log(L_ERROR, "Incorrectly defined instance %" PRIu16, inst->iid);
+    dm_log(L_ERROR, "Incorrectly defined instance /%" PRIu16, inst->iid);
     return _ANJ_DM_ERR_INPUT_ARG;
 }
 
@@ -422,7 +433,7 @@ int anj_dm_add_obj(anj_t *anj, const anj_dm_obj_t *obj) {
             break;
         }
         if (dm->objs[idx]->oid == obj->oid) {
-            dm_log(L_ERROR, "Object %" PRIu16 " exists", obj->oid);
+            dm_log(L_ERROR, "Object /%" PRIu16 " exists", obj->oid);
             return _ANJ_DM_ERR_LOGIC;
         }
     }
@@ -456,7 +467,7 @@ int anj_dm_remove_obj(anj_t *anj, anj_oid_t oid) {
         }
     }
     if (!found) {
-        dm_log(L_ERROR, "Object %" PRIu16 " not found", oid);
+        dm_log(L_ERROR, "Object /%" PRIu16 " not found", oid);
         return ANJ_DM_ERR_NOT_FOUND;
     }
     dm->objs[idx] = NULL;

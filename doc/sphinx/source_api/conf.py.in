@@ -1,0 +1,105 @@
+# Configuration file for the Sphinx documentation builder.
+#
+# For the full list of built-in configuration values, see the documentation:
+# https://www.sphinx-doc.org/en/master/usage/configuration.html
+
+import datetime
+import sphinx_rtd_theme
+import sys
+import os
+
+# -- Project information -----------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
+
+project = 'Anjay Lite'
+copyright = f'{datetime.datetime.now().year}, AVSystem'
+author = 'AVSystem'
+
+# The X.Y.Z version.
+version = '@ANJAY_LITE_VERSION@'
+
+# -- General configuration ---------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
+
+# If extensions (or modules to document with autodoc) are in another directory,
+# add these directories to sys.path here. If the directory is relative to the
+# documentation root, use os.path.abspath to make it absolute, like shown here.
+sys.path.insert(0, '@SPHINX_DIR@/extensions')
+
+extensions = [
+    'sphinx_copybutton',
+    'sphinx_design',
+    'sphinx_rtd_theme',
+    'snippet_source',
+    'builders.snippet_source_linter',
+    'builders.snippet_source_list_references',
+    'breathe',
+    'exhale',
+    'sphinx_sitemap'
+]
+
+templates_path = ['@CURRENT_TEMPLATES_DIR@']
+exclude_patterns = []
+
+# -- Options for HTML output -------------------------------------------------
+# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+
+html_theme = 'sphinx_rtd_theme'
+html_logo = '@SPHINX_DIR@/avsystem_header.png'
+html_static_path = ['@SPHINX_DIR@/source_api/_static']
+
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+html_theme_options = {
+    'logo_only': True,
+    'style_nav_header_background': '#773dbd'
+}
+
+# This is necessary to fix issues with tables in "Read the Docs" style.
+html_css_files = [
+    'theme_overrides.css'
+    ]
+
+# Add any paths that contain custom themes here, relative to this directory.
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
+# -- Options for Breathe --------------------------------------------------
+breathe_projects = {
+    "Anjay Lite": "@DOXYGEN_OUTPUT@/xml"
+}
+breathe_default_project = "Anjay Lite"
+
+# -- Options for Exhale ----------------------------------------------------
+exhale_args = {
+    # Where Exhale should generate the .rst files (inside source_api)
+    "containmentFolder":     os.path.realpath("@DOC_SOURCE_API@/api_generated"),
+    
+    # Name of the main file that serves as the API root
+    "rootFileName":          "library_root.rst",
+    
+    # The title of the section in the menu
+    "rootFileTitle":         "Anjay Lite API Library",
+    
+    # Description in the main file (optional)
+    "afterTitleDescription":   "Full API documentation generated from Doxygen.",
+    
+    # Creates a tree-like menu structure (similar to Zephyr documentation)
+    "createTreeView":        True,
+    
+    # Important: Tells Exhale what to "strip" from paths to ensure cleaner names
+    "doxygenStripFromPath":  os.path.realpath("@INCLUDE_PUBLIC@"),
+    
+    # Section layout configuration
+    "exhaleExecutesDoxygen": False, # Set to False because CMake handles Doxygen execution
+    #"listingExclude":     "",    # Do not add prefixes like "file" or "struct" to titles
+}
+
+# Template fix (sometimes required for Exhale + RTD Theme)
+primary_domain = 'c'
+highlight_language = 'c'
+
+# sitemap required url
+html_baseurl = 'https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/api/'
+sitemap_url_scheme = "{link}"
+

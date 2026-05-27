@@ -110,7 +110,7 @@ static anj_dm_res_t res_obj_0[] = {
         .rid = 10,
         .kind = ANJ_DM_RES_R,
         .type = ANJ_DATA_TYPE_INT,
-    }
+    },
 };
 
 static anj_dm_obj_inst_t security_insts[2] = {

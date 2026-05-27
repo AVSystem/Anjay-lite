@@ -204,30 +204,30 @@ static anj_dm_obj_t obj_4 = {
         ASSERT_EQ(_anj_exchange_new_client_request(                            \
                           &anj.exchange_ctx, &out_msg, &out_handlers, payload, \
                           payload_buff_size),                                  \
-                  ANJ_EXCHANGE_STATE_MSG_TO_SEND);                             \
+                  _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                            \
         ASSERT_OK(_anj_coap_encode_udp(&out_msg, out_buff, out_buff_size,      \
                                        &out_msg_size));                        \
         ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));                \
         ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx,                     \
                                         ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,  \
                                         &out_msg),                             \
-                  Confirmable ? ANJ_EXCHANGE_STATE_WAITING_MSG                 \
-                              : ANJ_EXCHANGE_STATE_FINISHED);                  \
+                  Confirmable ? _ANJ_EXCHANGE_STATE_WAITING_MSG                \
+                              : _ANJ_EXCHANGE_STATE_FINISHED);                 \
         if (Confirmable) {                                                     \
             /* Server response */                                              \
             if ((int) Confirmable == -1) {                                     \
-                out_msg.operation = ANJ_OP_COAP_RESET;                         \
+                out_msg.operation = _ANJ_OP_COAP_RESET;                        \
             } else {                                                           \
-                out_msg.operation = ANJ_OP_RESPONSE;                           \
+                out_msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;               \
             }                                                                  \
             out_msg.msg_code = ANJ_COAP_CODE_EMPTY;                            \
             out_msg.payload_size = 0;                                          \
             out_msg.coap_binding_data.type =                                   \
-                    ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;                         \
+                    _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;                        \
             ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx,                 \
                                             ANJ_EXCHANGE_EVENT_NEW_MSG,        \
                                             &out_msg),                         \
-                      ANJ_EXCHANGE_STATE_FINISHED);                            \
+                      _ANJ_EXCHANGE_STATE_FINISHED);                           \
             ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));           \
         }
 
@@ -1448,13 +1448,13 @@ ANJ_UNIT_TEST(notification_op, build_callback_failed) {
     ASSERT_EQ(_anj_exchange_new_client_request(&anj.exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(anj.observe_ctx.observations[0].ssid, 0);
     anj_process(ANJ_TIME_DURATION_ZERO, 0x22, 1);
     ASSERT_EQ(_anj_exchange_new_client_request(&anj.exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 0);
     res_read_ret_val = 0;
     memset(&out_msg, 0, sizeof(out_msg));
@@ -1590,12 +1590,12 @@ ANJ_UNIT_TEST(notification_op, notification_exchange_failed) {
     ASSERT_EQ(_anj_exchange_new_client_request(&anj.exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &out_msg),
-              ANJ_EXCHANGE_STATE_WAITING_MSG);
+              _ANJ_EXCHANGE_STATE_WAITING_MSG);
     // simulate network error
     _anj_exchange_terminate(&anj.exchange_ctx, _ANJ_EXCHANGE_ERROR_NETWORK);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
@@ -1622,7 +1622,7 @@ ANJ_UNIT_TEST(notification_op, non_con_notification_exchange_failed) {
     ASSERT_EQ(_anj_exchange_new_client_request(&anj.exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     // simulate network error before calling
     // ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION
     _anj_exchange_terminate(&anj.exchange_ctx, _ANJ_EXCHANGE_ERROR_NETWORK);
@@ -1663,26 +1663,26 @@ ANJ_UNIT_TEST(notification_op, con_notification_exchange_timeout) {
     ASSERT_EQ(_anj_exchange_new_client_request(&anj.exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &out_msg),
-              ANJ_EXCHANGE_STATE_WAITING_MSG);
+              _ANJ_EXCHANGE_STATE_WAITING_MSG);
     mock_time_advance(anj_time_duration_new(2, ANJ_TIME_UNIT_S));
     // first retransmission should be triggered
     ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx, ANJ_EXCHANGE_EVENT_NONE,
                                     &out_msg),
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx,
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                     &out_msg),
-              ANJ_EXCHANGE_STATE_WAITING_MSG);
+              _ANJ_EXCHANGE_STATE_WAITING_MSG);
     mock_time_advance(anj_time_duration_new(5, ANJ_TIME_UNIT_S));
     // after last retransmission, exchange should time out
     ASSERT_EQ(_anj_exchange_process(&anj.exchange_ctx, ANJ_EXCHANGE_EVENT_NONE,
                                     &out_msg),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 
     // check that observation is NOT removed despite failed notification
@@ -2792,7 +2792,7 @@ ANJ_UNIT_TEST(notification_comp_op, build_callback_failed) {
     ASSERT_EQ(_anj_exchange_new_client_request(&anj.exchange_ctx, &out_msg,
                                                &out_handlers, payload,
                                                payload_buff_size),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     res_read_ret_val = 0;
     CHECK_ALL_COMPOSITE_OBSERVATIONS_SSID(0);
     ASSERT_EQ(anj.observe_ctx.observations[1].ssid, 1);

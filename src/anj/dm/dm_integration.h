@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_DM_IMPL_H
 #    define ANJ_DM_IMPL_H
@@ -18,19 +18,20 @@
 
 #    include <anj/core.h>
 #    include <anj/defs.h>
+#    include <anj/dm/defs.h>
 
 /**
  * Processes all LwM2M Server requests related to the data model, call it after
  * @ref anj_coap_decode_udp call. This function is
  * compliant with the anj_exchange API. Supported data model operations are:
- *      - ANJ_OP_DM_READ,
- *      - ANJ_OP_DM_READ_COMP,
- *      - ANJ_OP_DM_DISCOVER,
- *      - ANJ_OP_DM_WRITE_REPLACE,
- *      - ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
- *      - ANJ_OP_DM_EXECUTE,
- *      - ANJ_OP_DM_CREATE,
- *      - ANJ_OP_DM_DELETE.
+ *      - _ANJ_OP_DM_READ,
+ *      - _ANJ_OP_DM_READ_COMP,
+ *      - _ANJ_OP_DM_DISCOVER,
+ *      - _ANJ_OP_DM_WRITE_REPLACE,
+ *      - _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+ *      - _ANJ_OP_DM_EXECUTE,
+ *      - _ANJ_OP_DM_CREATE,
+ *      - _ANJ_OP_DM_DELETE.
  *
  * @param anj                      Anjay object to operate on.
  * @param request                  LwM2M Server/Client request.

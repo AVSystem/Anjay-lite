@@ -33,10 +33,6 @@ _anj_exchange_cache_t cache;
         mock_time_reset();                                            \
         mock_time_advance(                                            \
                 anj_time_duration_new(startTime_s, ANJ_TIME_UNIT_S)); \
-        ctx.tx_params.ack_random_factor = 1.5;                        \
-        ctx.tx_params.ack_timeout =                                   \
-                anj_time_duration_new(2000, ANJ_TIME_UNIT_MS);        \
-        ctx.tx_params.max_retransmit = 4;                             \
         _anj_exchange_init(&ctx);                                     \
         _anj_exchange_setup_cache(&ctx, &cache);
 
@@ -54,7 +50,7 @@ ANJ_UNIT_TEST(exchange_cache, add_first_response) {
         .payload = (uint8_t *) "bbmm"
     };
 
-    _anj_exchange_cache_add(&cache, &ctx.tx_params, &dummy_response);
+    _anj_exchange_cache_add(&cache, DEFAULT_EXCHANGE_LIFETIME, &dummy_response);
 
     ASSERT_EQ(cache.cache_recent.response.coap_binding_data.message_id, 0x1234);
     ASSERT_TRUE(anj_time_monotonic_eq(
@@ -94,7 +90,7 @@ ANJ_UNIT_TEST(exchange_cache, add_response_moves_recent_to_nonrecent) {
         .payload = (uint8_t *) "llvm"
     };
 
-    _anj_exchange_cache_add(&cache, &ctx.tx_params, &dummy_response);
+    _anj_exchange_cache_add(&cache, DEFAULT_EXCHANGE_LIFETIME, &dummy_response);
 
     // recent should now have the new response
     ASSERT_EQ(cache.cache_recent.response.coap_binding_data.message_id, 0x4321);
@@ -155,7 +151,7 @@ ANJ_UNIT_TEST(exchange_cache, add_response_uses_expired_nonrecent_slot) {
         .payload = (uint8_t *) "krmb"
     };
 
-    _anj_exchange_cache_add(&cache, &ctx.tx_params, &dummy_response);
+    _anj_exchange_cache_add(&cache, DEFAULT_EXCHANGE_LIFETIME, &dummy_response);
 
     const anj_time_monotonic_t expected_expiration =
             anj_time_monotonic_add(monotonic_time, DEFAULT_EXCHANGE_LIFETIME);
@@ -222,7 +218,7 @@ ANJ_UNIT_TEST(exchange_cache, add_response_overwrites_oldest_valid_nonrecent) {
         .payload = (uint8_t *) "esacz"
     };
 
-    _anj_exchange_cache_add(&cache, &ctx.tx_params, &dummy_response);
+    _anj_exchange_cache_add(&cache, DEFAULT_EXCHANGE_LIFETIME, &dummy_response);
 
     // recent must now contain new response
     ASSERT_EQ(cache.cache_recent.response.coap_binding_data.message_id, 0xBBBB);
@@ -280,7 +276,7 @@ ANJ_UNIT_TEST(exchange_cache, adds_new_response_when_recent_is_expired) {
         .payload = (uint8_t *) "whllbm"
     };
 
-    _anj_exchange_cache_add(&cache, &ctx.tx_params, &new_response);
+    _anj_exchange_cache_add(&cache, DEFAULT_EXCHANGE_LIFETIME, &new_response);
 
     ASSERT_EQ(cache.cache_recent.response.coap_binding_data.message_id, 0x4321);
     ASSERT_TRUE(anj_time_monotonic_eq(
@@ -314,7 +310,12 @@ ANJ_UNIT_TEST(exchange_cache, returns_recent_if_mid_matches_recent) {
             anj_time_duration_new(121, ANJ_TIME_UNIT_S)); // still valid
     cache.handling_retransmission = false;
 
-    int result = _anj_exchange_cache_check(&cache, 0xABCD);
+    int result = _anj_exchange_cache_check(&cache,
+                                           &(_anj_coap_msg_t) {
+                                               .coap_binding_data = {
+                                                   .message_id = 0xABCD
+                                               }
+                                           });
 
     ASSERT_EQ(result, _ANJ_EXCHANGE_CACHE_HIT_RECENT);
     ASSERT_TRUE(cache.handling_retransmission);
@@ -340,7 +341,12 @@ ANJ_UNIT_TEST(exchange_cache, returns_nonrecent_if_mid_matches_nonrecent) {
                                       ANJ_TIME_UNIT_S)); // all still valid
     }
 
-    int result = _anj_exchange_cache_check(&cache, 0x1002); // matches i == 2
+    int result = _anj_exchange_cache_check(&cache,
+                                           &(_anj_coap_msg_t) {
+                                               .coap_binding_data = {
+                                                   .message_id = 0x1002
+                                               }
+                                           }); // matches i == 2
 
     ASSERT_EQ(result, _ANJ_EXCHANGE_CACHE_HIT_NON_RECENT);
     ASSERT_FALSE(cache.handling_retransmission);
@@ -363,7 +369,12 @@ ANJ_UNIT_TEST(exchange_cache, returns_no_entry_if_mid_matches_nothing) {
                 anj_time_monotonic_new(130 + i, ANJ_TIME_UNIT_S);
     }
 
-    int result = _anj_exchange_cache_check(&cache, 0xFFFF);
+    int result = _anj_exchange_cache_check(&cache,
+                                           &(_anj_coap_msg_t) {
+                                               .coap_binding_data = {
+                                                   .message_id = 0xFFFF
+                                               }
+                                           });
 
     ASSERT_EQ(result, _ANJ_EXCHANGE_CACHE_MISS);
     ASSERT_FALSE(cache.handling_retransmission);
@@ -393,7 +404,12 @@ ANJ_UNIT_TEST(exchange_cache, expired_nonrecent_entry_is_ignored) {
                 anj_time_monotonic_new(150 + i, ANJ_TIME_UNIT_S);
     }
 
-    int result = _anj_exchange_cache_check(&cache, 0xBEEF);
+    int result = _anj_exchange_cache_check(&cache,
+                                           &(_anj_coap_msg_t) {
+                                               .coap_binding_data = {
+                                                   .message_id = 0xBEEF
+                                               }
+                                           });
 
     ASSERT_EQ(result, _ANJ_EXCHANGE_CACHE_MISS);
     ASSERT_FALSE(cache.handling_retransmission);

@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 23
 
@@ -19,6 +19,7 @@
 #include <anj/defs.h>
 #include <anj/dm/core.h>
 #include <anj/dm/defs.h>
+#include <anj/dm/security_object.h>
 #include <anj/log.h>
 #include <anj/utils.h>
 
@@ -36,6 +37,7 @@
 #define _DM_CONTINUE 2
 
 static uint8_t map_anj_io_err_to_coap_code(int code) {
+    dm_log(L_ERROR, "anj_io error: %d, check io.h for details", code);
     switch (code) {
     case _ANJ_IO_ERR_INPUT_ARG:
     case _ANJ_IO_ERR_IO_TYPE:
@@ -52,7 +54,7 @@ static uint8_t map_anj_io_err_to_coap_code(int code) {
     return (uint8_t) code;
 }
 
-static uint8_t map_err_to_coap_code(int error_code) {
+static uint8_t map_dm_err_to_coap_code(int error_code) {
     assert(error_code != 0);
     switch (error_code) {
     case ANJ_DM_ERR_INTERNAL:
@@ -87,30 +89,6 @@ static uint8_t map_err_to_coap_code(int error_code) {
     }
 }
 
-static void resource_uri_trace_log(const anj_uri_path_t *path) {
-    if (anj_uri_path_is(path, ANJ_ID_RID)) {
-        dm_log(L_TRACE, "/%" PRIu16 "/%" PRIu16 "/%" PRIu16, path->ids[0],
-               path->ids[1], path->ids[2]);
-    } else if (anj_uri_path_is(path, ANJ_ID_RIID)) {
-        dm_log(L_TRACE, "/%" PRIu16 "/%" PRIu16 "/%" PRIu16 "/%" PRIu16,
-               path->ids[0], path->ids[1], path->ids[2], path->ids[3]);
-    }
-}
-
-static void uri_log(const anj_uri_path_t *path) {
-    if (anj_uri_path_is(path, ANJ_ID_OID)) {
-        dm_log(L_DEBUG, "/%" PRIu16, path->ids[0]);
-    } else if (anj_uri_path_is(path, ANJ_ID_IID)) {
-        dm_log(L_DEBUG, "/%" PRIu16 "/%" PRIu16, path->ids[0], path->ids[1]);
-    } else if (anj_uri_path_is(path, ANJ_ID_RID)) {
-        dm_log(L_DEBUG, "/%" PRIu16 "/%" PRIu16 "/%" PRIu16, path->ids[0],
-               path->ids[1], path->ids[2]);
-    } else if (anj_uri_path_is(path, ANJ_ID_RIID)) {
-        dm_log(L_DEBUG, "/%" PRIu16 "/%" PRIu16 "/%" PRIu16 "/%" PRIu16,
-               path->ids[0], path->ids[1], path->ids[2], path->ids[3]);
-    }
-}
-
 static int handle_read_payload_result(_anj_dm_data_model_t *ctx,
                                       int anj_io_return_code,
                                       int dm_return_code,
@@ -125,7 +103,6 @@ static int handle_read_payload_result(_anj_dm_data_model_t *ctx,
         assert(offset == out_buff_len);
         return _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED;
     } else {
-        dm_log(L_ERROR, "anj_io ctx error: %d", anj_io_return_code);
         ctx->data_to_copy = false;
         return map_anj_io_err_to_coap_code(anj_io_return_code);
     }
@@ -164,8 +141,6 @@ static int process_bootstrap_discover(anj_t *anj,
                     &anj->anj_io.bootstrap_discover_ctx, &path, version, ssid,
                     uri);
             if (ret_anj) {
-                dm_log(L_ERROR, "anj_io bootstrap discover ctx error %d",
-                       ret_anj);
                 return map_anj_io_err_to_coap_code(ret_anj);
             }
         } else if (ctx->op_count == 0) {
@@ -220,7 +195,6 @@ static int process_discover(anj_t *anj,
             if (ret_anj == _ANJ_IO_WARNING_DEPTH) {
                 continue;
             } else if (ret_anj) {
-                dm_log(L_ERROR, "anj_io discover ctx error %d", ret_anj);
                 return map_anj_io_err_to_coap_code(ret_anj);
             }
         } else if (ctx->op_count == 0) {
@@ -280,12 +254,9 @@ static int process_read(anj_t *anj,
             if (ret_dm && ret_dm != _ANJ_DM_LAST_RECORD) {
                 return ret_dm;
             }
-            dm_log(L_TRACE, "Reading from:");
-            resource_uri_trace_log(&ctx->out_record.path);
             ret_anj = _anj_io_out_ctx_new_entry(&anj->anj_io.out_ctx,
                                                 &ctx->out_record);
             if (ret_anj) {
-                dm_log(L_ERROR, "anj_io out ctx error %d", ret_anj);
                 return map_anj_io_err_to_coap_code(ret_anj);
             }
         } else if (ctx->op_count == 0) {
@@ -325,7 +296,6 @@ static int process_register(anj_t *anj,
             ret_anj = _anj_io_register_ctx_new_entry(&anj->anj_io.register_ctx,
                                                      &path, version);
             if (ret_anj) {
-                dm_log(L_ERROR, "anj_io register ctx error %d", ret_anj);
                 return map_anj_io_err_to_coap_code(ret_anj);
             }
         } else if (ctx->op_count == 0) {
@@ -393,13 +363,13 @@ static uint8_t _dm_read_payload(void *arg_ptr,
     int ret_val = 0;
 
     switch (ctx->operation) {
-    case ANJ_OP_REGISTER:
-    case ANJ_OP_UPDATE:
+    case _ANJ_OP_REGISTER:
+    case _ANJ_OP_UPDATE:
         out_params->format = _ANJ_COAP_FORMAT_LINK_FORMAT;
         ret_val =
                 process_register(anj, buff, buff_len, &out_params->payload_len);
         break;
-    case ANJ_OP_DM_DISCOVER:
+    case _ANJ_OP_DM_DISCOVER:
         out_params->format = _ANJ_COAP_FORMAT_LINK_FORMAT;
         out_params->payload_len = 0;
 #ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
@@ -415,13 +385,13 @@ static uint8_t _dm_read_payload(void *arg_ptr,
         }
 #endif // ANJ_WITH_DISCOVER
         break;
-    case ANJ_OP_DM_READ:
+    case _ANJ_OP_DM_READ:
         out_params->format = _anj_io_out_ctx_get_format(&anj->anj_io.out_ctx);
         ret_val = process_read(anj, buff, buff_len, &out_params->payload_len,
                                NULL, false);
         break;
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_READ_COMP:
+    case _ANJ_OP_DM_READ_COMP:
         ret_val = read_composite(anj, ctx->comp_read_paths,
                                  ctx->comp_read_path_count, false,
                                  &ctx->comp_read_already_processed, buff,
@@ -429,19 +399,19 @@ static uint8_t _dm_read_payload(void *arg_ptr,
                                  &out_params->format);
         break;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-    case ANJ_OP_DM_CREATE:
+    case _ANJ_OP_DM_CREATE:
         // HACK: Create operation has no payload, so we have to create an
         // instance here
         if (!ctx->op_ctx.write_ctx.instance_creation_attempted) {
             ret_val = _anj_dm_create_object_instance(anj, ANJ_ID_INVALID);
             if (ret_val) {
-                return map_err_to_coap_code(ret_val);
+                return map_dm_err_to_coap_code(ret_val);
             }
             ctx->op_ctx.write_ctx.instance_creation_attempted = true;
             ret_val = _anj_dm_operation_validate(anj);
         }
         if (!ctx->iid_provided) {
-            dm_log(L_DEBUG, "Adding new object instance to the path");
+            dm_log(L_DEBUG, "Adding created IID to the response");
             out_params->with_create_path = true;
             out_params->created_oid =
                     ctx->op_ctx.write_ctx.path.ids[ANJ_ID_OID];
@@ -456,7 +426,7 @@ static uint8_t _dm_read_payload(void *arg_ptr,
     }
 
     if (ret_val && ret_val != _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED) {
-        return map_err_to_coap_code(ret_val);
+        return map_dm_err_to_coap_code(ret_val);
     } else if (ret_val == _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED) {
         return _ANJ_EXCHANGE_BLOCK_TRANSFER_NEEDED;
     }
@@ -471,7 +441,6 @@ static int process_write(anj_t *anj,
     int ret_anj = _anj_io_in_ctx_feed_payload(&anj->anj_io.in_ctx, payload,
                                               payload_len, last_block);
     if (ret_anj) {
-        dm_log(L_ERROR, "anj_io in ctx error: %d", ret_anj);
         return map_anj_io_err_to_coap_code(ret_anj);
     }
 
@@ -489,17 +458,17 @@ static int process_write(anj_t *anj,
                 // SenML CBOR allows to build message with path on the end, so
                 // record without path is technically possible for block
                 // transfers
-                dm_log(L_ERROR, "anj_io in ctx no path given");
+                dm_log(L_ERROR, "SenML CBOR record without path");
                 return ANJ_COAP_CODE_INTERNAL_SERVER_ERROR;
             }
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
             // It must be checked before _anj_dm_get_resource_type call
-            if (ctx->operation == ANJ_OP_DM_WRITE_COMP
+            if (ctx->operation == _ANJ_OP_DM_WRITE_COMP
                     && _anj_uri_path_to_security_or_oscore_obj(path)) {
                 return ANJ_DM_ERR_UNAUTHORIZED;
             }
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-            if (ctx->operation == ANJ_OP_DM_CREATE
+            if (ctx->operation == _ANJ_OP_DM_CREATE
                     && !ctx->op_ctx.write_ctx.instance_creation_attempted) {
                 ret_dm = _anj_dm_create_object_instance(anj,
                                                         path->ids[ANJ_ID_IID]);
@@ -508,13 +477,13 @@ static int process_write(anj_t *anj,
                 }
             }
             record.path = *path;
-            if (ctx->operation == ANJ_OP_DM_CREATE) {
+            if (ctx->operation == _ANJ_OP_DM_CREATE) {
                 record.path.ids[ANJ_ID_IID] =
                         ctx->op_ctx.write_ctx.path.ids[ANJ_ID_IID];
             }
         }
         if (ret_anj == _ANJ_IO_WANT_TYPE_DISAMBIGUATION) {
-            assert(ctx->operation != ANJ_OP_DM_READ_COMP);
+            assert(ctx->operation != _ANJ_OP_DM_READ_COMP);
             ret_dm = _anj_dm_get_resource_type(anj, &record.path, &record.type);
             if (ret_dm) {
                 return ret_dm;
@@ -524,12 +493,11 @@ static int process_write(anj_t *anj,
         }
         if (!ret_anj) {
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-            if (ctx->operation == ANJ_OP_DM_READ_COMP) {
+            if (ctx->operation == _ANJ_OP_DM_READ_COMP) {
                 if (ctx->comp_read_path_count == ANJ_DM_MAX_COMP_READ_ENTRIES) {
                     /* No space for another path, respond with
                      * ANJ_COAP_CODE_INTERNAL_SERVER_ERROR */
-                    dm_log(L_ERROR,
-                           "Exceeded maximum number of composite read paths");
+                    dm_log(L_ERROR, "ANJ_DM_MAX_COMP_READ_ENTRIES exceeded");
                     return _ANJ_DM_ERR_LOGIC;
                 } else if (_anj_dm_path_has_readable_resources(&anj->dm, path)
                            == 0) {
@@ -540,24 +508,21 @@ static int process_write(anj_t *anj,
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
             {
                 if (!value) {
-                    if (ctx->operation == ANJ_OP_DM_CREATE) {
+                    if (ctx->operation == _ANJ_OP_DM_CREATE) {
                         // if value is not provided, we assume that only iid was
                         // given in payload
                         return 0;
                     }
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-                    if (ctx->operation != ANJ_OP_DM_WRITE_COMP
+                    if (ctx->operation != _ANJ_OP_DM_WRITE_COMP
                             || record.type != ANJ_DATA_TYPE_NULL)
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
                     {
-                        dm_log(L_ERROR, "anj_io in ctx no value given");
                         return ANJ_DM_ERR_BAD_REQUEST;
                     }
                 } else {
                     record.value = *value;
                 }
-                dm_log(L_TRACE, "Writing to:");
-                resource_uri_trace_log(&record.path);
                 ret_dm = _anj_dm_write_entry(anj, &record);
                 if (ret_dm) {
                     return ret_dm;
@@ -567,7 +532,6 @@ static int process_write(anj_t *anj,
                    || ret_anj == _ANJ_IO_EOF) {
             return 0;
         } else {
-            dm_log(L_ERROR, "anj_io in ctx error %d", ret_anj);
             return map_anj_io_err_to_coap_code(ret_anj);
         }
     }
@@ -582,14 +546,14 @@ static uint8_t _dm_write_payload(void *arg_ptr,
     int ret_val;
 
     switch (ctx->operation) {
-    case ANJ_OP_DM_WRITE_REPLACE:
-    case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
-    case ANJ_OP_DM_WRITE_COMP:
-    case ANJ_OP_DM_CREATE:
-    case ANJ_OP_DM_READ_COMP:
+    case _ANJ_OP_DM_WRITE_REPLACE:
+    case _ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
+    case _ANJ_OP_DM_WRITE_COMP:
+    case _ANJ_OP_DM_CREATE:
+    case _ANJ_OP_DM_READ_COMP:
         ret_val = process_write(anj, payload, payload_len, last_block);
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-        if (ret_val == 0 && ctx->operation == ANJ_OP_DM_READ_COMP
+        if (ret_val == 0 && ctx->operation == _ANJ_OP_DM_READ_COMP
                 && last_block) {
             size_t res_count = 0;
 
@@ -609,7 +573,7 @@ static uint8_t _dm_write_payload(void *arg_ptr,
             }
 
             ret_val = _anj_io_out_ctx_init(&anj->anj_io.out_ctx,
-                                           ANJ_OP_DM_READ_COMP,
+                                           _ANJ_OP_DM_READ_COMP,
                                            &ANJ_MAKE_ROOT_PATH(), res_count,
                                            ctx->comp_read_format);
 
@@ -618,10 +582,10 @@ static uint8_t _dm_write_payload(void *arg_ptr,
             }
         }
 #else  // ANJ_WITH_COMPOSITE_OPERATIONS
-        assert(ctx->operation != ANJ_OP_DM_READ_COMP);
+        assert(ctx->operation != _ANJ_OP_DM_READ_COMP);
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
         break;
-    case ANJ_OP_DM_EXECUTE:
+    case _ANJ_OP_DM_EXECUTE:
         ret_val = _anj_dm_execute(anj, (const char *) payload, payload_len);
         break;
     default:
@@ -637,7 +601,7 @@ static uint8_t _dm_write_payload(void *arg_ptr,
         ret_val = _anj_dm_operation_validate(anj);
     }
     if (ret_val) {
-        return map_err_to_coap_code(ret_val);
+        return map_dm_err_to_coap_code(ret_val);
     }
     return 0;
 }
@@ -651,9 +615,9 @@ static void _dm_process_finalization(void *arg_ptr,
     if (result != _ANJ_EXCHANGE_RESULT_SUCCESS
             && (anj->dm.out_record.type & ANJ_DATA_TYPE_FLAG_EXTERNAL)
             && anj->dm.data_to_copy
-            && (anj->dm.operation == ANJ_OP_DM_READ
+            && (anj->dm.operation == _ANJ_OP_DM_READ
 #    ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-                || anj->dm.operation == ANJ_OP_DM_READ_COMP
+                || anj->dm.operation == _ANJ_OP_DM_READ_COMP
 #    endif // ANJ_WITH_COMPOSITE_OPERATIONS
                 )) {
         _anj_io_out_ctx_close_external_data_cb(&anj->dm.out_record);
@@ -694,8 +658,7 @@ void _anj_dm_process_request(anj_t *anj,
     if (!ret_val) {
         size_t res_count = 0;
         switch (ctx->operation) {
-        case ANJ_OP_DM_DISCOVER:
-            dm_log(L_DEBUG, "Discover operation");
+        case _ANJ_OP_DM_DISCOVER:
             ret_val = ANJ_DM_ERR_NOT_IMPLEMENTED;
 #ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
             if (bootstrap_call) {
@@ -717,32 +680,31 @@ void _anj_dm_process_request(anj_t *anj,
             }
             *out_response_code = ANJ_COAP_CODE_CONTENT;
             break;
-        case ANJ_OP_DM_WRITE_REPLACE:
-        case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
-        case ANJ_OP_DM_CREATE:
+        case _ANJ_OP_DM_WRITE_REPLACE:
+        case _ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
+        case _ANJ_OP_DM_CREATE:
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-        case ANJ_OP_DM_WRITE_COMP:
+        case _ANJ_OP_DM_WRITE_COMP:
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-            dm_log(L_DEBUG, "Write/create operation");
             ret_val =
                     _anj_io_in_ctx_init(&anj->anj_io.in_ctx, ctx->operation,
                                         &request->uri, request->content_format);
-            *out_response_code = (ctx->operation == ANJ_OP_DM_CREATE)
+            *out_response_code = (ctx->operation == _ANJ_OP_DM_CREATE)
                                          ? ANJ_COAP_CODE_CREATED
                                          : ANJ_COAP_CODE_CHANGED;
             if (ret_val) {
                 ret_val = map_anj_io_err_to_coap_code(ret_val);
             }
             break;
-        case ANJ_OP_DM_READ:
-            dm_log(L_DEBUG, "Read operation");
+        case _ANJ_OP_DM_READ:
             _anj_dm_get_readable_res_count(anj, &res_count);
             if (!res_count) {
-                dm_log(L_INFO, "No readable resources for given path");
+                dm_log(L_INFO, "No readable resources for given path, creating "
+                               "empty response");
             }
-            ret_val = _anj_io_out_ctx_init(&anj->anj_io.out_ctx, ANJ_OP_DM_READ,
-                                           &request->uri, res_count,
-                                           request->accept);
+            ret_val = _anj_io_out_ctx_init(&anj->anj_io.out_ctx,
+                                           _ANJ_OP_DM_READ, &request->uri,
+                                           res_count, request->accept);
             if (ret_val) {
                 ret_val = ret_val != _ANJ_IO_ERR_UNSUPPORTED_FORMAT
                                   ? map_anj_io_err_to_coap_code(ret_val)
@@ -751,8 +713,7 @@ void _anj_dm_process_request(anj_t *anj,
             *out_response_code = ANJ_COAP_CODE_CONTENT;
             break;
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-        case ANJ_OP_DM_READ_COMP:
-            dm_log(L_DEBUG, "Read composite operation");
+        case _ANJ_OP_DM_READ_COMP:
             ctx->comp_read_path_count = 0;
             ctx->comp_read_already_processed = 0;
             ctx->comp_read_format = request->accept;
@@ -765,31 +726,25 @@ void _anj_dm_process_request(anj_t *anj,
             *out_response_code = ANJ_COAP_CODE_CONTENT;
             break;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-        case ANJ_OP_DM_EXECUTE:
-            dm_log(L_DEBUG, "Execute operation");
+        case _ANJ_OP_DM_EXECUTE:
             if (!request->payload_size) {
                 // write_handler won't be called for empty payload
                 ret_val = _anj_dm_execute(anj, NULL, 0);
             }
             *out_response_code = ANJ_COAP_CODE_CHANGED;
             break;
-        case ANJ_OP_DM_DELETE:
-            dm_log(L_DEBUG, "Delete operation");
+        case _ANJ_OP_DM_DELETE:
             ret_val = _anj_dm_operation_validate(anj);
             *out_response_code = ANJ_COAP_CODE_DELETED;
             break;
         default:
-            dm_log(L_ERROR, "Operation not supported: %d",
-                   (int) ctx->operation);
             ret_val = ANJ_DM_ERR_NOT_IMPLEMENTED;
             break;
         }
-        uri_log(&request->uri);
     }
     if (ret_val) {
-        *out_response_code = map_err_to_coap_code(ret_val);
+        *out_response_code = map_dm_err_to_coap_code(ret_val);
         // error code is printed in exchange module
-        dm_log(L_ERROR, "Operation initialization failed");
         _anj_dm_operation_end(anj, ANJ_DM_TRANSACTION_FAILURE);
     }
 }
@@ -806,8 +761,7 @@ void _anj_dm_process_register_update_payload(
         .arg = anj
     };
     // ignore the return value, as it is always 0 for register/update
-    _anj_dm_operation_begin(anj, ANJ_OP_REGISTER, false, NULL);
-    dm_log(L_DEBUG, "Register/update operation");
+    _anj_dm_operation_begin(anj, _ANJ_OP_REGISTER, false, NULL);
     _anj_io_register_ctx_init(&anj->anj_io.register_ctx);
 }
 
@@ -822,7 +776,8 @@ int _anj_dm_observe_is_any_resource_readable(anj_t *anj,
     assert(anj && path);
     int res = _anj_dm_path_has_readable_resources(&anj->dm, path);
     if (res) {
-        return map_err_to_coap_code(res);
+        dm_log(L_WARNING, "No readable resources for observe path");
+        return map_dm_err_to_coap_code(res);
     }
     return 0;
 }
@@ -841,7 +796,7 @@ int _anj_dm_observe_read_resource(anj_t *anj,
         if (out_multi_res && *out_multi_res) {
             return 0;
         }
-        return map_err_to_coap_code(res);
+        return map_dm_err_to_coap_code(res);
     }
     return 0;
 }
@@ -862,7 +817,7 @@ int _anj_dm_observe_build_msg(anj_t *anj,
     _anj_dm_data_model_t *dm = &anj->dm;
 
     int res = 0;
-    _anj_op_t op = composite ? ANJ_OP_DM_READ_COMP : ANJ_OP_DM_READ;
+    _anj_op_t op = composite ? _ANJ_OP_DM_READ_COMP : _ANJ_OP_DM_READ;
 
     size_t path_res_count;
     if (!dm->op_in_progress) {
@@ -871,14 +826,14 @@ int _anj_dm_observe_build_msg(anj_t *anj,
         res = _anj_dm_operation_begin(anj, op, false,
                                       composite ? NULL : paths[0]);
         if (res) {
-            return map_err_to_coap_code(res);
+            return map_dm_err_to_coap_code(res);
         }
         for (size_t i = 0; i < uri_path_count; i++) {
             if (composite) {
                 res = _anj_dm_count_readable_res_if_allowed(anj, paths[i],
                                                             &path_res_count);
                 if (res) {
-                    return map_err_to_coap_code(res);
+                    return map_dm_err_to_coap_code(res);
                 }
             } else {
                 _anj_dm_get_readable_res_count(anj, &path_res_count);
@@ -927,9 +882,9 @@ int _anj_dm_observe_build_msg(anj_t *anj,
     if (!dm->op_in_progress) {
         size_t res_count = 0;
 
-        res = _anj_dm_operation_begin(anj, ANJ_OP_DM_READ, false, paths[0]);
+        res = _anj_dm_operation_begin(anj, _ANJ_OP_DM_READ, false, paths[0]);
         if (res) {
-            return map_err_to_coap_code(res);
+            return map_dm_err_to_coap_code(res);
         }
 
         _anj_dm_get_readable_res_count(anj, &res_count);
@@ -938,7 +893,7 @@ int _anj_dm_observe_build_msg(anj_t *anj,
             return ANJ_COAP_CODE_METHOD_NOT_ALLOWED;
         }
 
-        res = _anj_io_out_ctx_init(&anj->anj_io.out_ctx, ANJ_OP_DM_READ,
+        res = _anj_io_out_ctx_init(&anj->anj_io.out_ctx, _ANJ_OP_DM_READ,
                                    paths[0], res_count, *inout_format);
         if (res) {
             return map_anj_io_err_to_coap_code(res);
@@ -963,11 +918,14 @@ int _anj_dm_bootstrap_validation(anj_t *anj) {
     // after bootstrap, there must be at least one server instance
     uint16_t server_inst_count = _anj_dm_count_obj_insts(server_obj);
     if (server_inst_count == 0) {
+        dm_log(L_ERROR, "Server Object Instance not found");
         return -1;
     }
     const anj_dm_obj_t *security_obj =
             _anj_dm_find_obj(dm, ANJ_OBJ_ID_SECURITY);
     if (!security_obj) {
+        // security object must be present before bootstrap starts
+        // so this error should never happen
         return -1;
     }
     uint16_t sec_inst_count = _anj_dm_count_obj_insts(security_obj);
@@ -1001,6 +959,9 @@ int _anj_dm_bootstrap_validation(anj_t *anj) {
         }
     }
     // there is no SSID matching pair of server instance and security instance
+    dm_log(L_ERROR,
+           "No matching Server and Security Object Instances found after "
+           "bootstrap");
     return -1;
 }
 #endif // ANJ_WITH_BOOTSTRAP
@@ -1059,7 +1020,7 @@ int _anj_dm_get_security_obj_instance_iid(anj_t *anj,
         }
 
         if (anj_dm_res_read(anj, &path, &res_value)) {
-            dm_log(L_ERROR, "Failed to read Security Object Instance");
+            dm_log(L_ERROR, "Failed to read Security Object");
             return -1;
         }
         if ((ssid == _ANJ_SSID_BOOTSTRAP && res_value.bool_value)
@@ -1069,7 +1030,6 @@ int _anj_dm_get_security_obj_instance_iid(anj_t *anj,
             return 0;
         }
     }
-    dm_log(L_ERROR, "Security Object Instance with SSID %" PRIu16 " not found",
-           ssid);
+    dm_log(L_ERROR, "Security Instance with SSID %" PRIu16 " not found", ssid);
     return -1;
 }

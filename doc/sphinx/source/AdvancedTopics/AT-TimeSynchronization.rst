@@ -193,10 +193,11 @@ of the main loop.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-TimeSynchronization/src/main.c
-    :emphasize-lines: 5
+    :emphasize-lines: 6
 
     while (true) {
-        usleep(50 * 1000);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
         anj_ntp_step(&ntp);
 
         if (g_time_synced) {

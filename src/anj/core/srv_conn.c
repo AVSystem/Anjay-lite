@@ -7,17 +7,20 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 13
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
 
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/compat/net/anj_net_wrapper.h>
+#include <anj/compat/rng.h>
+#include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/log.h>
@@ -25,6 +28,7 @@
 #include <anj/utils.h>
 
 #include "../coap/coap.h"
+#include "../coap/utils.h"
 #include "../exchange.h"
 #include "../exchange_cache.h"
 #include "core_utils.h"
@@ -39,6 +43,11 @@ static int net_again_is_error(int result) {
                    : result;
 }
 
+static int encode_coap_msg(anj_t *anj, _anj_coap_msg_t *msg) {
+    return _anj_coap_encode_udp(msg, anj->out_buffer, ANJ_OUT_MSG_BUFFER_SIZE,
+                                &anj->out_msg_len);
+}
+
 int _anj_srv_conn_connect(_anj_server_connection_ctx_t *ctx,
                           anj_net_binding_type_t type,
                           const anj_net_config_t *net_socket_cfg,
@@ -49,12 +58,18 @@ int _anj_srv_conn_connect(_anj_server_connection_ctx_t *ctx,
 
     if (!ctx->net_ctx) {
         memset(ctx, 0, sizeof(*ctx));
+        if (anj_rng_generate((uint8_t *) &ctx->ID, sizeof(ctx->ID))) {
+            log(L_ERROR, "RNG error");
+            return -1;
+        }
+        log(L_INFO, "Creating new connection to %s:%s with ID:%" PRIu8,
+            hostname, port, ctx->ID);
         result = anj_net_create_ctx(type, &ctx->net_ctx, net_socket_cfg);
         if (!anj_net_is_ok(result)) {
             log(L_ERROR, "Could not create socket: %d", result);
             return result;
         }
-        log(L_DEBUG, "Socket created successfully");
+        log(L_TRACE, "Socket created");
     }
     ctx->type = type;
 
@@ -76,7 +91,7 @@ int _anj_srv_conn_connect(_anj_server_connection_ctx_t *ctx,
             log(L_ERROR, "Could not get MTU: %d", result);
             return net_again_is_error(result);
         }
-        log(L_INFO, "Connected to %s:%s", hostname, port);
+        log(L_DEBUG, "Connected");
     } else if (!anj_net_is_inprogress(result)) {
         log(L_ERROR, "Connection failed: %d", result);
     }
@@ -105,14 +120,15 @@ int _anj_srv_conn_close(_anj_server_connection_ctx_t *ctx, bool cleanup) {
         if (anj_net_is_inprogress(result)) {
             return result;
         }
+        if (anj_net_is_ok(result)) {
+            log(L_DEBUG, "Connection %s ID:%" PRIu8,
+                cleanup ? "cleaned up" : "closed", ctx->ID);
+        } else {
+            log(L_WARNING, "Close error: %d ID:%" PRIu8, result, ctx->ID);
+        }
         if (cleanup) {
             assert(ctx->net_ctx == NULL);
             memset(ctx, 0, sizeof(*ctx));
-        }
-        if (anj_net_is_ok(result)) {
-            log(L_DEBUG, "Connection closed");
-        } else {
-            log(L_WARNING, "Connection closed with error %d", result);
         }
     }
     return result;
@@ -139,6 +155,7 @@ int _anj_srv_conn_send(_anj_server_connection_ctx_t *ctx,
         }
         assert(ctx->bytes_sent <= length);
     } else if (!anj_net_is_inprogress(result)) {
+        log(L_ERROR, "Send error: %d ID:%" PRIu8, result, ctx->ID);
         ctx->send_in_progress = false;
     }
     return result;
@@ -164,29 +181,39 @@ int _anj_srv_conn_receive(_anj_server_connection_ctx_t *ctx,
         log(L_ERROR, "Message too long, dropping");
         // this error does not require connection reset
         result = ANJ_NET_EAGAIN;
+    } else if (!anj_net_is_ok(result) && !anj_net_is_inprogress(result)
+               && !anj_net_is_again(result)) {
+        log(L_ERROR, "Receive error: %d ID:%" PRIu8, result, ctx->ID);
     }
     return result;
 }
 
-int _anj_srv_conn_calculate_max_payload_size(_anj_server_connection_ctx_t *ctx,
-                                             _anj_coap_msg_t *msg,
-                                             size_t payload_buff_size,
-                                             size_t out_msg_buffer_size,
-                                             bool server_request,
-                                             size_t *out_payload_size) {
-    assert(ctx && ctx->net_ctx && msg && payload_buff_size > 0
+int _anj_srv_conn_calculate_max_payload_size(
+        anj_t *anj,
+        _anj_coap_msg_t *msg,
+        size_t payload_buff_size,
+        size_t out_msg_buffer_size,
+        _anj_coap_outgoing_msg_kind_t outgoing_msg_kind,
+        size_t *out_payload_size) {
+    assert(anj && anj->connection_ctx.net_ctx && msg && payload_buff_size > 0
            && out_msg_buffer_size > 0);
 
+    _anj_server_connection_ctx_t *ctx = &anj->connection_ctx;
     size_t max_msg_size = ANJ_MIN(out_msg_buffer_size, (size_t) ctx->mtu);
+
     size_t header_max_size =
-            server_request ? _ANJ_COAP_UDP_RESPONSE_MSG_HEADER_MAX_SIZE
-                           : _anj_coap_calculate_msg_header_max_size(msg);
+            _anj_coap_calculate_msg_header_max_size(msg, outgoing_msg_kind);
+
     if (header_max_size > max_msg_size) {
         log(L_ERROR, "Buffer too small for message");
         return _ANJ_SRV_CONN_GENERIC_ERROR;
     }
+
+    size_t msg_overhead = 0;
+
     size_t max_payload_size =
-            ANJ_MIN((max_msg_size - header_max_size), payload_buff_size);
+            ANJ_MIN((max_msg_size - header_max_size - msg_overhead),
+                    payload_buff_size);
     if (max_payload_size < _ANJ_SRV_CONN_MINIMAL_BLOCK_SIZE) {
         log(L_ERROR, "Buffer too small for payload");
         return _ANJ_SRV_CONN_GENERIC_ERROR;
@@ -196,7 +223,7 @@ int _anj_srv_conn_calculate_max_payload_size(_anj_server_connection_ctx_t *ctx,
 }
 
 // For the first _anj_srv_conn_handle_request() call, _anj_exchange_get_state()
-// always returns ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION even though
+// always returns _ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION even though
 // message is not sent yet (check exchange.h API documentation).
 int _anj_srv_conn_handle_request(anj_t *anj) {
     int result = 0;
@@ -208,12 +235,8 @@ int _anj_srv_conn_handle_request(anj_t *anj) {
 #ifdef ANJ_WITH_CACHE
         if (anj->exchange_cache.handling_retransmission) {
             _anj_exchange_cache_get(&anj->exchange_cache, &msg);
-            result = _anj_coap_encode_udp(&msg,
-                                          anj->out_buffer,
-                                          ANJ_OUT_MSG_BUFFER_SIZE,
-                                          &anj->out_msg_len);
+            result = encode_coap_msg(anj, &msg);
             if (result) {
-                ANJ_CORE_LOG_COAP_ERROR(result);
                 // If something goes wrong then just drop retransmitted request
                 anj->exchange_cache.handling_retransmission = false;
                 continue;
@@ -233,17 +256,14 @@ int _anj_srv_conn_handle_request(anj_t *anj) {
         } else
 #endif // ANJ_WITH_CACHE
                 if (exchange_state
-                            == ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION
-                    || exchange_state == ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
+                            == _ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION
+                    || exchange_state == _ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
             // For both cases we need to send a message but for new message we
             // also need to build CoAP message first.
-            if (exchange_state == ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
-                result = _anj_coap_encode_udp(&msg,
-                                              anj->out_buffer,
-                                              ANJ_OUT_MSG_BUFFER_SIZE,
-                                              &anj->out_msg_len);
+            if (exchange_state == _ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
+
+                result = encode_coap_msg(anj, &msg);
                 if (result) {
-                    ANJ_CORE_LOG_COAP_ERROR(result);
                     _anj_exchange_terminate(&anj->exchange_ctx,
                                             _ANJ_EXCHANGE_ERROR_PROTOCOL);
                     return result;
@@ -256,7 +276,7 @@ int _anj_srv_conn_handle_request(anj_t *anj) {
                 exchange_state =
                         _anj_exchange_process(&anj->exchange_ctx,
                                               ANJ_EXCHANGE_EVENT_NONE, &msg);
-                if (exchange_state == ANJ_EXCHANGE_STATE_FINISHED) {
+                if (exchange_state == _ANJ_EXCHANGE_STATE_FINISHED) {
                     return -1;
                 }
                 return result;
@@ -271,7 +291,7 @@ int _anj_srv_conn_handle_request(anj_t *anj) {
                                           &msg);
         }
 
-        if (exchange_state == ANJ_EXCHANGE_STATE_WAITING_MSG) {
+        if (exchange_state == _ANJ_EXCHANGE_STATE_WAITING_MSG) {
             size_t msg_size;
             result = _anj_srv_conn_receive(&anj->connection_ctx, anj->in_buffer,
                                            &msg_size, ANJ_IN_MSG_BUFFER_SIZE);
@@ -280,7 +300,7 @@ int _anj_srv_conn_handle_request(anj_t *anj) {
                 exchange_state =
                         _anj_exchange_process(&anj->exchange_ctx,
                                               ANJ_EXCHANGE_EVENT_NONE, &msg);
-                if (exchange_state == ANJ_EXCHANGE_STATE_WAITING_MSG) {
+                if (exchange_state == _ANJ_EXCHANGE_STATE_WAITING_MSG) {
                     // we're still waiting for a message
                     return result;
                 }
@@ -291,28 +311,27 @@ int _anj_srv_conn_handle_request(anj_t *anj) {
             } else {
                 result = _anj_coap_decode_udp(anj->in_buffer, msg_size, &msg);
                 if (result) {
-                    ANJ_CORE_LOG_COAP_ERROR(result);
                     // drop message and continue waiting
                 } else {
 #ifdef ANJ_WITH_CACHE
                     // check if it isn't a retransmission
-                    if (_anj_exchange_cache_check(
-                                &anj->exchange_cache,
-                                msg.coap_binding_data.message_id)
+                    if (_anj_exchange_cache_check(&anj->exchange_cache, &msg)
                             == _ANJ_EXCHANGE_CACHE_MISS)
 #endif // ANJ_WITH_CACHE
                     {
-                        exchange_state = _anj_exchange_process(
-                                &anj->exchange_ctx,
-                                ANJ_EXCHANGE_EVENT_NEW_MSG,
-                                &msg);
+                        if (exchange_state != _ANJ_EXCHANGE_STATE_FINISHED) {
+                            exchange_state = _anj_exchange_process(
+                                    &anj->exchange_ctx,
+                                    ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                    &msg);
+                        }
                     }
                 }
             }
         }
 
         // exchange finished, but operation status is not checked here
-        if (exchange_state == ANJ_EXCHANGE_STATE_FINISHED) {
+        if (exchange_state == _ANJ_EXCHANGE_STATE_FINISHED) {
             // exchange might be terminated during _anj_srv_conn_send, clear
             // related variables
             anj->connection_ctx.bytes_sent = 0;
@@ -322,13 +341,11 @@ int _anj_srv_conn_handle_request(anj_t *anj) {
     }
 }
 
-static int encode_coap_msg(anj_t *anj, _anj_coap_msg_t *msg) {
-    int res = _anj_coap_encode_udp(msg, anj->out_buffer,
-                                   ANJ_OUT_MSG_BUFFER_SIZE, &anj->out_msg_len);
+static int encode_coap_msg_with_termination(anj_t *anj, _anj_coap_msg_t *msg) {
+    int res = encode_coap_msg(anj, msg);
     if (res) {
         _anj_exchange_terminate(&anj->exchange_ctx,
                                 _ANJ_EXCHANGE_ERROR_PROTOCOL);
-        ANJ_CORE_LOG_COAP_ERROR(res);
     }
     return res;
 }
@@ -337,22 +354,24 @@ int _anj_srv_conn_prepare_client_request(anj_t *anj,
                                          _anj_coap_msg_t *new_request,
                                          _anj_exchange_handlers_t *handlers) {
     size_t payload_size;
-    if (_anj_srv_conn_calculate_max_payload_size(&anj->connection_ctx,
-                                                 new_request,
-                                                 ANJ_OUT_PAYLOAD_BUFFER_SIZE,
-                                                 ANJ_OUT_MSG_BUFFER_SIZE,
-                                                 false,
-                                                 &payload_size)) {
+    if (_anj_srv_conn_calculate_max_payload_size(
+                anj,
+                new_request,
+                ANJ_OUT_PAYLOAD_BUFFER_SIZE,
+                ANJ_OUT_MSG_BUFFER_SIZE,
+                _ANJ_COAP_OUTGOING_MSG_KIND_REQUEST,
+                &payload_size)) {
         return -1;
     }
 
     if (_anj_exchange_new_client_request(&anj->exchange_ctx, new_request,
                                          handlers, anj->payload_buffer,
                                          payload_size)
-            != ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
+            != _ANJ_EXCHANGE_STATE_MSG_TO_SEND) {
         return -1;
     }
-    return encode_coap_msg(anj, new_request);
+
+    return encode_coap_msg_with_termination(anj, new_request);
 }
 
 int _anj_srv_conn_prepare_server_request(anj_t *anj,
@@ -360,12 +379,13 @@ int _anj_srv_conn_prepare_server_request(anj_t *anj,
                                          uint8_t response_code,
                                          _anj_exchange_handlers_t *handlers) {
     size_t payload_size;
-    if (_anj_srv_conn_calculate_max_payload_size(&anj->connection_ctx,
-                                                 request,
-                                                 ANJ_OUT_PAYLOAD_BUFFER_SIZE,
-                                                 ANJ_OUT_MSG_BUFFER_SIZE,
-                                                 true,
-                                                 &payload_size)) {
+    if (_anj_srv_conn_calculate_max_payload_size(
+                anj,
+                request,
+                ANJ_OUT_PAYLOAD_BUFFER_SIZE,
+                ANJ_OUT_MSG_BUFFER_SIZE,
+                _ANJ_COAP_OUTGOING_MSG_KIND_RESPONSE,
+                &payload_size)) {
         return -1;
     }
     _anj_exchange_state_t state =
@@ -376,9 +396,9 @@ int _anj_srv_conn_prepare_server_request(anj_t *anj,
                                              anj->payload_buffer,
                                              payload_size);
     // _anj_exchange_new_server_request can't return different state
-    assert(state == ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    assert(state == _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     (void) state;
-    return encode_coap_msg(anj, request);
+    return encode_coap_msg_with_termination(anj, request);
 }
 
 anj_time_duration_t _anj_srv_conn_calculate_max_transmit_wait(

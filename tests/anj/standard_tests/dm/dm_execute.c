@@ -95,7 +95,7 @@ ANJ_UNIT_TEST(_anj_dm_execute, base) {
 
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(1, 1, 0)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(1, 1, 0)));
 
     ANJ_UNIT_ASSERT_EQUAL(call_counter_execute, 0);
 
@@ -122,7 +122,7 @@ ANJ_UNIT_TEST(_anj_dm_execute, error_calls) {
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_dm_operation_begin(&anj,
-                                    ANJ_OP_DM_EXECUTE,
+                                    _ANJ_OP_DM_EXECUTE,
                                     false,
                                     &ANJ_MAKE_RESOURCE_PATH(1, 1, 1)),
             ANJ_DM_ERR_METHOD_NOT_ALLOWED);
@@ -131,19 +131,19 @@ ANJ_UNIT_TEST(_anj_dm_execute, error_calls) {
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_dm_operation_begin(&anj,
-                                    ANJ_OP_DM_EXECUTE,
+                                    _ANJ_OP_DM_EXECUTE,
                                     false,
                                     &ANJ_MAKE_RESOURCE_PATH(1, 2, 1)),
             ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_dm_operation_begin(&anj,
-                                    ANJ_OP_DM_EXECUTE,
+                                    _ANJ_OP_DM_EXECUTE,
                                     false,
                                     &ANJ_MAKE_RESOURCE_PATH(2, 2, 1)),
             ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(1, 1, 0)));
+            &anj, _ANJ_OP_DM_EXECUTE, false, &ANJ_MAKE_RESOURCE_PATH(1, 1, 0)));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 }

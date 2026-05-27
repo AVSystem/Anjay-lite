@@ -7,12 +7,11 @@
  * See the attached LICENSE file for details.
  */
 
-#define _DEFAULT_SOURCE
+#define _POSIX_C_SOURCE 200809L
 
 #include <stdbool.h>
 #include <stdio.h>
 #include <time.h>
-#include <unistd.h>
 
 #include <anj/core.h>
 #include <anj/log.h>

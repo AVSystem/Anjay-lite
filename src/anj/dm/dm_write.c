@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 29
 
@@ -23,6 +23,7 @@
 #include <anj/utils.h>
 
 #include "../core/core.h"
+#include "../utils.h"
 #include "dm_core.h"
 #include "dm_io.h"
 
@@ -31,12 +32,16 @@ static int update_res_val(anj_t *anj, const anj_res_value_t *value) {
     _anj_dm_entity_ptrs_t *entity_ptrs = &dm->entity_ptrs;
     const anj_dm_obj_t *obj = dm->entity_ptrs.obj;
     if (!obj->handlers->res_write) {
-        dm_log(L_ERROR, "Write handler not defined");
+        dm_log(L_ERROR, "Object handler not defined");
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
-    return obj->handlers->res_write(anj, obj, entity_ptrs->inst->iid,
-                                    entity_ptrs->res->rid, entity_ptrs->riid,
-                                    value);
+    int res = obj->handlers->res_write(anj, obj, entity_ptrs->inst->iid,
+                                       entity_ptrs->res->rid, entity_ptrs->riid,
+                                       value);
+    if (res) {
+        dm_log(L_ERROR, "Resource write handler failed");
+    }
+    return res;
 }
 
 static int resource_type_check(_anj_dm_data_model_t *dm,
@@ -99,18 +104,19 @@ static int begin_write_replace_operation(anj_t *anj) {
     const anj_dm_res_t *res = entity_ptrs->res;
     if (anj_uri_path_is(path, ANJ_ID_IID)) {
         if (!obj->handlers->inst_reset) {
-            dm_log(L_ERROR, "inst_reset handler not defined");
+            dm_log(L_ERROR, "Object handler not defined");
             return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
         }
         result = obj->handlers->inst_reset(anj, obj, entity_ptrs->inst->iid);
         if (result) {
-            dm_log(L_ERROR, "inst_reset failed");
+            dm_log(L_ERROR, "Instance reset handler failed");
             return result;
         }
-        dm_log(L_DEBUG, "Reset instance IID=%" PRIu16, entity_ptrs->inst->iid);
+        dm_log(L_TRACE, "Resetting instance before write replace");
     } else if (anj_uri_path_is(path, ANJ_ID_RID)
                && _anj_dm_is_multi_instance_resource(res->kind)) {
         // remove all res_insts
+        dm_log(L_TRACE, "Removing all resource instances");
         uint16_t inst_count = _anj_dm_count_res_insts(res);
         for (uint16_t idx = 0; idx < inst_count; idx++) {
             entity_ptrs->riid = res->insts[0];
@@ -134,7 +140,7 @@ static int handle_res_instances(anj_t *anj, const anj_io_out_entry_t *record) {
 
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
     if (record->type == ANJ_DATA_TYPE_NULL) {
-        assert(dm->operation == ANJ_OP_DM_WRITE_COMP);
+        assert(dm->operation == _ANJ_OP_DM_WRITE_COMP);
         if (!_anj_dm_res_inst_exists(res, record->path.ids[ANJ_ID_RIID])) {
             return 0;
         }
@@ -149,6 +155,7 @@ static int handle_res_instances(anj_t *anj, const anj_io_out_entry_t *record) {
             return 0;
         }
     }
+    dm_log(L_DEBUG, "Creating new instance");
     if (inst_count == res->max_inst_count) {
         dm_log(L_ERROR, "No space for new resource instance");
         return _ANJ_DM_ERR_MEMORY;
@@ -156,17 +163,16 @@ static int handle_res_instances(anj_t *anj, const anj_io_out_entry_t *record) {
 
     // we need to create new instance
     if (!obj->handlers->res_inst_create) {
-        dm_log(L_ERROR, "res_inst_create handler not defined");
+        dm_log(L_ERROR, "Object handler not defined");
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
 
     int ret = obj->handlers->res_inst_create(anj, obj, inst->iid, res->rid,
                                              entity_ptrs->riid);
     if (ret) {
-        dm_log(L_ERROR, "res_inst_create failed");
+        dm_log(L_ERROR, "Resource instance create handler failed");
         return ret;
     }
-    dm_log(L_DEBUG, "Created RIID=%" PRIu16, entity_ptrs->riid);
 
     if (!dm->bootstrap_operation) {
         _anj_core_data_model_changed_with_ssid(
@@ -186,7 +192,7 @@ static int verify_resource_before_writing(_anj_dm_data_model_t *dm,
         dm_log(L_ERROR, "Resource is not writable");
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     } else if (resource_type_check(dm, record)) {
-        dm_log(L_ERROR, "Invalid record type");
+        dm_log(L_ERROR, "Invalid data type");
         return ANJ_DM_ERR_BAD_REQUEST;
     } else if (_anj_dm_is_multi_instance_resource(dm->entity_ptrs.res->kind)
                != anj_uri_path_has(&record->path, ANJ_ID_RIID)) {
@@ -200,13 +206,15 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
     assert(anj && record);
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
-    assert(dm->operation == ANJ_OP_DM_CREATE
-           || dm->operation == ANJ_OP_DM_WRITE_REPLACE
-           || dm->operation == ANJ_OP_DM_WRITE_PARTIAL_UPDATE
-           || dm->operation == ANJ_OP_DM_WRITE_COMP);
-    assert(dm->operation != ANJ_OP_DM_CREATE
+    assert(dm->operation == _ANJ_OP_DM_CREATE
+           || dm->operation == _ANJ_OP_DM_WRITE_REPLACE
+           || dm->operation == _ANJ_OP_DM_WRITE_PARTIAL_UPDATE
+           || dm->operation == _ANJ_OP_DM_WRITE_COMP);
+    assert(dm->operation != _ANJ_OP_DM_CREATE
            || dm->op_ctx.write_ctx.instance_creation_attempted);
     int result = 0;
+
+    dm_log(L_DEBUG, "Writing to %s", _ANJ_DEBUG_URI_PATH(&record->path));
 
     if (!anj_uri_path_has(&record->path, ANJ_ID_RID)) {
         dm_log(L_ERROR, "Invalid path");
@@ -218,7 +226,7 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
     }
 
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    if (dm->operation == ANJ_OP_DM_WRITE_COMP) {
+    if (dm->operation == _ANJ_OP_DM_WRITE_COMP) {
         assert(!dm->bootstrap_operation);
 
         if (record->type == ANJ_DATA_TYPE_NULL
@@ -297,7 +305,9 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
     if ((result == ANJ_DM_ERR_NOT_FOUND || result == ANJ_DM_ERR_NOT_IMPLEMENTED)
             && !anj_uri_path_has(&dm->op_ctx.write_ctx.path, ANJ_ID_RID)) {
         dm_log(L_WARNING,
-               "Ignoring error from writing to unsupported/unknown resource");
+               "Ignoring error from writing to unsupported/unknown resource "
+               "for %s",
+               _ANJ_DEBUG_URI_PATH(&record->path));
         return 0;
     }
 
@@ -320,7 +330,7 @@ int _anj_dm_begin_write_op(anj_t *anj, const anj_uri_path_t *base_path) {
     dm->is_transactional = true;
     dm->op_ctx.write_ctx.path = *base_path;
 
-    if (dm->operation == ANJ_OP_DM_WRITE_REPLACE) {
+    if (dm->operation == _ANJ_OP_DM_WRITE_REPLACE) {
         return begin_write_replace_operation(anj);
     } else {
         const anj_dm_obj_t *obj;

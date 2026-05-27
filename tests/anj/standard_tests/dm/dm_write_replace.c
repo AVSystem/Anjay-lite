@@ -313,7 +313,7 @@ ANJ_UNIT_TEST(dm_write_replace, write_handler) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 0);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
@@ -348,7 +348,7 @@ ANJ_UNIT_TEST(dm_write_replace, write_no_handler) {
     };
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_1));
     ANJ_UNIT_ASSERT_TRUE(call_value == &record_1.value);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_6));
@@ -391,7 +391,7 @@ ANJ_UNIT_TEST(dm_write_replace, write_string_in_chunk) {
     };
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_1));
     ANJ_UNIT_ASSERT_TRUE(call_value == &record_1.value);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record_2));
@@ -419,7 +419,7 @@ ANJ_UNIT_TEST(dm_write_replace, multi_res_write) {
     };
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
@@ -463,7 +463,7 @@ ANJ_UNIT_TEST(dm_write_replace, multi_res_write_create) {
         .path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 0)
     };
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_TRUE(call_value == &record.value);
@@ -505,7 +505,7 @@ ANJ_UNIT_TEST(dm_write_replace, error_type) {
     };
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 0);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_BAD_REQUEST);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -527,7 +527,7 @@ ANJ_UNIT_TEST(dm_write_replace, error_no_writable) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 0);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
@@ -551,7 +551,7 @@ ANJ_UNIT_TEST(dm_write_replace, error_path_1) {
     };
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 0);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -575,7 +575,7 @@ ANJ_UNIT_TEST(dm_write_replace, error_path_2) {
     };
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
@@ -596,7 +596,7 @@ ANJ_UNIT_TEST(dm_write_replace, error_path_3) {
     };
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
@@ -614,8 +614,8 @@ ANJ_UNIT_TEST(dm_write_replace, error_path_4) {
         .path = ANJ_MAKE_RESOURCE_PATH(1, 7, 12)
     };
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 7);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
-                                                  false, &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(
+                                  &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 1);
@@ -633,7 +633,7 @@ ANJ_UNIT_TEST(dm_write_replace, error_path_multi_instance) {
     };
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 4);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -649,14 +649,14 @@ ANJ_UNIT_TEST(dm_write_replace, error_unauthorized) {
     TEST_INIT(anj, obj);
 
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(0, 0, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
-                                                  false, &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(
+                                  &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path),
                           ANJ_DM_ERR_UNAUTHORIZED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
     path = ANJ_MAKE_RESOURCE_PATH(21, 0, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
-                                                  false, &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(
+                                  &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path),
                           ANJ_DM_ERR_UNAUTHORIZED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
@@ -678,7 +678,7 @@ ANJ_UNIT_TEST(dm_write_replace, handler_error) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 0);
     res_write_operation_error = ANJ_DM_ERR_BAD_REQUEST;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record),
                           ANJ_DM_ERR_BAD_REQUEST);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -703,7 +703,7 @@ ANJ_UNIT_TEST(dm_write_replace, handler_error_2) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 4);
     res_create_operation_return_error = true;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record), -1);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 
@@ -726,7 +726,7 @@ ANJ_UNIT_TEST(dm_write_replace, handler_error_3) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 4);
     validate_return_error = true;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, false, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_validate(&anj), -12);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -745,8 +745,8 @@ ANJ_UNIT_TEST(dm_write_replace, lack_of_inst_reset_error) {
 
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     handlers.inst_reset = NULL;
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
-                                                  false, &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(
+                                  &anj, _ANJ_OP_DM_WRITE_REPLACE, false, &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     handlers.inst_reset = inst_reset;
 }
@@ -790,7 +790,7 @@ ANJ_UNIT_TEST(dm_write_replace, write_with_create_instance_level) {
     };
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, true, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, true, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -810,7 +810,7 @@ ANJ_UNIT_TEST(dm_write_replace, write_with_create_resource_level) {
     };
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 2, 0);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, true, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, true, &path));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(&anj, &record));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -832,7 +832,7 @@ ANJ_UNIT_TEST(dm_write_replace, write_with_create_write_error) {
     };
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, true, &path));
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, true, &path));
     // resource 1 does not exist, but in _anj_dm_write_entry(), NOT FOUND error
     // is reset
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_write_entry(&anj, &record), 0);
@@ -848,8 +848,8 @@ ANJ_UNIT_TEST(dm_write_replace, write_with_create_error) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &Obj_Bootstrap));
     Obj_Bootstrap.max_inst_count = 1;
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_WRITE_REPLACE,
-                                                  true, &path),
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(
+                                  &anj, _ANJ_OP_DM_WRITE_REPLACE, true, &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     Obj_Bootstrap.max_inst_count = 2;

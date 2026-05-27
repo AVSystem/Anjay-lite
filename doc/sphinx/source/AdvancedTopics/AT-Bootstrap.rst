@@ -111,7 +111,21 @@ Anjay Lite attempts Bootstrap in the following cases:
 - No LwM2M Server is defined in the data model.
 - Connection to the LwM2M Server fails.
 
-If the Bootstrap Server doesn't send a ``Bootstrap-Finish`` operation within a timeout period, the procedure is considered failed.
+At the end of the Bootstrap procedure, Anjay Lite validates whether the data
+model contains a complete regular LwM2M Server configuration. In particular, it
+checks that there is at least one Security Object instance and one Server Object
+instance with matching Short Server ID values. If no such matching pair is
+present, the Bootstrap procedure is rejected and an error response is returned
+to the Bootstrap Server. Depending on the current configuration and the device state,
+the Bootstrap procedure is then retried or the device transitions to the failure state.
+
+If the Bootstrap Server doesn't send a ``Bootstrap-Finish`` operation within a timeout period,
+the procedure is considered failed.
+
+.. note::
+    The Bootstrap Server Account itself is not required to remain present after the
+    Bootstrap procedure. It may be overwritten or removed by the Bootstrap Server
+    during Bootstrap Write/Delete operations.
 
 **Configure the timeout and retries**
 
@@ -131,9 +145,10 @@ Use the following configuration fields:
 | `bootstrap_retry_timeout` | Base delay between retries. This delay grows exponentially: `2^(attempt - 1) * bootstrap_retry_timeout`. |
 +---------------------------+----------------------------------------------------------------------------------------------------------+
 
-.. note::
-
-    `Client Hold Off Time` resource in the Security Object delays only the first attempt to connect to the LwM2M Bootstrap Server.
+You can configure the initial delay before the first connection attempt to the LwM2M Bootstrap Server using the
+`client_hold_off_time <../api/api_generated/structanj__dm__security__instance__init__t.html#_CPPv4N31anj_dm_security_instance_init_t20client_hold_off_timeE>`_
+field in the ``anj_dm_security_instance_init_t`` structure when adding the Bootstrap Server Account
+instance to the Security Object. This delay is applied only to the first connection attempt and is not repeated during retries.
 
 **Bootstrap-Discover Support**
 
@@ -147,6 +162,18 @@ Bootstrap Interface operations that target data model are routed to the same
 handlers in objects implementation. If The LwM2M Bootstrap Server performs, for example,
 a Bootstrap Write, it will be handled in the `anj_dm_obj_struct::handlers`.
 
+.. important::
+
+    During the Bootstrap procedure, the Bootstrap Server Account may also be
+    modified. If this happens and the client is no longer able to reconnect to
+    the Bootstrap Server afterwards, Anjay Lite does not provide any built-in
+    fallback mechanism to restore the previous Bootstrap configuration.
+
+    In such cases, the application is expected to provide a product-specific
+    recovery mechanism. One possible approach is to react to the
+    ``ANJ_CONN_STATUS_FAILURE`` connection status and restore a default
+    configuration under additional application-specific conditions, such as
+    confirmed network availability.
 
 Coiote LwM2M Server
 -------------------

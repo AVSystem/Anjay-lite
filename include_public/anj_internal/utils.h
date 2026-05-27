@@ -44,7 +44,7 @@ extern "C" {
     _ANJ_CONCAT_INTERNAL__(_1, _ANJ_CONCAT_INTERNAL_3__(__VA_ARGS__))
 
 /** @anj_internal_api_do_not_use */
-#define ANJ_CONCAT_INTERNAL_5__(_1, ...) \
+#define _ANJ_CONCAT_INTERNAL_5__(_1, ...) \
     _ANJ_CONCAT_INTERNAL__(_1, _ANJ_CONCAT_INTERNAL_4__(__VA_ARGS__))
 
 /**
@@ -69,6 +69,27 @@ extern "C" {
 
 #define _ANJ_MAKE_URI_PATH(...) \
     ((anj_uri_path_t) _ANJ_URI_PATH_INITIALIZER(__VA_ARGS__))
+
+#define _ANJ_CBOR_VAL_OR_LEN_LEN_IMPL(Val_or_len)   \
+    ((Val_or_len) <= 23                             \
+             ? 1                                    \
+             : (Val_or_len) <= UINT8_MAX            \
+                       ? 2                          \
+                       : (Val_or_len) <= UINT16_MAX \
+                                 ? 3                \
+                                 : (Val_or_len) <= UINT32_MAX ? 5 : 9)
+#define _ANJ_CBOR_VAL_OR_LEN_LEN_AVOID_ZERO(Val_or_len) \
+    ((Val_or_len) == 0 ? 1 : (Val_or_len))
+/**
+ * HACK: Invoking this macro with 0 leads to compile-time comparisons of
+ * unsigned 0 with other compile-time unsigned integer, which in some versions
+ * of gcc yields a warning about the comparison being always true/false. To
+ * avoid comparisons with 0 directly, 0 is replaced with 1 before comparison;
+ * this yields the same results and avoids the warning.
+ */
+#define _ANJ_CBOR_VAL_OR_LEN_LEN(Val_or_len) \
+    _ANJ_CBOR_VAL_OR_LEN_LEN_IMPL(           \
+            _ANJ_CBOR_VAL_OR_LEN_LEN_AVOID_ZERO(Val_or_len))
 
 #ifdef __cplusplus
 }

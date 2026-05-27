@@ -1,5 +1,27 @@
 # Changelog
 
+## Anjay Lite 2.1.0 (May 27th, 2026)
+
+### Features
+- (commercial version only) Added support for OSCORE with Appendix B2 procedure.
+
+### Improvements
+- Internal headers now consistently prefix internal enum and macro symbols with `_ANJ_`
+  to avoid public-looking symbol leakage.
+- Improved and refactored logging to provide more detailed and informative messages.
+- Replace all `usleep()` uses in examples with `nanosleep()`.
+- Improved `anj_core_next_step_time()` so that it also reflects delays before scheduled
+  Bootstrap and Registration retry attempts.
+
+### Bugfixes
+- Fixed a bug where the network context was not properly closed and cleaned up after a connection failure during Bootstrap.
+- Fixed sending retransmissions after receiving ACK (separate response)
+- Fixed a bug that caused an assertion failure when handling a request with an empty token.
+- Added Message ID validation for received messages.
+- Fixed incorrect handling of a Non-confirmable Execute operation.
+- Fixed missing empty ACK for confirmable separate error responses (CoAP 4.xx/5.xx) in the exchange layer.
+- Fix a bug that made PSK identity length validation based on `MBEDTLS_PSK_MAX_LEN` instead of `ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN`
+
 ## Anjay Lite 2.0.0 (January 29th, 2026)
 
 ### BREAKING CHANGES

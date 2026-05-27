@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "init_internal.h"
 
 #ifndef SRC_ANJ_EXCHANGE_H
 #    define SRC_ANJ_EXCHANGE_H
@@ -33,7 +33,7 @@
  * to send an ACK before having the sender timeout, so as a conservative
  * assumption we set it equal to ACK_TIMEOUT"
  *
- * If context is in @ref ANJ_EXCHANGE_STATE_WAITING_SEND_ACK state for
+ * If context is in @ref _ANJ_EXCHANGE_STATE_WAITING_SEND_ACK state for
  * longer than @ref _ANJ_EXCHANGE_COAP_PROCESSING_DELAY_MS value, the exchange
  * is canceled.
  *
@@ -110,15 +110,14 @@ _anj_exchange_new_server_request(_anj_exchange_ctx_t *ctx,
  * type will change to confirmable.
  *
  * This function should be used to handle exchanges of the following operations:
- *  - ANJ_OP_BOOTSTRAP_REQ,
- *  - ANJ_OP_BOOTSTRAP_PACK_REQ,
- *  - ANJ_OP_REGISTER,
- *  - ANJ_OP_UPDATE,
- *  - ANJ_OP_DEREGISTER,
- *  - ANJ_OP_INF_CON_SEND,
- *  - ANJ_OP_INF_NON_CON_SEND,
- *  - ANJ_OP_INF_CON_NOTIFY,
- *  - ANJ_OP_INF_NON_CON_NOTIFY.
+ *  - _ANJ_OP_BOOTSTRAP_REQ,
+ *  - _ANJ_OP_BOOTSTRAP_PACK_REQ,
+ *  - _ANJ_OP_REGISTER,
+ *  - _ANJ_OP_UPDATE,
+ *  - _ANJ_OP_DEREGISTER,
+ *  - _ANJ_OP_INF_CON_SEND,
+ *  - _ANJ_OP_INF_CON_NOTIFY,
+ *  - _ANJ_OP_INF_NON_CON_NOTIFY.
  *
  * For Notify messages, the @p in_out_msg must contain the token and
  * observation number.
@@ -146,16 +145,16 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
 /**
  * Processes the exchange. The function should be called after @ref
  * _anj_exchange_new_server_request or @ref _anj_exchange_new_client_request in
- * a loop until the exchange is finished (@ref ANJ_EXCHANGE_STATE_FINISHED is
+ * a loop until the exchange is finished (@ref _ANJ_EXCHANGE_STATE_FINISHED is
  * returned).
  *
- * If any function of this API returns @ref ANJ_EXCHANGE_STATE_MSG_TO_SEND, the
+ * If any function of this API returns @ref _ANJ_EXCHANGE_STATE_MSG_TO_SEND, the
  * user should send the message and than call @ref _anj_exchange_process with
  * the @p event set to @ref ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, or cancel the
  * exchange if sending fails. If exchange is in @ref
- * ANJ_EXCHANGE_STATE_WAITING_MSG state, every incoming message should be passed
- * to the function with @p event set to @ref ANJ_EXCHANGE_EVENT_NEW_MSG. If
- * there is no message to process, or there is no information about sending
+ * _ANJ_EXCHANGE_STATE_WAITING_MSG state, every incoming message should be
+ * passed to the function with @p event set to @ref ANJ_EXCHANGE_EVENT_NEW_MSG.
+ * If there is no message to process, or there is no information about sending
  * result, this function should be called in intervals with @p event set to @ref
  * ANJ_EXCHANGE_EVENT_NONE. During that call exchange module can decide to
  * resend the message, or cancel the exchange in case of timeout. The exchange
@@ -178,8 +177,8 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
  * @param[in]    event        Type of event; @ref _anj_exchange_event_t.
  * @param[inout] in_out_msg   Message to process, or space for new message.
  *
- * @returns Current state of the exchange or @ref ANJ_EXCHANGE_STATE_MSG_TO_SEND
- *          if the user should send the message.
+ * @returns Current state of the exchange or @ref
+ *          _ANJ_EXCHANGE_STATE_MSG_TO_SEND if the user should send the message.
  */
 _anj_exchange_state_t _anj_exchange_process(_anj_exchange_ctx_t *ctx,
                                             _anj_exchange_event_t event,
@@ -214,15 +213,15 @@ bool _anj_exchange_ongoing_exchange(_anj_exchange_ctx_t *ctx);
 
 /**
  * Gets the current state of the exchange. This function can't return @ref
- * ANJ_EXCHANGE_STATE_MSG_TO_SEND, if other function of this API returns this
- * state, the state immediately changes. @ref ANJ_EXCHANGE_STATE_FINISHED also
+ * _ANJ_EXCHANGE_STATE_MSG_TO_SEND, if other function of this API returns this
+ * state, the state immediately changes. @ref _ANJ_EXCHANGE_STATE_FINISHED also
  * indicates an idle state.
  *
  * @param ctx  Exchange context.
  *
  * @returns Current state of the exchange.
  */
-_anj_exchange_state_t _anj_exchange_get_state(_anj_exchange_ctx_t *ctx);
+_anj_exchange_state_t _anj_exchange_get_state(const _anj_exchange_ctx_t *ctx);
 
 /**
  * Sets the CoAP transmission parameters for given context. If never called, the

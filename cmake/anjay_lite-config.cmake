@@ -218,7 +218,6 @@ if(gcc_or_clang)
           -Wno-variadic-macros
           -Wno-long-long
           -Wshadow
-          -Wno-empty-translation-unit
           )
 
   if (ANJ_WITH_EXTRA_WARNINGS)

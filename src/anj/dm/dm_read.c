@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 25
 
@@ -168,10 +168,13 @@ static int get_read_value(anj_t *anj,
                           anj_res_value_t *out_value,
                           _anj_dm_entity_ptrs_t *ptrs) {
     memset(out_value, 0, sizeof(*out_value));
+
     int ret = ptrs->obj->handlers->res_read(anj, ptrs->obj, ptrs->inst->iid,
                                             ptrs->res->rid, ptrs->riid,
                                             out_value);
-    if (!ret && ptrs->res->type == ANJ_DATA_TYPE_STRING) {
+    if (ret) {
+        dm_log(L_ERROR, "Read handler failed");
+    } else if (ptrs->res->type == ANJ_DATA_TYPE_STRING) {
         out_value->bytes_or_string.chunk_length =
                 out_value->bytes_or_string.data
                         ? strlen((const char *) out_value->bytes_or_string.data)
@@ -238,8 +241,8 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
     assert(dm->op_count);
-    assert(dm->operation == ANJ_OP_DM_READ
-           || dm->operation == ANJ_OP_DM_READ_COMP);
+    assert(dm->operation == _ANJ_OP_DM_READ
+           || dm->operation == _ANJ_OP_DM_READ_COMP);
 
     _anj_dm_read_ctx_t *read_ctx = &dm->op_ctx.read_ctx;
     _anj_dm_entity_ptrs_t *entity_ptrs = &dm->entity_ptrs;
@@ -267,6 +270,8 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
                     ? ANJ_MAKE_RESOURCE_INSTANCE_PATH(obj->oid, obj_inst->iid,
                                                       res->rid, riid)
                     : ANJ_MAKE_RESOURCE_PATH(obj->oid, obj_inst->iid, res->rid);
+
+    dm_log(L_DEBUG, "Reading from %s", _ANJ_DEBUG_URI_PATH(&out_record->path));
     int result = get_read_value(anj, &out_record->value, entity_ptrs);
     if (result) {
         return result;
@@ -276,7 +281,7 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record) {
 
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
     // comp_read_current_object variable is used for root path
-    if (dm->operation == ANJ_OP_DM_READ_COMP && dm->op_count == 0
+    if (dm->operation == _ANJ_OP_DM_READ_COMP && dm->op_count == 0
             && dm->comp_read_current_object != 0
             && dm->comp_read_current_object < dm->objs_count) {
         result = _anj_dm_composite_next_path(anj, &ANJ_MAKE_ROOT_PATH());
@@ -293,7 +298,7 @@ void _anj_dm_get_readable_res_count(anj_t *anj, size_t *out_res_count) {
     assert(anj && out_res_count);
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
-    assert(dm->operation == ANJ_OP_DM_READ);
+    assert(dm->operation == _ANJ_OP_DM_READ);
 
     *out_res_count = dm->op_ctx.read_ctx.total_op_count;
 }
@@ -305,7 +310,7 @@ int _anj_dm_count_readable_res_if_allowed(anj_t *anj,
     assert(anj && path && out_res_count);
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
-    assert(dm->operation == ANJ_OP_DM_READ_COMP);
+    assert(dm->operation == _ANJ_OP_DM_READ_COMP);
 
     size_t count = 0;
 
@@ -342,7 +347,7 @@ int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path) {
     assert(anj && path);
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
-    assert(dm->operation == ANJ_OP_DM_READ_COMP);
+    assert(dm->operation == _ANJ_OP_DM_READ_COMP);
 
     int ret = 0;
     _anj_dm_read_ctx_t *read_ctx = &dm->op_ctx.read_ctx;

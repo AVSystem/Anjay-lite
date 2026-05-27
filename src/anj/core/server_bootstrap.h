@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_SRC_CORE_SERVER_BOOTSTRAP_H
 #    define ANJ_SRC_CORE_SERVER_BOOTSTRAP_H
@@ -24,13 +24,12 @@
 #    define _ANJ_SRV_BOOTSTRAP_STATE_FINISHED 3
 // The following three states are intended to cascade:
 // FINISH_DISCONNECT_AND_RETRY performs bootstrap finish before
-// DISCONNECT_AND_RETRY, which in turn disconnects and leads to RETRY to try one
-// more time.
+// DISCONNECT_AND_RETRY, which in turn disconnects and leads to WAITING to try
+// one more time.
 #    define _ANJ_SRV_BOOTSTRAP_STATE_FINISH_DISCONNECT_AND_RETRY 4
 #    define _ANJ_SRV_BOOTSTRAP_STATE_DISCONNECT_AND_RETRY 5
-#    define _ANJ_SRV_BOOTSTRAP_STATE_RETRY 6
-#    define _ANJ_SRV_BOOTSTRAP_STATE_WAITING 7
-#    define _ANJ_SRV_BOOTSTRAP_STATE_ERROR 8
+#    define _ANJ_SRV_BOOTSTRAP_STATE_WAITING 6
+#    define _ANJ_SRV_BOOTSTRAP_STATE_ERROR 7
 
 /**
  * Checks if the Bootstrap operation is needed. Bootstrap is needed if there is

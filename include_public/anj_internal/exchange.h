@@ -87,17 +87,17 @@ extern "C" {
  */
 typedef enum {
     // There is a message to send
-    ANJ_EXCHANGE_STATE_MSG_TO_SEND,
+    _ANJ_EXCHANGE_STATE_MSG_TO_SEND,
     // Waiting for information about sending result
-    ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION,
+    _ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION,
     // Waiting for incoming message
-    ANJ_EXCHANGE_STATE_WAITING_MSG,
+    _ANJ_EXCHANGE_STATE_WAITING_MSG,
     // Exchange is finished, also idle state
-    ANJ_EXCHANGE_STATE_FINISHED
+    _ANJ_EXCHANGE_STATE_FINISHED
 } _anj_exchange_state_t;
 
 /**
- * Output parameters returned from @ref anj_exchange_read_payload_t handler.
+ * Output parameters returned from @ref _anj_exchange_read_payload_t handler.
  *
  * It complements the raw payload data with information about content format,
  * actual length, and optionally created object/instance identifiers.
@@ -241,7 +241,7 @@ typedef struct {
     _anj_exchange_state_t state;
     _anj_exchange_handlers_t handlers;
     // indicate if the request is from the LwM2M Server
-    bool server_request;
+    bool lwm2m_server_request;
     // indicate if we expect a response from the LwM2M Server
     bool confirmable;
     bool block_transfer;
@@ -249,6 +249,7 @@ typedef struct {
     uint16_t block_size;
     // used in separate response mode
     bool request_prepared;
+    bool waiting_for_separate_response;
     uint32_t block_number;
 
     anj_time_duration_t server_exchange_timeout;

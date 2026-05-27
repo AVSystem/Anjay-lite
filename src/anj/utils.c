@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 55
 
@@ -24,11 +24,13 @@
 #include <stddef.h>
 #include <string.h>
 
+#include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/log.h>
 #include <anj/utils.h>
 
 #include "utils.h"
+
 #ifdef ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS
 #    include <assert.h>
 #else // ANJ_WITH_CUSTOM_CONVERSION_FUNCTIONS
@@ -625,7 +627,7 @@ uint32_t _anj_convert_be32(uint32_t value) {
 uint64_t _anj_convert_be64(uint64_t value) {
     return value;
 }
-#else // ANJ_PLATFORM_BIG_ENDIAN
+#else  // ANJ_PLATFORM_BIG_ENDIAN
 uint16_t _anj_convert_be16(uint16_t value) {
     return (uint16_t) ((value >> 8) | (value << 8));
 }
@@ -644,6 +646,7 @@ uint64_t _anj_convert_be64(uint64_t value) {
                        | ((value & UINT64_C(0xFF0000)) << 24)
                        | ((value & UINT64_C(0xFF00)) << 40) | (value << 56));
 }
+#endif // ANJ_PLATFORM_BIG_ENDIAN
 
 uint32_t _anj_htonf(float f) {
     ANJ_STATIC_ASSERT(sizeof(float) == sizeof(uint32_t), float_sane);
@@ -708,10 +711,19 @@ bool _anj_double_convertible_to_uint64(double value) {
     return nearbyint(value) == value && is_double_within_uint64_range(value);
 }
 
-char *_anj_coap_code_format(char (*buff)[5], uint32_t code) {
+// prints only response code -> 2.xx, 4.xx, 5.xx
+const char *
+_anj_debug_coap_response_code_to_string(char (*buff)[_ANJ_COAP_CODE_STR_SIZE],
+                                        int code) {
     char *buf = buff[0];
-    uint32_t major = code >> ANJ_COAP_CODE_CLASS_SHIFT;
-    uint32_t minor = code & ANJ_COAP_CODE_DETAIL_MASK;
+    if (code < 0) {
+        code = -code;
+    }
+    uint32_t major = (uint32_t) code >> ANJ_COAP_CODE_CLASS_SHIFT;
+    uint32_t minor = (uint32_t) code & ANJ_COAP_CODE_DETAIL_MASK;
+    if ((major != 2 && major != 4 && major != 5) || minor > 99) {
+        return buf;
+    }
     anj_uint32_to_string_value(buf, major);
     buf[1] = '.';
     char *minor_target = buf + 2;
@@ -721,4 +733,95 @@ char *_anj_coap_code_format(char (*buff)[5], uint32_t code) {
     return buf;
 }
 
-#endif // ANJ_PLATFORM_BIG_ENDIAN
+const char *_anj_debug_uri_path_to_string(char (*buff)[_ANJ_URI_PATH_STR_SIZE],
+                                          const anj_uri_path_t *path) {
+    char *buf = buff[0];
+    assert(path->uri_len <= ANJ_URI_PATH_MAX_LENGTH);
+    for (size_t idx = 0; idx < path->uri_len; idx++) {
+        *buf++ = '/';
+        size_t written = anj_uint16_to_string_value(buf, path->ids[idx]);
+        buf += written;
+    }
+    return buff[0];
+}
+
+const char *
+_anj_debug_coap_token_to_string(char (*buff)[_ANJ_COAP_TOKEN_HEX_STR_SIZE],
+                                const _anj_coap_token_t *token) {
+    static const char HEX[] = "0123456789ABCDEF";
+    char *buf = buff[0];
+    for (size_t i = 0; i < token->size; ++i) {
+        uint8_t byte = (uint8_t) token->bytes[i];
+        *buf++ = HEX[byte >> 4];
+        *buf++ = HEX[byte & 0x0F];
+        if (i + 1 < token->size) {
+            *buf++ = ':';
+        }
+    }
+    return buff[0];
+}
+
+const char *_anj_debug_coap_operation_to_string(_anj_op_t operation) {
+    switch (operation) {
+    case _ANJ_OP_BOOTSTRAP_REQ:
+        return "Bootstrap Request";
+    case _ANJ_OP_BOOTSTRAP_FINISH:
+        return "Bootstrap Finish";
+    case _ANJ_OP_BOOTSTRAP_PACK_REQ:
+        return "Bootstrap Package Request";
+    case _ANJ_OP_REGISTER:
+        return "Register";
+    case _ANJ_OP_UPDATE:
+        return "Update";
+    case _ANJ_OP_DEREGISTER:
+        return "Deregister";
+    case _ANJ_OP_DM_READ:
+        return "Read";
+    case _ANJ_OP_DM_READ_COMP:
+        return "Read Composite";
+    case _ANJ_OP_DM_DISCOVER:
+        return "Discover";
+    case _ANJ_OP_DM_WRITE_REPLACE:
+        return "Write Replace";
+    case _ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
+        return "Write Partial Update";
+    case _ANJ_OP_DM_WRITE_ATTR:
+        return "Write Attributes";
+    case _ANJ_OP_DM_WRITE_COMP:
+        return "Write Composite";
+    case _ANJ_OP_DM_EXECUTE:
+        return "Execute";
+    case _ANJ_OP_DM_CREATE:
+        return "Create";
+    case _ANJ_OP_DM_DELETE:
+        return "Delete";
+    case _ANJ_OP_INF_OBSERVE:
+        return "Observe";
+    case _ANJ_OP_INF_OBSERVE_COMP:
+        return "Observe Composite";
+    case _ANJ_OP_INF_CANCEL_OBSERVE:
+        return "Cancel Observe";
+    case _ANJ_OP_INF_CANCEL_OBSERVE_COMP:
+        return "Cancel Observe Composite";
+    case _ANJ_OP_INF_INITIAL_NOTIFY:
+    case _ANJ_OP_RESPONSE_CON_OR_ACK:
+    case _ANJ_OP_RESPONSE_NON_CON:
+        return "Response";
+    case _ANJ_OP_INF_CON_NOTIFY:
+        return "Con Notification";
+    case _ANJ_OP_INF_NON_CON_NOTIFY:
+        return "Non-Con Notification";
+    case _ANJ_OP_INF_CON_SEND:
+        return "LwM2M Send";
+    case _ANJ_OP_COAP_DOWNLOADER_GET:
+        return "CoAP Downloader Request";
+    case _ANJ_OP_COAP_RESET:
+        return "CoAP Reset";
+    case _ANJ_OP_COAP_PING_UDP:
+        return "CoAP Ping";
+    case _ANJ_OP_COAP_EMPTY_MSG:
+        return "CoAP Empty Message";
+    default:
+        return "";
+    }
+}

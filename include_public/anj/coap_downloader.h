@@ -63,8 +63,7 @@ extern "C" {
 #        define ANJ_COAP_DOWNLOADER_ERR_IN_PROGRESS -2
 
 /**
- * Error code returned by @ref anj_coap_downloader_init when the provided
- * configuration is invalid or by @ref anj_coap_downloader_start when the URI
+ * Error code returned by @ref anj_coap_downloader_start when the URI
  * indicates CoAPs, and no @c net_config is provided.
  */
 #        define ANJ_COAP_DOWNLOADER_ERR_INVALID_CONFIGURATION -3

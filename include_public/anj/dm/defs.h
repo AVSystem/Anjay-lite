@@ -446,10 +446,10 @@ anj_dm_inst_delete_t(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid);
  * A handler that resets an Object Instance to its default (post-creation)
  * state.
  *
- * This handler is used during the LwM2M Write Replace operation. It should
- * remove all writable Resource Instances belonging to the specified Object
- * Instance. After the reset, new Resource values will be provided by subsequent
- * write calls.
+ * This handler is used during the LwM2M Write Replace and Bootstrap-Write
+ * operations. It should remove all writable Resource Instances belonging to the
+ * specified Object Instance. After the reset, new Resource values will be
+ * provided by subsequent write calls.
  *
  * @param anj Anjay object.
  * @param obj Pointer to the object definition.

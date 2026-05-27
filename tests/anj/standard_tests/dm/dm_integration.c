@@ -501,6 +501,33 @@ static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
 }
 
 static bool validation_error = false;
+static void reset_dm_integration_fixture_state(void) {
+    memset(res_4_buff, 0, sizeof(res_4_buff));
+
+    obj_1.max_inst_count = 2;
+    obj_1_insts[0].iid = 1;
+    obj_1_insts[0].res_count = 2;
+    obj_1_insts[0].resources = inst_1_res;
+    obj_1_insts[1].iid = 2;
+    obj_1_insts[1].res_count = 6;
+    obj_1_insts[1].resources = inst_2_res;
+
+    res_insts[0] = 1;
+    res_insts[1] = 2;
+
+    obj_2.max_inst_count = 2;
+    obj_2_res.kind = ANJ_DM_RES_RWM;
+    obj_2_res.max_inst_count = 2;
+    obj_2_res_insts[0] = 1;
+    obj_2_res_insts[1] = ANJ_ID_INVALID;
+    obj_2_insts[0].iid = 1;
+    obj_2_insts[0].res_count = 1;
+    obj_2_insts[0].resources = &obj_2_res;
+    obj_2_insts[1].iid = ANJ_ID_INVALID;
+    obj_2_insts[1].res_count = 1;
+    obj_2_insts[1].resources = obj_2_new_inst_res;
+}
+
 static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
     (void) anj;
     (void) obj;
@@ -543,6 +570,8 @@ static void transaction_end(anj_t *anj,
     uint8_t payload[512];                                            \
     size_t payload_len = sizeof(payload);                            \
     _anj_coap_msg_t msg;                                             \
+    reset_dm_integration_fixture_state();                            \
+    memset(payload, 0, sizeof(payload));                             \
     memset(&msg, 0, sizeof(msg));                                    \
     msg.token.size = 1;                                              \
     msg.token.bytes[0] = 0x01;                                       \
@@ -571,33 +600,33 @@ static void transaction_end(anj_t *anj,
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_server_request(                    \
                                   &exchange_ctx, response_code, &msg,          \
                                   &handlers, payload, payload_len),            \
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);                     \
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                    \
     ANJ_UNIT_ASSERT_EQUAL(                                                     \
             _anj_exchange_process(&exchange_ctx,                               \
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg), \
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 
 #define PROCESS_REQUEST_BLOCK()                                                \
     _anj_dm_process_request(&anj, &msg, 1, &response_code, &handlers);         \
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_server_request(                    \
                                   &exchange_ctx, response_code, &msg,          \
                                   &handlers, payload, payload_len),            \
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);                     \
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                    \
     ANJ_UNIT_ASSERT_EQUAL(                                                     \
             _anj_exchange_process(&exchange_ctx,                               \
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg), \
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
 #define PROCESS_REQUEST_WITH_ERROR(Error_Code)                                 \
     _anj_dm_process_request(&anj, &msg, 1, &response_code, &handlers);         \
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_server_request(                    \
                                   &exchange_ctx, response_code, &msg,          \
                                   &handlers, payload, payload_len),            \
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);                     \
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                    \
     ANJ_UNIT_ASSERT_EQUAL(                                                     \
             _anj_exchange_process(&exchange_ctx,                               \
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg), \
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 
 static void verify_payload(const char *expected,
                            size_t expected_len,
@@ -613,7 +642,7 @@ static void verify_payload(const char *expected,
 // register is only client operation here
 ANJ_UNIT_TEST(dm_integration, register_operation) {
     SET_UP();
-    msg.operation = ANJ_OP_REGISTER;
+    msg.operation = _ANJ_OP_REGISTER;
     msg.attr.register_attr.has_endpoint = true;
     msg.attr.register_attr.endpoint = "name";
 
@@ -623,11 +652,11 @@ ANJ_UNIT_TEST(dm_integration, register_operation) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(&exchange_ctx, &msg,
                                                            &handlers, payload,
                                                            payload_len),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
 
     char expected[] = "\x48"                             // Confirmable, tkl8
@@ -651,20 +680,20 @@ ANJ_UNIT_TEST(dm_integration, register_operation) {
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(out_buff, expected, sizeof(expected) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(expected) - 1);
 
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 }
 
 ANJ_UNIT_TEST(dm_integration, update_operation_with_payload) {
     SET_UP();
-    msg.operation = ANJ_OP_UPDATE;
+    msg.operation = _ANJ_OP_UPDATE;
     msg.location_path.location[0] = "name";
     msg.location_path.location_len[0] = 4;
     msg.location_path.location_count = 1;
@@ -675,11 +704,11 @@ ANJ_UNIT_TEST(dm_integration, update_operation_with_payload) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(&exchange_ctx, &msg,
                                                            &handlers, payload,
                                                            payload_len),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
 
     char expected[] = "\x48"                             // Confirmable, tkl
@@ -702,14 +731,14 @@ ANJ_UNIT_TEST(dm_integration, update_operation_with_payload) {
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(out_buff, expected, sizeof(expected) - 1);
     ANJ_UNIT_ASSERT_EQUAL(out_msg_size, sizeof(expected) - 1);
 
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 }
 #ifdef ANJ_WITH_OBSERVE
@@ -717,7 +746,7 @@ ANJ_UNIT_TEST(dm_integration, update_operation_with_payload) {
 // discover operation on root path is not allowed
 ANJ_UNIT_TEST(dm_integration, discover_operation_root) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_DISCOVER;
+    msg.operation = _ANJ_OP_DM_DISCOVER;
     msg.accept = _ANJ_COAP_FORMAT_LINK_FORMAT;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     PROCESS_REQUEST(false);
@@ -733,7 +762,7 @@ static void discover_test(anj_uri_path_t *path,
                           uint8_t depth) {
     SET_UP();
     _anj_observe_init(&anj);
-    msg.operation = ANJ_OP_DM_DISCOVER;
+    msg.operation = _ANJ_OP_DM_DISCOVER;
     msg.accept = _ANJ_COAP_FORMAT_LINK_FORMAT;
     msg.uri = *path;
     if (depth != UINT8_MAX) {
@@ -817,7 +846,7 @@ ANJ_UNIT_TEST(dm_integration, discover_operation_with_attr) {
         .attr.step = 1,
     };
 
-    msg.operation = ANJ_OP_DM_DISCOVER;
+    msg.operation = _ANJ_OP_DM_DISCOVER;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 1);
     PROCESS_REQUEST(false)
     char expected[] = "\x61"             // ACK, tkl 1
@@ -827,11 +856,52 @@ ANJ_UNIT_TEST(dm_integration, discover_operation_with_attr) {
                       "</111/1>;pmin=10;pmax=20,</111/1/0>,</111/1/1>;st=1";
     verify_payload(expected, sizeof(expected) - 1, &msg);
 }
+
+ANJ_UNIT_TEST(dm_integration, discover_operation_block) {
+    SET_UP();
+    _anj_observe_init(&anj);
+    msg.operation = _ANJ_OP_DM_DISCOVER;
+    msg.accept = _ANJ_COAP_FORMAT_LINK_FORMAT;
+    msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 2);
+    msg.attr.discover_attr.has_depth = true;
+    msg.attr.discover_attr.depth = 3;
+    payload_len = 64;
+    PROCESS_REQUEST_BLOCK();
+    char expected[] = "\x61"             // ACK, tkl 1
+                      "\x45\x11\x11\x01" // content, msg_id token
+                      "\xC1\x28"         // content_format: link format
+                      "\xB1\x0A"         // block2 0, size 64, more
+                      "\xFF"
+                      "</111/2>,</111/2/0>,</111/2/1>,</111/2/2>;dim=2,</111/"
+                      "2/2/1>,</1";
+    verify_payload(expected, sizeof(expected) - 1, &msg);
+
+    msg.operation = _ANJ_OP_DM_DISCOVER;
+    msg.payload_size = 0;
+    msg.block.number++;
+    msg.coap_binding_data.message_id++;
+    ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
+                                                ANJ_EXCHANGE_EVENT_NEW_MSG,
+                                                &msg),
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+    ANJ_UNIT_ASSERT_EQUAL(
+            _anj_exchange_process(&exchange_ctx,
+                                  ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
+            _ANJ_EXCHANGE_STATE_FINISHED);
+    char expected2[] = "\x61"             // ACK, tkl 1
+                       "\x45\x11\x12\x01" // content, msg_id token
+                       "\xC1\x28"         // content_format: link format
+                       "\xB1\x12"         // block2 1, size 64
+                       "\xFF"
+                       "11/2/2/2>,</111/2/3>;dim=0,</111/2/4>,</111/2/5>";
+    verify_payload(expected2, sizeof(expected2) - 1, &msg);
+}
+
 #endif // ANJ_WITH_OBSERVE
 
 ANJ_UNIT_TEST(dm_integration, read_operation) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_OBJECT_PATH(111);
     PROCESS_REQUEST(false)
@@ -860,7 +930,7 @@ ANJ_UNIT_TEST(dm_integration, read_operation) {
 
 ANJ_UNIT_TEST(dm_integration, read_operation_block) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_OBJECT_PATH(111);
     payload_len = 32;
@@ -875,18 +945,18 @@ ANJ_UNIT_TEST(dm_integration, read_operation_block) {
             "\xA2\x00\x64\x2F\x32\x2F\x30\x02\x03\xA2\x00\x66\x2F\x32\x2F\x32";
     verify_payload(expected, sizeof(expected) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.payload_size = 0;
     msg.block.number++;
     msg.coap_binding_data.message_id++;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
     char expected2[] =
             "\x61"             // ACK, tkl 1
             "\x45\x11\x12\x01" // content, msg_id token
@@ -902,7 +972,7 @@ ANJ_UNIT_TEST(dm_integration, read_operation_block) {
 // resource value (anj_io_out_entry_t)
 ANJ_UNIT_TEST(dm_integration, read_operation_string_resource_block) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.accept = _ANJ_COAP_FORMAT_PLAINTEXT;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 4);
     strcpy(res_4_buff, "abcdefghijklmnoprstuwxyz");
@@ -917,7 +987,7 @@ ANJ_UNIT_TEST(dm_integration, read_operation_string_resource_block) {
                       "abcdefghijklmnop";
     verify_payload(expected, sizeof(expected) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.payload_size = 0;
     msg.block.number++;
     msg.coap_binding_data.message_id++;
@@ -925,12 +995,12 @@ ANJ_UNIT_TEST(dm_integration, read_operation_string_resource_block) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x12\x01" // content, msg_id token
@@ -944,7 +1014,7 @@ ANJ_UNIT_TEST(dm_integration, read_operation_string_resource_block) {
 // handle_read_payload_result() logic check
 void check_if_anj_io_fails_if_resource_size_is_changed() {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 4);
     payload_len = 16;
@@ -952,7 +1022,7 @@ void check_if_anj_io_fails_if_resource_size_is_changed() {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_new_server_request(&exchange_ctx, response_code, &msg,
                                              &handlers, payload, payload_len),
-            ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+            _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 }
 
 ANJ_UNIT_TEST(dm_integration, read_operation_block_resource_size_changes) {
@@ -966,20 +1036,20 @@ ANJ_UNIT_TEST(dm_integration, read_operation_block_resource_size_changes) {
 
 ANJ_UNIT_TEST(dm_integration, read_operation_block_with_termination) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_OBJECT_PATH(111);
     payload_len = 32;
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     PROCESS_REQUEST_BLOCK();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.payload_size = 0;
     msg.block.number++;
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     _anj_exchange_terminate(&exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
@@ -989,7 +1059,7 @@ ANJ_UNIT_TEST(dm_integration, read_operation_block_with_termination) {
 ANJ_UNIT_TEST(dm_integration, empty_read_senml_cbor) {
     SET_UP();
     obj_1_insts[0].res_count = 0;
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 1);
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     PROCESS_REQUEST(false);
@@ -1005,7 +1075,7 @@ ANJ_UNIT_TEST(dm_integration, empty_read_senml_cbor) {
 ANJ_UNIT_TEST(dm_integration, empty_read_lwm2m_cbor) {
     SET_UP();
     obj_1_insts[0].res_count = 0;
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 1);
     msg.accept = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     PROCESS_REQUEST(false);
@@ -1021,7 +1091,7 @@ ANJ_UNIT_TEST(dm_integration, empty_read_lwm2m_cbor) {
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
 ANJ_UNIT_TEST(dm_integration, read_composite) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1056,7 +1126,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_to_many_args) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1094,12 +1164,12 @@ ANJ_UNIT_TEST(dm_integration, read_composite_to_many_args) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_block1) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     msg.block = (_anj_block_t) {
-        .block_type = ANJ_OPTION_BLOCK_1,
+        .block_type = _ANJ_OPTION_BLOCK_1,
         .number = 0,
         .size = 16,
         .more_flag = true
@@ -1126,7 +1196,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block1) {
                        "\xd1\x0e\x08";    // block1 0 more
     verify_payload(expected1, sizeof(expected1) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.block.number = 1;
     msg.block.more_flag = false;
     msg.payload = (uint8_t *) &input_payload[16];
@@ -1136,7 +1206,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block1) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x13\x01" // content, msg_id token
@@ -1151,13 +1221,13 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block1) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 }
 
 ANJ_UNIT_TEST(dm_integration,
               read_composite_block2_first_read_exactly_fills_buf) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1186,8 +1256,8 @@ ANJ_UNIT_TEST(dm_integration,
 
     verify_payload(expected1, sizeof(expected1) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 1;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1196,7 +1266,7 @@ ANJ_UNIT_TEST(dm_integration,
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x13\x01" // content, msg_id token
@@ -1212,12 +1282,12 @@ ANJ_UNIT_TEST(dm_integration,
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 }
 
 ANJ_UNIT_TEST(dm_integration, read_composite_block2) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1250,8 +1320,8 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block2) {
                        "\x00\x6A";
     verify_payload(expected1, sizeof(expected1) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 1;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1260,7 +1330,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block2) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x13\x01" // content, msg_id token
@@ -1277,17 +1347,17 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block2) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 }
 
 ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     msg.block = (_anj_block_t) {
-        .block_type = ANJ_OPTION_BLOCK_1,
+        .block_type = _ANJ_OPTION_BLOCK_1,
         .number = 0,
         .size = 16,
         .more_flag = true
@@ -1313,7 +1383,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
                        "\xd1\x0e\x08";    // block1 0 more
     verify_payload(expected1, sizeof(expected1) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.block.number = 1;
     msg.block.more_flag = false;
     msg.payload = (uint8_t *) &input_payload[16];
@@ -1323,7 +1393,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x13\x01" // content, msg_id token
@@ -1341,10 +1411,10 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 1;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1353,7 +1423,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected3[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x14\x01" // content, msg_id token
@@ -1369,10 +1439,10 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 2;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1381,7 +1451,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected4[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x15\x01" // content, msg_id token
@@ -1398,10 +1468,10 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 3;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1410,7 +1480,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected5[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x16\x01" // content, msg_id token
@@ -1427,10 +1497,10 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 4;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1439,7 +1509,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected6[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x17\x01" // content, msg_id token
@@ -1456,10 +1526,10 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 5;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1468,7 +1538,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected7[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x18\x01" // content, msg_id token
@@ -1483,12 +1553,12 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_both_way) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 }
 
 ANJ_UNIT_TEST(dm_integration, read_composite_block_with_termination) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1505,20 +1575,20 @@ ANJ_UNIT_TEST(dm_integration, read_composite_block_with_termination) {
     msg.payload_size = sizeof(input_payload) - 1;
     payload_len = 16;
     PROCESS_REQUEST_BLOCK();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.payload_size = 0;
     msg.block.number++;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     _anj_exchange_terminate(&exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     ANJ_UNIT_ASSERT_EQUAL(anj.dm.op_in_progress, false);
 }
 
 ANJ_UNIT_TEST(dm_integration, read_composite_root) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1560,7 +1630,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_skip_security_and_oscore) {
     SET_UP();
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_21));
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1618,7 +1688,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_skip_security_and_oscore) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_root_block2) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1654,8 +1724,8 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_block2) {
                       "\x00\x68/111";
     verify_payload(expected, sizeof(expected) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_2;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_2;
     msg.block.number = 1;
     msg.block.more_flag = false;
     msg.payload_size = 0;
@@ -1664,7 +1734,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_block2) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x45\x11\x12\x01" // content, msg_id token
@@ -1681,14 +1751,14 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_block2) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 }
 
 ANJ_UNIT_TEST(dm_integration, read_composite_root_with_other_paths) {
     SET_UP();
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_4));
 
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1743,7 +1813,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_with_other_paths) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_duplicate_path) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1779,7 +1849,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_duplicate_path) {
 #    ifdef ANJ_WITH_LWM2M_CBOR
 ANJ_UNIT_TEST(dm_integration, read_composite_duplicate_path_lwm2m) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1820,7 +1890,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_empty) {
     SET_UP();
     obj_1.max_inst_count = 0;
     obj_2.max_inst_count = 0;
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1844,7 +1914,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_root_empty) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_double_root) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1906,7 +1976,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_double_root) {
 ANJ_UNIT_TEST(dm_integration, read_composite_empty) {
     SET_UP();
     obj_1_insts[0].res_count = 0;
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1929,7 +1999,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_empty) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_write_only) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1951,7 +2021,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_write_only) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_unexsiting) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -1973,7 +2043,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_unexsiting) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_one_path_exists) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -2002,7 +2072,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_one_path_exists) {
 
 ANJ_UNIT_TEST(dm_integration, read_composite_unauthorized) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ_COMP;
+    msg.operation = _ANJ_OP_DM_READ_COMP;
     msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
@@ -2032,7 +2102,7 @@ ANJ_UNIT_TEST(dm_integration, read_composite_unauthorized) {
 #    ifdef ANJ_WITH_LWM2M_CBOR
 ANJ_UNIT_TEST(dm_integration, write_composite) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [222, 1, 2, 1]: 456}
@@ -2075,7 +2145,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite) {
 
 ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [222, 1, 2, 1]: 456, [0, 0, 0]:
@@ -2132,7 +2202,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized) {
 
 ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized_in_the_middle) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [0, 0, 0]:
@@ -2189,7 +2259,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_unauthorized_in_the_middle) {
 
 ANJ_UNIT_TEST(dm_integration, write_composite_nonexistent_path) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [888, 1, 2]: 666, [222, 1, 2, 1]:
@@ -2244,7 +2314,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_nonexistent_path) {
 ANJ_UNIT_TEST(dm_integration,
               write_composite_nonexistent_resource_instance_create) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [222, 1, 2, 2]: 456, [111, 2, 2, 2]: 321}
@@ -2293,10 +2363,9 @@ ANJ_UNIT_TEST(dm_integration,
 
 ANJ_UNIT_TEST(dm_integration,
               write_composite_nonexistent_resource_instance_not_enough_space) {
-    obj_2_res.max_inst_count = 1;
-
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    obj_2_res.max_inst_count = 1;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [222, 1, 2, 2]: 456, [111, 2, 2, 2]: 321}
@@ -2347,7 +2416,7 @@ ANJ_UNIT_TEST(dm_integration,
 ANJ_UNIT_TEST(dm_integration,
               write_composite_delete_resource_instances_senml_etch_cbor) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     char input_payload[] = {
@@ -2396,7 +2465,7 @@ ANJ_UNIT_TEST(dm_integration,
 ANJ_UNIT_TEST(dm_integration,
               write_composite_delete_resource_instances_lwm2m_cbor) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     char input_payload[] = {
@@ -2449,7 +2518,7 @@ ANJ_UNIT_TEST(dm_integration,
 
 ANJ_UNIT_TEST(dm_integration, write_composite_try_delete_resource) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     char input_payload[] = {
@@ -2487,7 +2556,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_try_delete_resource) {
 ANJ_UNIT_TEST(dm_integration,
               write_composite_try_delete_resource_that_doesnt_exist) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     char input_payload[] = {
@@ -2528,10 +2597,9 @@ ANJ_UNIT_TEST(dm_integration,
 
 ANJ_UNIT_TEST(dm_integration,
               write_composite_delete_resource_instances_not_writable) {
-    obj_2_res.kind = ANJ_DM_RES_RM;
-
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    obj_2_res.kind = ANJ_DM_RES_RM;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_SENML_ETCH_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     char input_payload[] = {
@@ -2575,7 +2643,7 @@ ANJ_UNIT_TEST(dm_integration,
 ANJ_UNIT_TEST(dm_integration, write_composite_block) {
     const int block_size = 16;
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [222, 1, 2, 1]: 456}
@@ -2599,7 +2667,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block) {
         "\x01"         // unsigned(1)
         "\x19\x01\xC8" // unsigned(456)
     };
-    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_1;
     msg.block.number = 0;
     msg.block.size = block_size;
     msg.block.more_flag = true;
@@ -2611,8 +2679,8 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block) {
                        "\xd1\x0e\x08";    // block1 0 more
     verify_payload(expected1, sizeof(expected1) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_1;
     msg.block.number = 1;
     msg.block.size = block_size;
     msg.block.more_flag = false;
@@ -2623,7 +2691,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x44\x11\x12\x01" // changed, msg_id token
@@ -2635,7 +2703,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 
     ASSERT_EQ(transaction_end_results[TRANSACTION_END_RESULT_OBJ_1],
               ANJ_DM_TRANSACTION_SUCCESS);
@@ -2646,7 +2714,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block) {
 ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
     const int block_size = 16;
     SET_UP();
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
     msg.uri = ANJ_MAKE_ROOT_PATH();
     // {[111, 1, 1]: 123, [111, 2, 2, 2]: 321, [888, 1, 2]: 666, [222, 1, 2, 1]:
@@ -2676,7 +2744,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
         "\x01"         // unsigned(1)
         "\x19\x01\xC8" // unsigned(456)
     };
-    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_1;
     msg.block.number = 0;
     msg.block.size = block_size;
     msg.block.more_flag = true;
@@ -2688,8 +2756,8 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
                        "\xd1\x0e\x08";    // block1 0 more
     verify_payload(expected1, sizeof(expected1) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_WRITE_COMP;
-    msg.block.block_type = ANJ_OPTION_BLOCK_1;
+    msg.operation = _ANJ_OP_DM_WRITE_COMP;
+    msg.block.block_type = _ANJ_OPTION_BLOCK_1;
     msg.block.number = 1;
     msg.block.size = block_size;
     msg.block.more_flag = false;
@@ -2700,7 +2768,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     char expected2[] = "\x61"              // ACK, tkl 1
                        "\x84\x11\x12\x01"; // not found, msg_id token
 
@@ -2708,7 +2776,7 @@ ANJ_UNIT_TEST(dm_integration, write_composite_block_nonexistent_path) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 
     // it is user resposibility to restore previous values if transaction_end
     // indicates that an error has occurred
@@ -2731,7 +2799,7 @@ ANJ_UNIT_TEST(dm_integration, execute_operation) {
     SET_UP();
     res_execute_counter = 0;
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_EXECUTE;
+    msg.operation = _ANJ_OP_DM_EXECUTE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 5);
     PROCESS_REQUEST(false);
     char expected[] = "\x61"              // ACK, tkl 1
@@ -2745,7 +2813,7 @@ ANJ_UNIT_TEST(dm_integration, execute_operation_with_payload) {
     SET_UP();
     res_execute_counter = 0;
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_EXECUTE;
+    msg.operation = _ANJ_OP_DM_EXECUTE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 5);
     msg.payload = (uint8_t *) "test";
     msg.payload_size = 4;
@@ -2761,7 +2829,7 @@ ANJ_UNIT_TEST(dm_integration, execute_operation_with_payload) {
 
 ANJ_UNIT_TEST(dm_integration, bootstrap_discover_operation) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_DISCOVER;
+    msg.operation = _ANJ_OP_DM_DISCOVER;
     msg.accept = _ANJ_COAP_FORMAT_LINK_FORMAT;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     PROCESS_REQUEST(true);
@@ -2788,7 +2856,7 @@ ANJ_UNIT_TEST(dm_integration, delete_operation) {
     obj_2_insts[0].iid = 0;
     obj_2_insts[1].iid = 1;
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_DELETE;
+    msg.operation = _ANJ_OP_DM_DELETE;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(222, 0);
     PROCESS_REQUEST(false);
     char expected[] = "\x61"              // ACK, tkl 1
@@ -2806,7 +2874,7 @@ ANJ_UNIT_TEST(dm_integration, delete_operation_validation_failed) {
     obj_2_insts[0].iid = 0;
     obj_2_insts[1].iid = 1;
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_DELETE;
+    msg.operation = _ANJ_OP_DM_DELETE;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(222, 0);
     PROCESS_REQUEST(false);
     char expected[] = "\x61"              // ACK, tkl 1
@@ -2822,7 +2890,7 @@ ANJ_UNIT_TEST(dm_integration, delete_operation_validation_failed) {
 ANJ_UNIT_TEST(dm_integration, write_update_operation) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
-    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+    msg.operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 1);
     msg.payload = (uint8_t *) "\xC1\x01\x2A";
     msg.payload_size = 3;
@@ -2838,10 +2906,10 @@ ANJ_UNIT_TEST(dm_integration, write_update_operation) {
 ANJ_UNIT_TEST(dm_integration, write_update_operation_block) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_PLAINTEXT;
-    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+    msg.operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 4);
     msg.block = (_anj_block_t) {
-        .block_type = ANJ_OPTION_BLOCK_1,
+        .block_type = _ANJ_OPTION_BLOCK_1,
         .number = 0,
         .size = 16,
         .more_flag = true
@@ -2855,7 +2923,7 @@ ANJ_UNIT_TEST(dm_integration, write_update_operation_block) {
                       "\xd1\x0e\x08";    // block1 0 more
     verify_payload(expected, sizeof(expected) - 1, &msg);
 
-    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+    msg.operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
     msg.payload = (uint8_t *) "\x32\x33\x34\x35\x36\x37\x38\x39";
     msg.payload_size = 8;
     msg.block.number++;
@@ -2864,11 +2932,11 @@ ANJ_UNIT_TEST(dm_integration, write_update_operation_block) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_FINISHED);
+            _ANJ_EXCHANGE_STATE_FINISHED);
 
     char expected2[] = "\x61"             // ACK, tkl 1
                        "\x44\x11\x12\x01" // changed, msg_id token
@@ -2887,7 +2955,7 @@ ANJ_UNIT_TEST(dm_integration, write_update_operation_block) {
 ANJ_UNIT_TEST(dm_integration, write_replace_operation) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
-    msg.operation = ANJ_OP_DM_WRITE_REPLACE;
+    msg.operation = _ANJ_OP_DM_WRITE_REPLACE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 1, 1);
     msg.payload = (uint8_t *) "\xC1\x01\x0A";
     msg.payload_size = 3;
@@ -2904,7 +2972,7 @@ ANJ_UNIT_TEST(dm_integration, write_replace_operation) {
 ANJ_UNIT_TEST(dm_integration, write_replace_operation_on_resource_instance) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
-    msg.operation = ANJ_OP_DM_WRITE_REPLACE;
+    msg.operation = _ANJ_OP_DM_WRITE_REPLACE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 2);
     // 111/2/2/3 : 5
     msg.payload = (uint8_t *) "\xA1\x18\x6F\xA1\x02\xA1\x02\xA1\x03\x05";
@@ -2928,7 +2996,7 @@ ANJ_UNIT_TEST(dm_integration, write_replace_operation_on_resource_instance) {
 #define WRITE_UPDATE_WITH_TLV_ON_RESOURCE_INSTANCE_TEST(Uri)       \
     SET_UP();                                                      \
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;           \
-    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;                \
+    msg.operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;               \
     msg.uri = Uri;                                                 \
     msg.payload = (uint8_t *) "\x83\x02\x41\x01\x37";              \
     msg.payload_size = 5;                                          \
@@ -2965,7 +3033,7 @@ ANJ_UNIT_TEST(dm_integration,
               write_replace_operation_on_two_resource_instance) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
-    msg.operation = ANJ_OP_DM_WRITE_REPLACE;
+    msg.operation = _ANJ_OP_DM_WRITE_REPLACE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 2);
     // {[111, 2, 2]: {3: 5, 5: 10}}
     msg.payload = (uint8_t *) "\xA1\x83\x18\x6F\x02\x02\xA2\x03\x05\x05\x0A";
@@ -2989,7 +3057,7 @@ ANJ_UNIT_TEST(dm_integration,
 ANJ_UNIT_TEST(dm_integration, create_with_write) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_CREATE;
+    msg.operation = _ANJ_OP_DM_CREATE;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
     msg.payload = (uint8_t *) "\x03\x00\xC1\x01\x2B";
@@ -3010,7 +3078,7 @@ ANJ_UNIT_TEST(dm_integration, create_with_write) {
 ANJ_UNIT_TEST(dm_integration, create_with_empty_write) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_CREATE;
+    msg.operation = _ANJ_OP_DM_CREATE;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
     msg.payload = (uint8_t *) "\x00\x00";
@@ -3029,7 +3097,7 @@ ANJ_UNIT_TEST(dm_integration, create_with_empty_write) {
 ANJ_UNIT_TEST(dm_integration, create_with_write_no_iid_specify) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_CREATE;
+    msg.operation = _ANJ_OP_DM_CREATE;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
     msg.payload = (uint8_t *) "\xC1\x01\x2A";
@@ -3050,10 +3118,10 @@ ANJ_UNIT_TEST(dm_integration, create_with_write_no_iid_specify) {
 
 ANJ_UNIT_TEST(dm_integration,
               create_with_write_no_iid_specify_validation_failed) {
-    validation_error = true;
     SET_UP();
+    validation_error = true;
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_CREATE;
+    msg.operation = _ANJ_OP_DM_CREATE;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
     msg.payload = (uint8_t *) "\xC1\x01\x2A";
@@ -3071,7 +3139,7 @@ ANJ_UNIT_TEST(dm_integration,
 ANJ_UNIT_TEST(dm_integration, create_without_payload) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_CREATE;
+    msg.operation = _ANJ_OP_DM_CREATE;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
     msg.payload = NULL;
@@ -3091,7 +3159,7 @@ ANJ_UNIT_TEST(dm_integration, create_without_payload) {
 
 ANJ_UNIT_TEST(dm_integration, format_error) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     msg.content_format = 333;
     msg.accept = _ANJ_COAP_FORMAT_NOT_DEFINED - 1;
@@ -3103,7 +3171,7 @@ ANJ_UNIT_TEST(dm_integration, format_error) {
 
 ANJ_UNIT_TEST(dm_integration, not_found_error) {
     SET_UP();
-    msg.operation = ANJ_OP_DM_READ;
+    msg.operation = _ANJ_OP_DM_READ;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(222, 2);
     msg.content_format = 333;
     PROCESS_REQUEST_WITH_ERROR(ANJ_COAP_CODE_NOT_FOUND);
@@ -3116,7 +3184,7 @@ ANJ_UNIT_TEST(dm_integration, validation_error) {
     SET_UP();
     validation_error = true;
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
-    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+    msg.operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 1);
     msg.payload = (uint8_t *) "\xC1\x01\x2A";
     msg.payload_size = 3;
@@ -3132,7 +3200,7 @@ ANJ_UNIT_TEST(dm_integration, validation_error) {
 ANJ_UNIT_TEST(dm_integration, io_in_error) {
     SET_UP();
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
-    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+    msg.operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(111, 1);
     msg.payload = (uint8_t *) "\xC8\x01\x2A";
     msg.payload_size = 3;
@@ -3152,7 +3220,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3));
         external_data_handler_when_error = 0;
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
         msg.uri = ANJ_MAKE_INSTANCE_PATH(333, 1);
         payload_len = 32;
@@ -3178,14 +3246,14 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         verify_payload(expected, sizeof(expected) - 1, &msg);
         ANJ_UNIT_ASSERT_FALSE(closed);
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.payload_size = 0;
         msg.block.number++;
         msg.coap_binding_data.message_id++;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected2[] = "\x61"             // ACK, tkl 1
                            "\x45\x11\x12\x01" // content, msg_id token
@@ -3205,7 +3273,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
                 _anj_exchange_process(&exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_FINISHED);
+                _ANJ_EXCHANGE_STATE_FINISHED);
     }
     // successfully send external string, whole string in first message
     {
@@ -3213,7 +3281,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3));
         external_data_handler_when_error = 0;
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
         msg.uri = ANJ_MAKE_INSTANCE_PATH(333, 1);
         payload_len = 32;
@@ -3240,14 +3308,14 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
 
         ANJ_UNIT_ASSERT_TRUE(closed);
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.payload_size = 0;
         msg.block.number++;
         msg.coap_binding_data.message_id++;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected2[] = "\x61"             // ACK, tkl 1
                            "\x45\x11\x12\x01" // content, msg_id token
@@ -3263,7 +3331,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
                 _anj_exchange_process(&exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_FINISHED);
+                _ANJ_EXCHANGE_STATE_FINISHED);
     }
     // try send external string, exchange terminated
     {
@@ -3271,7 +3339,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3));
         external_data_handler_when_error = 0;
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
         msg.uri = ANJ_MAKE_INSTANCE_PATH(333, 1);
         payload_len = 32;
@@ -3307,7 +3375,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3));
         external_data_handler_when_error = 1;
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
         msg.uri = ANJ_MAKE_INSTANCE_PATH(333, 1);
         payload_len = 32;
@@ -3321,7 +3389,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_server_request(
                                       &exchange_ctx, response_code, &msg,
                                       &handlers, payload, payload_len),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected[] =
                 "\x61"              // ACK, tkl 1
@@ -3333,7 +3401,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
                 _anj_exchange_process(&exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_FINISHED);
+                _ANJ_EXCHANGE_STATE_FINISHED);
     }
     // try send external string, external data handler fails the second time it
     // is called
@@ -3342,7 +3410,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_3));
         external_data_handler_when_error = 2;
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.accept = _ANJ_COAP_FORMAT_SENML_CBOR;
         msg.uri = ANJ_MAKE_INSTANCE_PATH(333, 1);
         payload_len = 32;
@@ -3368,14 +3436,14 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
         verify_payload(expected, sizeof(expected) - 1, &msg);
         ANJ_UNIT_ASSERT_FALSE(closed);
 
-        msg.operation = ANJ_OP_DM_READ;
+        msg.operation = _ANJ_OP_DM_READ;
         msg.payload_size = 0;
         msg.block.number++;
         msg.coap_binding_data.message_id++;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected2[] =
                 "\x61"              // ACK, tkl 1
@@ -3387,7 +3455,7 @@ ANJ_UNIT_TEST(dm_integration, read_external_string) {
                 _anj_exchange_process(&exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_FINISHED);
+                _ANJ_EXCHANGE_STATE_FINISHED);
     }
 }
 #endif // ANJ_WITH_EXTERNAL_DATA
@@ -3417,7 +3485,7 @@ ANJ_UNIT_TEST(dm_integration, delete_operation_with_observation_removed) {
     obj_2_insts[0].iid = 0;
 
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_DELETE;
+    msg.operation = _ANJ_OP_DM_DELETE;
     msg.uri = ANJ_MAKE_INSTANCE_PATH(222, 0);
     PROCESS_REQUEST(false);
     char expected[] = "\x61"              // ACK, tkl 1
@@ -3453,7 +3521,7 @@ ANJ_UNIT_TEST(dm_integration, create_with_write_with_observation_set_to_send) {
     obj_2_insts[1].res_count++;
 
     msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
-    msg.operation = ANJ_OP_DM_CREATE;
+    msg.operation = _ANJ_OP_DM_CREATE;
     msg.uri = ANJ_MAKE_OBJECT_PATH(222);
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
     msg.payload = (uint8_t *) "\x03\x00\xC1\x01\x2B";
@@ -3477,6 +3545,7 @@ ANJ_UNIT_TEST(dm_integration, create_with_write_with_observation_set_to_send) {
     ANJ_UNIT_ASSERT_EQUAL(anj.observe_ctx.observations[3].observe_active, true);
     ANJ_UNIT_ASSERT_EQUAL(anj.observe_ctx.observations[3].notification_to_send,
                           true);
+    reset_obj_2_insts();
 }
 #endif // ANJ_WITH_OBSERVE_COMPOSITE
 
@@ -3500,7 +3569,7 @@ ANJ_UNIT_TEST(dm_integration, write_replace_operation_with_observation_update) {
     anj.observe_ctx.observations[4].observe_active = true;
 
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_TLV;
-    msg.operation = ANJ_OP_DM_WRITE_REPLACE;
+    msg.operation = _ANJ_OP_DM_WRITE_REPLACE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 1, 1);
     msg.payload = (uint8_t *) "\xC1\x01\x0A";
     msg.payload_size = 3;
@@ -3554,7 +3623,7 @@ ANJ_UNIT_TEST(
             ANJ_MAKE_RESOURCE_INSTANCE_PATH(111, 2, 2, 2);
     anj.observe_ctx.observations[4].prev = &anj.observe_ctx.observations[1];
 
-    msg.operation = ANJ_OP_DM_WRITE_REPLACE;
+    msg.operation = _ANJ_OP_DM_WRITE_REPLACE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 2);
     // 111/2/2/3 : 5
 #    ifdef ANJ_WITH_LWM2M_CBOR
@@ -3616,7 +3685,7 @@ ANJ_UNIT_TEST(
             ANJ_MAKE_RESOURCE_INSTANCE_PATH(111, 2, 2, 2);
 
     msg.content_format = _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR;
-    msg.operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+    msg.operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
     msg.uri = ANJ_MAKE_RESOURCE_PATH(111, 2, 2);
     // 111/2/2/1 : 2
     msg.payload = (uint8_t *) "\xA1\x18\x6F\xA1\x02\xA1\x02\xA1\x01\x02";
@@ -3644,6 +3713,7 @@ ANJ_UNIT_TEST(
 #endif     // ANJ_WITH_OBSERVE_COMPOSITE
 
 ANJ_UNIT_TEST(dm_integration, delete_object_observation_update) {
+    reset_dm_integration_fixture_state();
     anj_t anj = { 0 };
     _anj_dm_initialize(&anj);
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj_1));
@@ -3671,6 +3741,7 @@ ANJ_UNIT_TEST(dm_integration, delete_object_observation_update) {
 
 #ifdef ANJ_WITH_OBSERVE_COMPOSITE
 ANJ_UNIT_TEST(dm_integration, add_object_observation_update) {
+    reset_dm_integration_fixture_state();
     anj_t anj = { 0 };
     _anj_dm_initialize(&anj);
 

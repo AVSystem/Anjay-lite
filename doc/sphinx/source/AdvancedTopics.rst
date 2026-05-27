@@ -13,6 +13,7 @@ Advanced Topics
    :titlesonly:
 
    AdvancedTopics/AT-ClientLogic
+   AdvancedTopics/AT-ConnectivityErrors
    AdvancedTopics/AT-Observations
    AdvancedTopics/AT-Bootstrap
    AdvancedTopics/AT-QueueMode

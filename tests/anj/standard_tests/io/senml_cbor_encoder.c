@@ -52,7 +52,7 @@ static void senml_cbor_test_setup(senml_cbor_test_env_t *env,
 ANJ_UNIT_TEST(senml_cbor_encoder, empty_read) {
     senml_cbor_test_env_t env = { 0 };
     anj_uri_path_t base_path = ANJ_MAKE_INSTANCE_PATH(3, 3);
-    senml_cbor_test_setup(&env, &base_path, 0, ANJ_OP_DM_READ);
+    senml_cbor_test_setup(&env, &base_path, 0, _ANJ_OP_DM_READ);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.out_length));
     VERIFY_BYTES(env, "\x80");
@@ -63,7 +63,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder,
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_ROOT_PATH();
-    senml_cbor_test_setup(&env, &base_path, 1, ANJ_OP_INF_CON_SEND);
+    senml_cbor_test_setup(&env, &base_path, 1, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry = {
         .timestamp = 100000.0,
@@ -87,7 +87,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder,
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3);
-    senml_cbor_test_setup(&env, &base_path, 1, ANJ_OP_INF_CON_SEND);
+    senml_cbor_test_setup(&env, &base_path, 1, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry = {
         .timestamp = 100000.0,
@@ -111,7 +111,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder,
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_OBJECT_PATH(3);
-    senml_cbor_test_setup(&env, &base_path, 1, ANJ_OP_INF_CON_SEND);
+    senml_cbor_test_setup(&env, &base_path, 1, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry = {
         .timestamp = 100000.0,
@@ -135,7 +135,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, send_with_two_records_and_base_path) {
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_INSTANCE_PATH(3, 2);
-    senml_cbor_test_setup(&env, &base_path, 2, ANJ_OP_INF_CON_SEND);
+    senml_cbor_test_setup(&env, &base_path, 2, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry = {
         .timestamp = 100000.0,
@@ -172,7 +172,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, single_read_record_with_all_fields) {
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_INSTANCE_PATH(3, 3);
-    senml_cbor_test_setup(&env, &base_path, 1, ANJ_OP_DM_READ);
+    senml_cbor_test_setup(&env, &base_path, 1, _ANJ_OP_DM_READ);
 
     anj_io_out_entry_t entry = {
         .path = ANJ_MAKE_RESOURCE_PATH(3, 3, 3),
@@ -227,7 +227,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, largest_possible_size_of_single_msg) {
 ANJ_UNIT_TEST(senml_cbor_encoder, int) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -247,7 +247,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, int) {
 ANJ_UNIT_TEST(senml_cbor_encoder, uint) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -267,7 +267,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, uint) {
 ANJ_UNIT_TEST(senml_cbor_encoder, time) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -287,7 +287,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, time) {
 ANJ_UNIT_TEST(senml_cbor_encoder, bool) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -307,7 +307,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, bool) {
 ANJ_UNIT_TEST(senml_cbor_encoder, float) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -327,7 +327,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, float) {
 ANJ_UNIT_TEST(senml_cbor_encoder, double) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -347,7 +347,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, double) {
 ANJ_UNIT_TEST(senml_cbor_encoder, string) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -368,7 +368,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, string) {
 ANJ_UNIT_TEST(senml_cbor_encoder, bytes) {
     senml_cbor_test_env_t env = { 0 };
 
-    senml_cbor_test_setup(&env, NULL, 1, ANJ_OP_INF_NON_CON_NOTIFY);
+    senml_cbor_test_setup(&env, NULL, 1, _ANJ_OP_INF_NON_CON_NOTIFY);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -390,7 +390,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, bytes) {
 ANJ_UNIT_TEST(senml_cbor_encoder, path_outside_of_base_path) {
     senml_cbor_test_env_t env = { 0 };
     senml_cbor_test_setup(&env, &ANJ_MAKE_INSTANCE_PATH(8, 8), 1,
-                          ANJ_OP_INF_CON_SEND);
+                          _ANJ_OP_INF_CON_SEND);
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
         .path = ANJ_MAKE_RESOURCE_PATH(7, 7, 7),
@@ -443,7 +443,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, ext_string) {
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_ROOT_PATH();
-    senml_cbor_test_setup(&env, &base_path, 1, ANJ_OP_INF_CON_SEND);
+    senml_cbor_test_setup(&env, &base_path, 1, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -476,7 +476,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, ext_bytes) {
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_ROOT_PATH();
-    senml_cbor_test_setup(&env, &base_path, 1, ANJ_OP_INF_CON_SEND);
+    senml_cbor_test_setup(&env, &base_path, 1, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry = {
         .timestamp = NAN,
@@ -509,7 +509,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, ext_string_2_records) {
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_ROOT_PATH();
-    senml_cbor_test_setup(&env, &base_path, 2, ANJ_OP_INF_CON_SEND);
+    senml_cbor_test_setup(&env, &base_path, 2, _ANJ_OP_INF_CON_SEND);
 
     anj_io_out_entry_t entry_1 = {
         .timestamp = NAN,
@@ -602,7 +602,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, complex_notify_msg) {
     };
 
     senml_cbor_test_setup(&env, NULL, ANJ_ARRAY_SIZE(entries),
-                          ANJ_OP_INF_NON_CON_NOTIFY);
+                          _ANJ_OP_INF_NON_CON_NOTIFY);
 
     for (size_t i = 0; i < ANJ_ARRAY_SIZE(entries); i++) {
         size_t record_len = 0;
@@ -698,7 +698,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, complex_read_msg) {
     for (size_t chunk_len = 50; chunk_len < 370; chunk_len += 10) {
         env.out_length = 0;
         senml_cbor_test_setup(&env, &base_path, ANJ_ARRAY_SIZE(entries),
-                              ANJ_OP_DM_READ);
+                              _ANJ_OP_DM_READ);
 
         for (size_t i = 0; i < ANJ_ARRAY_SIZE(entries); i++) {
             size_t record_len = 0;
@@ -766,7 +766,7 @@ ANJ_UNIT_TEST(senml_cbor_encoder, read_error) {
     senml_cbor_test_env_t env = { 0 };
 
     anj_uri_path_t base_path = ANJ_MAKE_INSTANCE_PATH(3, 3);
-    senml_cbor_test_setup(&env, &base_path, 1, ANJ_OP_DM_READ);
+    senml_cbor_test_setup(&env, &base_path, 1, _ANJ_OP_DM_READ);
 
     anj_io_out_entry_t entry_1 = {
         .path = ANJ_MAKE_RESOURCE_PATH(1, 3, 3),

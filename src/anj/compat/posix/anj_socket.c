@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 58
 
@@ -397,7 +397,7 @@ static int net_addrinfo_resolve(anj_net_ctx_posix_impl_t *ctx,
 
     update_ports(*servinfo, port_in_net_order);
 
-    net_log(L_DEBUG, "Address resolved successfully for %s:%u", hostname,
+    net_log(L_TRACE, "Address resolved successfully for %s:%u", hostname,
             ntohs(port_in_net_order));
 
     return ANJ_NET_OK;
@@ -435,8 +435,6 @@ static int net_connect_internal(anj_net_ctx_posix_impl_t *ctx,
             return ret;
         }
     }
-
-    net_log(L_DEBUG, "Connecting to %s:%s", hostname, port_str);
 
     struct addrinfo *addr = *serverinfo;
     if (!addr) {
@@ -479,7 +477,6 @@ net_connect(anj_net_ctx_t *ctx_, const char *hostname, const char *port_str) {
     }
 
     if (ret == ANJ_NET_OK) {
-        net_log(L_TRACE, "Connected");
         ctx->state = ANJ_NET_SOCKET_STATE_CONNECTED;
     } else if (ret != ANJ_NET_EINPROGRESS) {
         net_close_internal(ctx);
@@ -693,7 +690,7 @@ static int net_get_opt(anj_net_ctx_t *ctx_,
     case ANJ_POSIX_SOCKET_OPT_INNER_MTU:
         return get_inner_mtu(ctx, (int32_t *) out_value);
     default:
-        net_log(L_ERROR, "get option: unknow or unsupported option key %d",
+        net_log(L_ERROR, "Get option: unknown or unsupported option key %d",
                 (int) opt_key);
         return ANJ_NET_EINVAL;
     }

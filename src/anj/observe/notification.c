@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 45
 
@@ -24,6 +24,7 @@
 #include <anj/utils.h>
 
 #include "../dm/dm_integration.h"
+#include "../utils.h"
 #include "observe.h"
 #include "observe_internal.h"
 
@@ -64,7 +65,6 @@ static int read_resource_value(anj_t *anj,
     if ((result = _anj_dm_observe_read_resource(
                  anj, &current_res_value, current_res_type, &res_multi,
                  &ctx->processing_observation->path))) {
-        observe_log(L_WARNING, "Can't read resource");
         _anj_observe_remove_observation(ctx);
         return result;
     } else {
@@ -164,7 +164,8 @@ static void notification_exchange_completion(void *arg_ptr,
     _anj_dm_observe_finalize_operation(anj, result);
     if (result == _ANJ_EXCHANGE_RESULT_SUCCESS) {
         mark_notification_as_sent(ctx);
-        observe_log(L_INFO, "Notification sent");
+        observe_log(L_INFO, "Notification sent (%s)",
+                    _ANJ_DEBUG_COAP_TOKEN(&ctx->processing_observation->token));
         return;
     }
 #    ifndef ANJ_OBSERVE_OBSERVATION_CANCEL_ON_TIMEOUT
@@ -172,7 +173,8 @@ static void notification_exchange_completion(void *arg_ptr,
         mark_notification_as_sent(ctx);
         observe_log(L_WARNING,
                     "Timeout while waiting for notification ACK, "
-                    "but observation will be kept");
+                    "but observation will be kept (%s)",
+                    _ANJ_DEBUG_COAP_TOKEN(&ctx->processing_observation->token));
         return;
     }
 #    endif // ANJ_OBSERVE_OBSERVATION_CANCEL_ON_TIMEOUT
@@ -180,7 +182,7 @@ static void notification_exchange_completion(void *arg_ptr,
     if (result == _ANJ_EXCHANGE_ERROR_SERVER_RESPONSE) {
         observe_log(L_ERROR, "Server rejected notification");
     } else {
-        observe_log(L_ERROR, "Notification sending failed: %d", result);
+        observe_log(L_ERROR, "Notification sending failed");
     }
     _anj_observe_remove_observation(ctx);
 }
@@ -228,16 +230,16 @@ static int create_notification(anj_t *anj,
     }
 
     out_msg->operation =
-            con_attr ? ANJ_OP_INF_CON_NOTIFY : ANJ_OP_INF_NON_CON_NOTIFY;
+            con_attr ? _ANJ_OP_INF_CON_NOTIFY : _ANJ_OP_INF_NON_CON_NOTIFY;
 #    else  // ANJ_WITH_LWM2M12
-    out_msg->operation = ANJ_OP_INF_NON_CON_NOTIFY;
+    out_msg->operation = _ANJ_OP_INF_NON_CON_NOTIFY;
     (void) server_state; // suppress unused parameter warning
 #    endif // ANJ_WITH_LWM2M12
     // send a confirmable notification at least once every 24 hours
     if (anj_time_monotonic_geq(
                 anj_time_monotonic_now(),
                 ctx->processing_observation->next_conf_notify_timestamp)) {
-        out_msg->operation = ANJ_OP_INF_CON_NOTIFY;
+        out_msg->operation = _ANJ_OP_INF_CON_NOTIFY;
     }
 
     // set token
@@ -251,7 +253,8 @@ static int create_notification(anj_t *anj,
     sync_composite_observe_number(ctx->processing_observation);
 #    endif
     _anj_observe_refresh_timestamp(ctx, anj_time_monotonic_now(),
-                                   out_msg->operation == ANJ_OP_INF_CON_NOTIFY);
+                                   out_msg->operation
+                                           == _ANJ_OP_INF_CON_NOTIFY);
     return 0;
 }
 
@@ -357,6 +360,12 @@ observe_process_or_get_time(anj_t *anj,
             if (get_time) {
                 *time_to_next_notif = ANJ_TIME_DURATION_ZERO;
             } else {
+                observe_log(L_DEBUG, "%s",
+                            ctx->processing_observation->notification_to_send
+                                    ? "Sending notification triggered by value "
+                                      "change"
+                                    : "Sending notification triggered by max "
+                                      "period expiration");
                 ret_val = create_notification(anj, out_handlers, server_state,
                                               out_msg);
             }
@@ -584,6 +593,9 @@ int anj_observe_data_model_changed(anj_t *anj,
                     && !ctx->observations[i].prev
 #    endif // ANJ_WITH_OBSERVE_COMPOSITE
             ) {
+                observe_log(L_WARNING,
+                            "Removing observation due to deletion of "
+                            "observed path");
                 ctx->processing_observation = &ctx->observations[i];
                 _anj_observe_remove_observation(ctx);
             }

@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 17
 
@@ -33,7 +33,7 @@ static anj_iid_t find_free_iid(const anj_dm_obj_t *obj) {
             return idx;
         }
     }
-    ANJ_UNREACHABLE("object has more than 65534 instances");
+    ANJ_UNREACHABLE("Object has more than 65534 instances");
     return 0;
 }
 
@@ -44,43 +44,28 @@ int _anj_dm_begin_create_op(anj_t *anj, const anj_uri_path_t *base_path) {
     dm->op_ctx.write_ctx.path = *base_path;
     dm->op_ctx.write_ctx.instance_creation_attempted = false;
 
-    const anj_dm_obj_t *obj;
-    int result = _anj_dm_get_obj_ptr_ensure_transaction_begin(
-            anj, base_path->ids[ANJ_ID_OID], &obj);
-    if (result) {
-        return result;
-    }
-    result = _anj_dm_get_obj_ptrs(obj, base_path, &dm->entity_ptrs);
-    if (result) {
-        return result;
-    }
-    uint16_t inst_count = _anj_dm_count_obj_insts(obj);
-    if (inst_count >= obj->max_inst_count) {
-        dm_log(L_ERROR, "Maximum number of instances reached");
-        result = ANJ_DM_ERR_METHOD_NOT_ALLOWED;
-    }
-    return result;
+    return _anj_dm_get_obj_ptr_ensure_transaction_begin(
+            anj, base_path->ids[ANJ_ID_OID], &dm->entity_ptrs.obj);
 }
 
 int _anj_dm_create_object_instance(anj_t *anj, anj_iid_t iid) {
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress
-           && (dm->operation == ANJ_OP_DM_CREATE
-               || (dm->operation == ANJ_OP_DM_WRITE_REPLACE
+           && (dm->operation == _ANJ_OP_DM_CREATE
+               || (dm->operation == _ANJ_OP_DM_WRITE_REPLACE
                    && dm->bootstrap_operation))
            && !dm->op_ctx.write_ctx.instance_creation_attempted);
     const anj_dm_obj_t *obj = dm->entity_ptrs.obj;
-
     if (_anj_dm_count_obj_insts(obj) >= obj->max_inst_count) {
-        dm_log(L_ERROR, "Maximum number of instances reached");
+        dm_log(L_ERROR,
+               "Maximum number of instances reached for object /%" PRIu16,
+               obj->oid);
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
     if (iid == ANJ_ID_INVALID) {
         iid = find_free_iid(obj);
         dm->iid_provided = false;
-        dm_log(L_DEBUG,
-               "Creating instance with auto-generated IID: %" PRIu16,
-               iid);
+        dm_log(L_DEBUG, "Creating new instance with auto-generated IID");
     } else {
         dm->iid_provided = true;
         for (uint16_t idx = 0; idx < obj->max_inst_count; idx++) {
@@ -92,13 +77,13 @@ int _anj_dm_create_object_instance(anj_t *anj, anj_iid_t iid) {
     }
 
     if (!obj->handlers->inst_create) {
-        dm_log(L_ERROR, "inst_create handler not defined");
+        dm_log(L_ERROR, "Object handler not defined");
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
 
     int result = obj->handlers->inst_create(anj, obj, iid);
     if (result) {
-        dm_log(L_ERROR, "inst_create failed");
+        dm_log(L_ERROR, "Instance create handler failed");
         return result;
     }
 
@@ -112,8 +97,6 @@ int _anj_dm_create_object_instance(anj_t *anj, anj_iid_t iid) {
     assert(dm->entity_ptrs.inst);
     assert(!_anj_dm_check_obj_instance(obj, dm->entity_ptrs.inst));
 
-    dm_log(L_DEBUG, "Created /%" PRIu16 "/%" PRIu16, obj->oid, iid);
-
     dm->op_ctx.write_ctx.path.ids[ANJ_ID_IID] = iid;
     dm->op_ctx.write_ctx.instance_creation_attempted = true;
     if (!dm->bootstrap_operation) {
@@ -123,5 +106,6 @@ int _anj_dm_create_object_instance(anj_t *anj, anj_iid_t iid) {
                 ANJ_CORE_CHANGE_TYPE_ADDED,
                 dm->ssid);
     }
+    dm_log(L_INFO, "Instance created successfully IID=%" PRIu16, iid);
     return 0;
 }

@@ -379,7 +379,7 @@ of multiple values in a single notification.
     notifications.
 
 .. warning::
-    It is a :ref:`known issue <notification-payload-may-not-reflect-threshold-breach>`
+    It is a :ref:`known issue <notification-payload-may-not-reflect-threshold-crossing>`
     that in certain cases, a notification may be triggered, but the actual
     notification payload does not reflect the threshold breach that caused
     the notification to be sent.
