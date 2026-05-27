@@ -7,10 +7,11 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 51
 
+// IWYU pragma: no_include "anj/init.h"
 #include <assert.h>
 #include <inttypes.h> // IWYU pragma: keep
 #include <stdarg.h>

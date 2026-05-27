@@ -125,7 +125,7 @@ cmake ..
 make doc
 ```
 
-The generated documentation will be available in the `doc/build` directory.
+The generated documentation will be available in the `build/doc/html` directory.
 
 ### Configuring the MbedTLS
 

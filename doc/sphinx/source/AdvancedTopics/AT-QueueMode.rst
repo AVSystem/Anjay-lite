@@ -55,7 +55,8 @@ Update the configuration structure to enable Queue Mode:
     ``queue_mode_timeout`` is set via Anjay Lite's Time API. For more details,
     see :doc:`Time API <../PortingGuideForNonPOSIXPlatforms/TimeAPI>`.
 
-.. code-block:: c
+.. highlight:: c
+.. snippet-source:: examples/tutorial/AT-QueueMode/src/main.c
 
     anj_configuration_t config = {
         .endpoint_name = argv[1],
@@ -97,74 +98,60 @@ seconds.
 Switch to power-saving mode
 ---------------------------
 
-When Queue Mode is enabled, Anjay Lite automatically switches the client to an
-offline state after a period of inactivity. During this time, the device can
-enter a low-power mode to conserve energy.
+When Queue Mode is enabled, Anjay Lite may spend long periods without any
+immediate work to do. During such periods, the device can enter a low-power
+state and wake up only when the next call to ``anj_core_step()`` is required.
 
 .. note::
     This example uses the POSIX function ``clock_nanosleep`` to simulate
     low-power mode. This call does not reduce the device's actual power
     usage but illustrates how you can integrate real power management.
 
-First, let's define the callback that will be called when the status of the
-server connection changes:
+In this example, the main loop calls ``anj_core_step()`` regularly and then
+uses ``anj_core_next_step_time()`` to check how long the client may stay idle:
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-QueueMode/src/main.c
 
-    static void connection_status_callback(void *arg,
-                                           anj_t *anj,
-                                           anj_conn_status_t conn_status) {
-        (void) arg;
+    while (true) {
+        anj_core_step(&anj);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
 
-        if (conn_status == ANJ_CONN_STATUS_QUEUE_MODE) {
-            anj_time_duration_t time = anj_core_next_step_time(anj);
+        anj_time_duration_t time = anj_core_next_step_time(&anj);
+        if (!anj_time_duration_eq(time, ANJ_TIME_DURATION_ZERO)) {
             uint64_t time_ms =
-                    (uint64_t) anj_time_duration_to_scalar(time, ANJ_TIME_UNIT_MS);
+                    (uint64_t) anj_time_duration_to_scalar(time,
+                                                           ANJ_TIME_UNIT_MS);
+            log(L_INFO, "Next action in %" PRIu64 " seconds", time_ms / 1000);
 
             // Simulate entering low power mode for period of time returned by
             // previous function
-            struct timespec ts = {
+            struct timespec sleep_time = {
                 // Warning: unchecked cast
                 .tv_sec = (time_t) (time_ms / 1000),
                 .tv_nsec = (long) ((time_ms % 1000) * 1000000L)
             };
-            clock_nanosleep(CLOCK_MONOTONIC, 0, &ts, NULL);
+            nanosleep(&sleep_time, NULL);
         }
     }
 
 **How it works**
 
-    - ``ANJ_CONN_STATUS_QUEUE_MODE`` — indicates that the client has switched
-      to offline mode and will not receive any new messages.
-    - ``anj_core_next_step_time()`` — returns the ``anj_time_duration_t`` until
-      the next call to ``anj_core_step()`` is required. Use this value to
-      determine how long the device can stay in power-saving mode.
-
+- `anj_core_next_step_time() <../api/api_generated/function_core_8h_1a9bd5d4796c7d94ab81db405d17291901.html>`_
+  returns the time remaining until the next call to ``anj_core_step()`` is required.
+- When the returned value is non-zero, the application may use it to sleep or
+  enter a low-power state.
+- This is useful not only in Queue Mode. A non-zero value may also be returned
+  in other low-activity states, for example when the client is waiting for the
+  next scheduled registration retry attempt. Check the documentation of
+  ``anj_core_next_step_time()`` for more details.
 
 .. note::
-    If you call ``anj_observe_data_model_changed`` after putting the device
+    If you call ``anj_observe_data_model_changed()`` after putting the device
     into power-saving mode, the time previously returned by
-    ``anj_core_next_step_time`` may no longer be valid; in that case, call the
+    ``anj_core_next_step_time()`` may no longer be valid; in that case, call the
     function again and use the updated time value.
-
-Next, update the configuration:
-
-.. highlight:: c
-.. snippet-source:: examples/tutorial/AT-QueueMode/src/main.c
-    :emphasize-lines: 5
-
-    anj_configuration_t config = {
-        .endpoint_name = argv[1],
-        .queue_mode_enabled = true,
-        .queue_mode_timeout = anj_time_duration_new(5, ANJ_TIME_UNIT_S),
-        .connection_status_cb = connection_status_callback
-    };
-    if (anj_core_init(&anj, &config)) {
-        log(L_ERROR, "Failed to initialize Anjay Lite");
-        return -1;
-    }
-
 
 NAT awareness
 -------------

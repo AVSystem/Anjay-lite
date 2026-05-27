@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef SRC_ANJ_COAP_COMMON_H
 #    define SRC_ANJ_COAP_COMMON_H
@@ -36,7 +36,7 @@
             return Val;        \
         }
 
-#    define _ANJ_COAP_MESSAGE_ID_LEN 2
+#    define _ANJ_COAP_MESSAGE_ID_LEN 2U
 typedef struct {
     uint8_t version;
     uint8_t type;

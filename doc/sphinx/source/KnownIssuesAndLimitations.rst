@@ -34,18 +34,18 @@ again only after the client is online/enabled.
 LwM2M 1.2 defines the ``/1/x/6`` Resource (default: ``true``) and the ``hqmax``
 attribute for historical queuing, but neither has any effect in this client.
 
-.. _notification-payload-may-not-reflect-threshold-breach:
+.. _notification-payload-may-not-reflect-threshold-crossing:
 
-Notification payload may not reflect threshold breach
------------------------------------------------------
+Notification payload may not reflect threshold crossing
+-------------------------------------------------------
 
 In certain cases, a notification may be triggered when the observed value
 crosses a threshold (for example, configured using the **gt** attribute),
-but the actual notification is not sent immediately. If the value later
-returns below (or above) that threshold before the notification message is
-constructed, the server will receive a notification containing a value that
-itself would not have caused the notification to be triggered. This applies
-to all value-based attributes: **lt**, **gt**, **st** and **edge**.
+but the actual notification is not sent immediately. If the value goes back
+below (or above) that threshold before the notification message is constructed,
+the server will receive a notification containing the new value that itself would
+not have caused the notification to be triggered. This applies to all value-based 
+attributes: **lt**, **gt**, **st** and **edge**.
 
 .. _default-value-of-multi-instance-resource:
 
@@ -87,3 +87,18 @@ Anjay Lite does not support:
  - Handling block-wise server requests where Block2 starts from a block other than NUM=0 - the LwM2M
    Server cannot force Anjay Lite to start sending the response from a non-zero block offset or resume a
    block-wise response from the middle of the transfer.
+
+.. _oscore_limitations:
+
+OSCORE limitations
+------------------
+
+Anjay Lite has some limitations related to OSCORE support:
+- When using OSCORE Appendix B2, Context ID negotiation may collide with an
+  ongoing block-wise transfer. If the server attempts to start B2 in the
+  middle of such a transfer, Anjay Lite rejects the B2 procedure and
+  terminates the current exchange. For client-initiated exchanges, this may
+  result in fallback to re-registration, potentially followed by a new B2
+  negotiation during Register. B2 is still allowed when it starts on the
+  first block of the transfer, as this is required to support block-wise
+  registration and other first-block exchanges.

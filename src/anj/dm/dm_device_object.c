@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 19
 
@@ -213,7 +213,7 @@ int anj_dm_device_obj_install(anj_t *anj,
     }
     int res = anj_dm_add_obj(anj, &device_obj->obj);
     if (!res) {
-        dm_log(L_INFO, "Device object installed");
+        dm_log(L_INFO, "Device Object installed");
     }
     return res;
 }

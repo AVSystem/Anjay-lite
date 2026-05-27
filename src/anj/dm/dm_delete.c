@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 18
 
@@ -22,22 +22,27 @@
 #include <anj/utils.h>
 
 #include "../core/core.h"
+#include "../utils.h"
 #include "dm_core.h"
 
 static int delete_instance(anj_t *anj) {
     _anj_dm_data_model_t *dm = &anj->dm;
     const anj_dm_obj_t *obj = dm->entity_ptrs.obj;
+
+    dm_log(L_DEBUG,
+           "Deleting /%" PRIu16 "/%" PRIu16,
+           obj->oid,
+           dm->entity_ptrs.inst->iid);
     if (!obj->handlers->inst_delete) {
-        dm_log(L_ERROR, "inst_delete handler not defined");
+        dm_log(L_ERROR, "Object handler not defined");
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
     anj_iid_t deleted_iid = dm->entity_ptrs.inst->iid;
-    int ret = obj->handlers->inst_delete(anj, obj, deleted_iid);
-    if (ret) {
-        dm_log(L_ERROR, "inst_delete failed");
-        return ret;
+    int res = obj->handlers->inst_delete(anj, obj, deleted_iid);
+    if (res) {
+        dm_log(L_ERROR, "Instance delete handler failed");
+        return res;
     }
-    dm_log(L_DEBUG, "Deleted /%" PRIu16 "/%" PRIu16, obj->oid, deleted_iid);
 
     if (!dm->bootstrap_operation) {
         _anj_core_data_model_changed_with_ssid(
@@ -49,6 +54,7 @@ static int delete_instance(anj_t *anj) {
     return 0;
 }
 
+#ifdef ANJ_WITH_BOOTSTRAP
 static bool is_oscore_bootstrap_instance(anj_t *anj) {
     _anj_dm_data_model_t *dm = &anj->dm;
     const anj_dm_obj_t *security_object =
@@ -83,7 +89,6 @@ static bool is_oscore_bootstrap_instance(anj_t *anj) {
     return false;
 }
 
-#ifdef ANJ_WITH_BOOTSTRAP
 static bool is_bootstrap_instance(anj_t *anj) {
     _anj_dm_data_model_t *dm = &anj->dm;
     if (dm->entity_ptrs.obj->oid == ANJ_OBJ_ID_SECURITY) {
@@ -108,7 +113,7 @@ static bool is_bootstrap_instance(anj_t *anj) {
 static int process_bootstrap_delete_op(anj_t *anj,
                                        const anj_uri_path_t *base_path) {
     if (anj_uri_path_has(base_path, ANJ_ID_RID)) {
-        dm_log(L_ERROR, "Invalid path");
+        dm_log(L_ERROR, "Invalid path %s", _ANJ_DEBUG_URI_PATH(base_path));
         return ANJ_DM_ERR_BAD_REQUEST;
     }
 
@@ -174,7 +179,7 @@ int _anj_dm_process_delete_op(anj_t *anj, const anj_uri_path_t *base_path) {
     if (!dm->bootstrap_operation
             && (anj_uri_path_is(base_path, ANJ_ID_OID)
                 || anj_uri_path_is(base_path, ANJ_ID_RID))) {
-        dm_log(L_ERROR, "Invalid path");
+        dm_log(L_ERROR, "Invalid path %s", _ANJ_DEBUG_URI_PATH(base_path));
         return ANJ_DM_ERR_BAD_REQUEST;
     }
 
@@ -211,17 +216,18 @@ int _anj_dm_delete_res_instance(anj_t *anj) {
     const anj_dm_res_t *res = dm->entity_ptrs.res;
     anj_iid_t deleted_riid = dm->entity_ptrs.riid;
 
+    dm_log(L_DEBUG, "Deleting RIID=%" PRIu16, deleted_riid);
+
     if (!obj->handlers->res_inst_delete) {
-        dm_log(L_ERROR, "res_inst_delete handler not defined");
+        dm_log(L_ERROR, "Object handler not defined");
         return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
     }
     int ret = obj->handlers->res_inst_delete(anj, obj, inst->iid, res->rid,
                                              deleted_riid);
     if (ret) {
-        dm_log(L_ERROR, "res_inst_delete failed");
+        dm_log(L_ERROR, "Resource instance delete handler failed");
         return ret;
     }
-    dm_log(L_DEBUG, "Deleted RIID=%" PRIu16, deleted_riid);
 
     if (!dm->bootstrap_operation) {
         _anj_core_data_model_changed_with_ssid(

@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef SRC_ANJ_DM_DM_CORE_H
 #    define SRC_ANJ_DM_DM_CORE_H
@@ -93,7 +93,11 @@ static inline bool _anj_dm_is_multi_instance_resource(anj_dm_res_kind_t kind) {
            || kind == ANJ_DM_RES_RWM;
 }
 
-const anj_dm_obj_t *_anj_dm_find_obj(_anj_dm_data_model_t *dm, anj_oid_t oid);
+const anj_dm_obj_t *_anj_dm_find_obj(const _anj_dm_data_model_t *dm,
+                                     anj_oid_t oid);
+
+const anj_dm_obj_inst_t *_anj_dm_find_inst(const anj_dm_obj_t *obj,
+                                           anj_iid_t iid);
 
 bool _anj_dm_res_inst_exists(const anj_dm_res_t *res, anj_riid_t riid);
 

@@ -296,10 +296,24 @@ void anj_core_step(anj_t *anj);
  *
  * However, in certain low-activity states, this function may return a positive
  * value:
- * - If the client is in @ref ANJ_CONN_STATUS_SUSPENDED, the value indicates
- *   the remaining time until the scheduled wake-up.
- * - If the client is in @ref ANJ_CONN_STATUS_QUEUE_MODE, the value reflects
- *   the time remaining until the next scheduled Update or Notification.
+ * - If the client is in @ref ANJ_CONN_STATUS_SUSPENDED state, the value
+ *   indicates the remaining time until the scheduled wake-up.
+ * - If the client is in @ref ANJ_CONN_STATUS_QUEUE_MODE state, the value
+ *   reflects the time remaining until the next scheduled Update or
+ *   Notification.
+ * - If the client is in the @ref ANJ_CONN_STATUS_REGISTERING state, the value
+ *   indicates the time until the next registration-related action. It is
+ *   @ref ANJ_TIME_DURATION_ZERO while a registration attempt is in progress
+ *   and before the first attempt is made. If a retry has been scheduled, the
+ *   value indicates the remaining time until that retry attempt.
+ * - If the client is in the @ref ANJ_CONN_STATUS_BOOTSTRAPPING state, the
+ *   value is @ref ANJ_TIME_DURATION_ZERO while the Bootstrap attempt is in
+ *   progress. Before the first Bootstrap attempt, the value is also
+ *   @ref ANJ_TIME_DURATION_ZERO, unless the `Client Hold Off Time` Resource
+ *   is set, in which case it indicates the remaining time until the first
+ *   Bootstrap attempt. If the previous attempt has failed and another one is
+ *   scheduled, the value indicates the remaining time until the next retry
+ *   attempt.
  *
  * This function is useful for optimizing power consumption or sleeping,
  * allowing the main loop to wait the appropriate amount of time before calling
@@ -313,9 +327,6 @@ void anj_core_step(anj_t *anj);
  * @note Returned value might become outdated if @ref anj_core_change_type_t is
  *       called after this function returns. In such case, the application
  *       should call @ref anj_core_next_step_time again to get an updated value.
- *
- * This function allows the integration layer to optimize power consumption
- * or sleep scheduling by delaying calls to @ref anj_core_step until necessary.
  *
  * @param anj Anjay object to operate on.
  *

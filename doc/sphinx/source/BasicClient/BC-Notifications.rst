@@ -219,7 +219,8 @@ Call the function in the main loop
             if (!anj_core_ongoing_operation(&anj)) {
                 update_temperature_obj_value(&anj);
             }
-            usleep(50 * 1000);
+            struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+            nanosleep(&ts, NULL);
         }
         return 0;
     }

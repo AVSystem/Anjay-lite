@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 6
 
@@ -16,6 +16,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+
+#include <anj/log.h>
+#include <anj/utils.h>
 
 #include "../utils.h"
 #include "coap.h"
@@ -38,6 +41,8 @@
 
 #define _ANJ_COAP_EXT_U8_BASE ((int) 13)
 #define _ANJ_COAP_EXT_U16_BASE ((int) 269)
+
+#define log(...) anj_log(coap, __VA_ARGS__)
 
 static int update_extended_option(uint16_t *value,
                                   const uint8_t **buff_pointer,
@@ -160,6 +165,7 @@ int _anj_coap_options_add_data(anj_coap_options_t *opts,
 
     if (opts->options_number == opts->options_size) {
         // there is no space for new option
+        log(L_ERROR, "ANJ_COAP_MAX_OPTIONS_NUMBER exceeded");
         return _ANJ_ERR_OPTIONS_ARRAY;
     }
 
@@ -458,6 +464,7 @@ int _anj_coap_options_decode(anj_coap_options_t *opts,
         }
         if (opts->options_number == opts->options_size) {
             // we reach the limit before 0xFF marker -> return error
+            log(L_ERROR, "ANJ_COAP_MAX_OPTIONS_NUMBER exceeded");
             return _ANJ_ERR_OPTIONS_ARRAY;
         }
 

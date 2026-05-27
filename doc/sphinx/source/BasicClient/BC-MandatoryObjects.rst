@@ -172,7 +172,8 @@ function:
 
         while (true) {
             anj_core_step(&anj);
-            usleep(50 * 1000);
+            struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+            nanosleep(&ts, NULL);
         }
         return 0;
     }
@@ -186,11 +187,10 @@ function:
 Logs example
 ~~~~~~~~~~~~
 
-After running the client, you should see ``registration successful, location =
-/rd/<server-dependent identifier>`` once and ``registration successfully
-updated`` every 25 seconds in logs. It means, that the client has connected to
-the server and successfully sends Update messages. You can now perform
-operations like Read from the server side.
+After running the client, you should see ``Registered successfully`` once and
+``Updated successfully`` every 25 seconds in logs. It means, that the client
+has connected to the server and successfully sends Update messages. You can
+now perform operations like Read from the server side.
 
 Application events
 ^^^^^^^^^^^^^^^^^^

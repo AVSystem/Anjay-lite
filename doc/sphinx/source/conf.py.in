@@ -16,7 +16,7 @@ copyright = f'{datetime.datetime.now().year}, AVSystem'
 author = 'AVSystem'
 
 # The X.Y.Z version.
-version = '@DOC_VERSION@'
+version = '@ANJAY_LITE_VERSION@'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -24,7 +24,7 @@ version = '@DOC_VERSION@'
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.abspath('extensions'))
+sys.path.insert(0, '@SPHINX_DIR@/extensions')
 
 extensions = [
     'sphinx_copybutton',
@@ -32,18 +32,19 @@ extensions = [
     'sphinx_rtd_theme',
     'snippet_source',
     'builders.snippet_source_linter',
-    'builders.snippet_source_list_references'
+    'builders.snippet_source_list_references',
+    'sphinx_sitemap'
 ]
 
-templates_path = ['_templates']
+templates_path = ['@CURRENT_TEMPLATES_DIR@']
 exclude_patterns = []
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
 html_theme = 'sphinx_rtd_theme'
-html_logo = '@SPHINX_SOURCE@/avsystem_header.png'
-html_static_path = ['@SPHINX_SOURCE@/_static']
+html_logo = '@SPHINX_DIR@/avsystem_header.png'
+html_static_path = ['@SPHINX_DIR@/source/_static']
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -61,4 +62,6 @@ html_css_files = [
 # Add any paths that contain custom themes here, relative to this directory.
 html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
-
+# sitemap required url
+html_baseurl = 'https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/'
+sitemap_url_scheme = "{link}"

@@ -22,7 +22,7 @@
 
 #define TEST_ENV(Data, Path, PayloadFinished)                                \
     _anj_io_in_ctx_t ctx;                                                    \
-    ASSERT_OK(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,      \
+    ASSERT_OK(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,     \
                                   &(Path), _ANJ_COAP_FORMAT_OPAQUE_STREAM)); \
     const anj_res_value_t *value = NULL;                                     \
     const anj_uri_path_t *path = NULL;                                       \

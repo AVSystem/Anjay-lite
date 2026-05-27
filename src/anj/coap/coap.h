@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_H
 #    define ANJ_H
@@ -21,6 +21,11 @@
 #    define ANJ_INTERNAL_INCLUDE_COAP
 #    include <anj_internal/coap.h>
 #    undef ANJ_INTERNAL_INCLUDE_COAP
+
+typedef enum {
+    _ANJ_COAP_OUTGOING_MSG_KIND_REQUEST,
+    _ANJ_COAP_OUTGOING_MSG_KIND_RESPONSE
+} _anj_coap_outgoing_msg_kind_t;
 
 /**
  * CoAP Content-Formats, as defined in "Constrained RESTful Environments (CoRE)
@@ -60,20 +65,18 @@
 
 /** Invalid input arguments. */
 #    define _ANJ_ERR_INPUT_ARG (-1)
-/** Not supported binding type */
-#    define _ANJ_ERR_BINDING (-2)
 /** Options array is not big enough */
-#    define _ANJ_ERR_OPTIONS_ARRAY (-3)
+#    define _ANJ_ERR_OPTIONS_ARRAY (-2)
 /** @ref ANJ_COAP_MAX_ATTR_OPTION_SIZE is too small */
-#    define _ANJ_ERR_ATTR_BUFF (-4)
+#    define _ANJ_ERR_ATTR_BUFF (-3)
 /** Malformed CoAP message. */
-#    define _ANJ_ERR_MALFORMED_MESSAGE (-5)
+#    define _ANJ_ERR_MALFORMED_MESSAGE (-4)
 /** No space in buffer. */
-#    define _ANJ_ERR_BUFF (-6)
+#    define _ANJ_ERR_BUFF (-5)
 /** COAP message not supported or not recognized. */
-#    define _ANJ_ERR_COAP_BAD_MSG (-7)
+#    define _ANJ_ERR_COAP_BAD_MSG (-6)
 /** Location paths number oversizes @ref ANJ_COAP_MAX_LOCATION_PATHS_NUMBER */
-#    define _ANJ_ERR_LOCATION_PATHS_NUMBER (-8)
+#    define _ANJ_ERR_LOCATION_PATHS_NUMBER (-7)
 
 /**
  * Maximum possible size of CoAP ACK message without payload.
@@ -134,16 +137,18 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
 /**
  * Returns the maximum possible size of the CoAP message without payload. This
  * value is used to calculate the maximum size of single chunk of payload.
- * Should be used for client initiated exchanges. For server initiated exchanges
- * use @ref _ANJ_COAP_UDP_RESPONSE_MSG_HEADER_MAX_SIZE. In order to optimize the
- * code, the calculations performed are not precise and for some types of
- * messages the resulting size may be several bytes smaller than the calculated
- * one.
+ * To optimize the code, the calculations performed are not precise and for some
+ * types of messages the resulting size may be several bytes smaller than the
+ * calculated one.
  *
- * @param   msg   Prepared LwM2M message.
+ * @param   msg                Prepared LwM2M message.
+ * @param   outgoing_msg_kind  Indicates whether the outgoing message is a
+ *                             request or a response.
  *
  * @return  Maximum possible size of the CoAP message without payload.
  */
-size_t _anj_coap_calculate_msg_header_max_size(const _anj_coap_msg_t *msg);
+size_t _anj_coap_calculate_msg_header_max_size(
+        const _anj_coap_msg_t *msg,
+        _anj_coap_outgoing_msg_kind_t outgoing_msg_kind);
 
 #endif // ANJ_H

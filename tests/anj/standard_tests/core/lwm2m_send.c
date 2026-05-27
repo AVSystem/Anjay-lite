@@ -274,23 +274,13 @@ ANJ_UNIT_TEST(lwm2m_send, new_send_errors) {
 
     PROCESS_REGISTRATION();
 
-    send_req.finished_handler = NULL;
-    ANJ_UNIT_ASSERT_EQUAL(anj_send_new_request(&anj, &send_req, NULL),
-                          ANJ_SEND_ERR_DATA_NOT_VALID);
-    send_req.finished_handler = send_finished_handler;
-    send_req.records = NULL;
-    ANJ_UNIT_ASSERT_EQUAL(anj_send_new_request(&anj, &send_req, NULL),
-                          ANJ_SEND_ERR_DATA_NOT_VALID);
-    send_req.records = &default_record_1;
-    send_req.records_cnt = 0;
-    ANJ_UNIT_ASSERT_EQUAL(anj_send_new_request(&anj, &send_req, NULL),
-                          ANJ_SEND_ERR_DATA_NOT_VALID);
-    send_req.records_cnt = 1;
+    // invalid record path
     default_record_1.path = ANJ_MAKE_INSTANCE_PATH(1, 2);
     ANJ_UNIT_ASSERT_EQUAL(anj_send_new_request(&anj, &send_req, NULL),
                           ANJ_SEND_ERR_DATA_NOT_VALID);
     default_record_1.path = ANJ_MAKE_RESOURCE_PATH(3, 0, 9);
 
+    // mute send enabled
     ser_obj.server_instance.mute_send = true;
     anj_core_data_model_changed(&anj,
                                 &ANJ_MAKE_RESOURCE_PATH(1, 1, 23),
@@ -906,7 +896,7 @@ ANJ_UNIT_TEST(lwm2m_send, read_payload_check) {
         _anj_coap_msg_t msg;
         memset(&msg, 0, sizeof(msg));
         _anj_lwm2m_send_process(&anj, &handlers, &msg);
-        ANJ_UNIT_ASSERT_EQUAL(msg.operation, ANJ_OP_INF_CON_SEND);
+        ANJ_UNIT_ASSERT_EQUAL(msg.operation, _ANJ_OP_INF_CON_SEND);
 
         uint8_t payload_buff[100] = { 0 };
         size_t total_len = 0;
@@ -1062,7 +1052,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(
                                       &anj.exchange_ctx, &msg, &handlers,
                                       anj.payload_buffer, buff_len),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected[] = "\x48"         // Confirmable, tkl 8
                           "\x02\x00\x00" // POST 0x02, msg id
@@ -1088,18 +1078,18 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
                 _anj_exchange_process(&anj.exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_WAITING_MSG);
+                _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
         // get response and prepare another block
-        msg.operation = ANJ_OP_RESPONSE;
-        msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+        msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&anj.exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected2[] = "\x48"         // Confirmable, tkl 8
                            "\x02\x00\x00" // POST 0x02, msg id
@@ -1123,18 +1113,18 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
                 _anj_exchange_process(&anj.exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_WAITING_MSG);
+                _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
         // get response
-        msg.operation = ANJ_OP_RESPONSE;
-        msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+        msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&anj.exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_FINISHED);
+                              _ANJ_EXCHANGE_STATE_FINISHED);
     }
     // successfully send external string, whole string in first message
     {
@@ -1153,7 +1143,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(
                                       &anj.exchange_ctx, &msg, &handlers,
                                       anj.payload_buffer, buff_len),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected[] = "\x48"         // Confirmable, tkl 8
                           "\x02\x00\x00" // POST 0x02, msg id
@@ -1178,18 +1168,18 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
                 _anj_exchange_process(&anj.exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_WAITING_MSG);
+                _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
         // get response and prepare another block
-        msg.operation = ANJ_OP_RESPONSE;
-        msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+        msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&anj.exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected2[] = "\x48"         // Confirmable, tkl 8
                            "\x02\x00\x00" // POST 0x02, msg id
@@ -1209,18 +1199,18 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
                 _anj_exchange_process(&anj.exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_WAITING_MSG);
+                _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
         // get response
-        msg.operation = ANJ_OP_RESPONSE;
-        msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+        msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&anj.exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_FINISHED);
+                              _ANJ_EXCHANGE_STATE_FINISHED);
     }
     // try send external string, exchange terminated
     {
@@ -1239,7 +1229,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(
                                       &anj.exchange_ctx, &msg, &handlers,
                                       anj.payload_buffer, buff_len),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected[] = "\x48"         // Confirmable, tkl 8
                           "\x02\x00\x00" // POST 0x02, msg id
@@ -1280,7 +1270,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(
                                       &anj.exchange_ctx, &msg, &handlers,
                                       anj.payload_buffer, buff_len),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
 
         char expected[] = "\x48"         // Confirmable, tkl 8
                           "\x02\x00\x00" // POST 0x02, msg id
@@ -1305,17 +1295,17 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
                 _anj_exchange_process(&anj.exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_WAITING_MSG);
+                _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
         // get reset
-        msg.operation = ANJ_OP_COAP_RESET;
+        msg.operation = _ANJ_OP_COAP_RESET;
         msg.msg_code = ANJ_COAP_CODE_EMPTY;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&anj.exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_FINISHED);
+                              _ANJ_EXCHANGE_STATE_FINISHED);
 
         ANJ_UNIT_ASSERT_TRUE(closed);
     }
@@ -1337,7 +1327,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(
                                       &anj.exchange_ctx, &msg, &handlers,
                                       anj.payload_buffer, buff_len),
-                              ANJ_EXCHANGE_STATE_FINISHED);
+                              _ANJ_EXCHANGE_STATE_FINISHED);
 
         ANJ_UNIT_ASSERT_TRUE(closed);
     }
@@ -1359,7 +1349,7 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_new_client_request(
                                       &anj.exchange_ctx, &msg, &handlers,
                                       anj.payload_buffer, buff_len),
-                              ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
         char expected[] = "\x48"         // Confirmable, tkl 8
                           "\x02\x00\x00" // POST 0x02, msg id
                           "\x00\x00\x00\x00\x00\x00\x00\x00" // Token
@@ -1382,18 +1372,18 @@ ANJ_UNIT_TEST(lwm2m_send, send_external_opaque) {
                 _anj_exchange_process(&anj.exchange_ctx,
                                       ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
                                       &msg),
-                ANJ_EXCHANGE_STATE_WAITING_MSG);
+                _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
         // get response, next external handler call will cause error
-        msg.operation = ANJ_OP_RESPONSE;
-        msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+        msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
         msg.msg_code = ANJ_COAP_CODE_CONTINUE;
         msg.payload_size = 0;
         msg.content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
         ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&anj.exchange_ctx,
                                                     ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                     &msg),
-                              ANJ_EXCHANGE_STATE_FINISHED);
+                              _ANJ_EXCHANGE_STATE_FINISHED);
 
         ANJ_UNIT_ASSERT_TRUE(closed);
     }

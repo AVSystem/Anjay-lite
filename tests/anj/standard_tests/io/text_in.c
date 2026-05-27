@@ -23,7 +23,7 @@
 
 #define TEST_ENV(Data, Path, PayloadFinished)                            \
     _anj_io_in_ctx_t ctx;                                                \
-    ASSERT_OK(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,  \
+    ASSERT_OK(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, \
                                   &(Path), _ANJ_COAP_FORMAT_PLAINTEXT)); \
     const anj_res_value_t *value = NULL;                                 \
     const anj_uri_path_t *path = NULL;                                   \
@@ -685,7 +685,7 @@ ANJ_UNIT_TEST(text_in, provide_chars_one_by_one) {
                              "\xFA\xF9\xF8\xF7\xF6\xF5\xF4\xF3\xF2\xF1\xF0";
 
     _anj_io_in_ctx_t ctx;
-    ASSERT_OK(_anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+    ASSERT_OK(_anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                   &(MAKE_TEST_RESOURCE_PATH(5)),
                                   _ANJ_COAP_FORMAT_PLAINTEXT));
     const anj_res_value_t *value = NULL;

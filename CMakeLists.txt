@@ -17,6 +17,12 @@ set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_EXTENSIONS OFF)
 include(ExternalProject)
 
+# Below find_package() call is meant for IDE indexing purposes.
+set(anjay_lite_DIR "cmake")
+find_package(anjay_lite REQUIRED)
+
+set(ANJAY_LITE_VERSION "2.1.0" CACHE STRING "Anjay library version")
+
 # Although we have cmake/anjay_lite-config.cmake which calls
 # anjay_lite_mbedtls.cmake internally, we couldn't use this
 # cmake script here because FetchContent builds mbedtls in a way
@@ -141,6 +147,7 @@ add_standalone_target(anjay_lite_bc_send examples/tutorial/BC-Send OFF OFF)
 add_standalone_target(anjay_lite_at_bootstrap examples/tutorial/AT-Bootstrap OFF OFF)
 add_standalone_target(anjay_lite_at_persistence examples/tutorial/AT-Persistence OFF OFF)
 add_standalone_target(anjay_lite_at_queue_mode examples/tutorial/AT-QueueMode OFF OFF)
+add_standalone_target(anjay_lite_at_connectivity_errors examples/tutorial/AT-ConnectivityErrors OFF OFF)
 add_standalone_target(anjay_lite_at_multi_instance_object examples/tutorial/AT-MultiInstanceObject OFF OFF)
 add_standalone_target(anjay_lite_at_multi_instance_object_dynamic examples/tutorial/AT-MultiInstanceObjectDynamic OFF OFF)
 add_standalone_target(anjay_lite_at_multi_instance_resource examples/tutorial/AT-MultiInstanceResource OFF OFF)
@@ -151,21 +158,8 @@ add_standalone_target(anjay_lite_at_micro_logs examples/tutorial/AT-MicroLogs OF
 
 add_standalone_target(anjay_lite_minimal_network_api examples/custom-network/minimal OFF OFF)
 
-# Sphinx and doxygen documentation
-# Note: documentation is configured and built only when the target is
-# explicitly invoked (e.g. via `make doc_sphinx`).
-function(add_doc_proxy_target TARGET_NAME)
-    add_custom_target(${TARGET_NAME}
-        COMMAND ${CMAKE_COMMAND} -S "${CMAKE_SOURCE_DIR}/doc" -B "${CMAKE_BINARY_DIR}/doc"
-        COMMAND ${CMAKE_COMMAND} --build "${CMAKE_BINARY_DIR}/doc" --target ${TARGET_NAME}
-        USES_TERMINAL
-    )
-endfunction()
-
-add_doc_proxy_target(doc)
-add_doc_proxy_target(doc_sphinx)
-add_doc_proxy_target(doc_doxygen)
-add_doc_proxy_target(test_doc_snippet)
+# Sphinx/doxygen and documentation
+add_subdirectory(doc)
 
 # C++ header compatibility check
 add_standalone_target(cxx_header_check tests/cxx_header_check OFF OFF)

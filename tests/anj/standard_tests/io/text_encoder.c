@@ -39,7 +39,7 @@ typedef struct {
 static void text_test_setup(text_test_env_t *env) {
     memset(env, 0, sizeof(text_test_env_t));
     env->buffer_length = sizeof(env->buf);
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_init(&env->ctx, ANJ_OP_DM_READ,
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_init(&env->ctx, _ANJ_OP_DM_READ,
                                                  &ANJ_MAKE_ROOT_PATH(), 1,
                                                  _ANJ_COAP_FORMAT_PLAINTEXT));
     ANJ_UNIT_ASSERT_EQUAL(_anj_io_out_ctx_get_format(&env->ctx),
@@ -75,7 +75,7 @@ ANJ_UNIT_TEST(text_encoder, empty_read) {
     memset(&env, 0, sizeof(text_test_env_t));
     env.buffer_length = sizeof(env.buf);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_init(
-            &env.ctx, ANJ_OP_DM_READ, &ANJ_MAKE_INSTANCE_PATH(3, 3), 0,
+            &env.ctx, _ANJ_OP_DM_READ, &ANJ_MAKE_INSTANCE_PATH(3, 3), 0,
             _ANJ_COAP_FORMAT_OPAQUE_STREAM));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_out_ctx_get_payload(
             &env.ctx, env.buf, env.buffer_length, &env.copied_bytes));

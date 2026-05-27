@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_DM_IO_H
 #    define ANJ_DM_IO_H
@@ -59,17 +59,17 @@ void _anj_dm_initialize(anj_t *anj);
  * Must be called at the beginning of each operation on the data model. It is to
  * be called only once, even if the message is divided into several blocks.
  * Data model operations are:
- *      - ANJ_OP_REGISTER,
- *      - ANJ_OP_UPDATE,
- *      - ANJ_OP_DM_READ,
- *      - ANJ_OP_DM_READ_COMP,
- *      - ANJ_OP_DM_DISCOVER,
- *      - ANJ_OP_DM_WRITE_REPLACE,
- *      - ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
- *      - ANJ_OP_DM_WRITE_COMP,
- *      - ANJ_OP_DM_EXECUTE,
- *      - ANJ_OP_DM_CREATE,
- *      - ANJ_OP_DM_DELETE.
+ *      - _ANJ_OP_REGISTER,
+ *      - _ANJ_OP_UPDATE,
+ *      - _ANJ_OP_DM_READ,
+ *      - _ANJ_OP_DM_READ_COMP,
+ *      - _ANJ_OP_DM_DISCOVER,
+ *      - _ANJ_OP_DM_WRITE_REPLACE,
+ *      - _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+ *      - _ANJ_OP_DM_WRITE_COMP,
+ *      - _ANJ_OP_DM_EXECUTE,
+ *      - _ANJ_OP_DM_CREATE,
+ *      - _ANJ_OP_DM_DELETE.
  *
  * @param anj                   Anjay object to operate on.
  * @param operation             Data model operation type.
@@ -133,7 +133,7 @@ int _anj_dm_get_read_entry(anj_t *anj, anj_io_out_entry_t *out_record);
  * can be read for the READ operation currently in progress.
  *
  * IMPORTANT: Call this function only after a successful @ref
- * _anj_dm_operation_begin call for @ref ANJ_OP_DM_READ operation.
+ * _anj_dm_operation_begin call for @ref _ANJ_OP_DM_READ operation.
  * If @p out_res_count is set to <c>0</c>, immediately call @ref
  * _anj_dm_operation_end.
  *
@@ -162,7 +162,7 @@ int _anj_dm_composite_next_path(anj_t *anj, const anj_uri_path_t *path);
  * are skipped.
  *
  * IMPORTANT: Call this function only after a successful @ref
- * _anj_dm_operation_begin call for @ref ANJ_OP_DM_READ_COMP operation.
+ * _anj_dm_operation_begin call for @ref _ANJ_OP_DM_READ_COMP operation.
  * If @p out_res_count is set to <c>0</c>, immediately call @ref
  * _anj_dm_operation_end or process the next record.
  *
@@ -183,7 +183,7 @@ int _anj_dm_count_readable_res_if_allowed(anj_t *anj,
 
 /**
  * Creates a new instance of the object. Call this function only after a
- * successful @ref _anj_dm_operation_begin call for @ref ANJ_OP_DM_CREATE
+ * successful @ref _anj_dm_operation_begin call for @ref _ANJ_OP_DM_CREATE
  * operation and before any @ref _anj_dm_write_entry call.
  *
  * @param anj  Anjay object to operate on.
@@ -202,10 +202,10 @@ int _anj_dm_create_object_instance(anj_t *anj, anj_iid_t iid);
  * on the value of @ref _anj_op_t we specified when calling @ref
  * _anj_dm_operation_begin this function can be used to handle the following
  * operations:
- *      - ANJ_OP_DM_WRITE_REPLACE,
- *      - ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
- *      - ANJ_OP_DM_WRITE_COMP,
- *      - ANJ_OP_DM_CREATE.
+ *      - _ANJ_OP_DM_WRITE_REPLACE,
+ *      - _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+ *      - _ANJ_OP_DM_WRITE_COMP,
+ *      - _ANJ_OP_DM_CREATE.
  *
  * @param anj     Anjay object to operate on.
  * @param record  Resource or Resource Instance record, with defined type, value

@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "init_internal.h"
 
 #ifndef SRC_ANJ_UTILS_H
 #    define SRC_ANJ_UTILS_H
@@ -16,30 +16,8 @@
 #    include <stddef.h>
 #    include <stdint.h>
 
+#    include <anj/core.h>
 #    include <anj/defs.h>
-
-#    include "coap/coap.h"
-
-#    define _ANJ_CBOR_VAL_OR_LEN_LEN_IMPL(Val_or_len)   \
-        ((Val_or_len) <= 23                             \
-                 ? 1                                    \
-                 : (Val_or_len) <= UINT8_MAX            \
-                           ? 2                          \
-                           : (Val_or_len) <= UINT16_MAX \
-                                     ? 3                \
-                                     : (Val_or_len) <= UINT32_MAX ? 5 : 9)
-#    define _ANJ_CBOR_VAL_OR_LEN_LEN_AVOID_ZERO(Val_or_len) \
-        ((Val_or_len) == 0 ? 1 : (Val_or_len))
-/**
- * HACK: Invoking this macro with 0 leads to compile-time comparisons of
- * unsigned 0 with other compile-time unsigned integer, which in some versions
- * of gcc yields a warning about the comparison being always true/false. To
- * avoid comparisons with 0 directly, 0 is replaced with 1 before comparison;
- * this yields the same results and avoids the warning.
- */
-#    define _ANJ_CBOR_VAL_OR_LEN_LEN(Val_or_len) \
-        _ANJ_CBOR_VAL_OR_LEN_LEN_IMPL(           \
-                _ANJ_CBOR_VAL_OR_LEN_LEN_AVOID_ZERO(Val_or_len))
 
 /**
  * Check if path points to Security or OSCORE object.
@@ -160,8 +138,33 @@ static inline bool _anj_is_power_of_2(size_t value) {
     return value > 0 && !(value & (value - 1));
 }
 
-char *_anj_coap_code_format(char (*buff)[5], uint32_t code);
+#    define _ANJ_COAP_CODE_STR_SIZE 5 // "x.yy" + '\0'
+#    define _ANJ_URI_PATH_STR_SIZE sizeof("/65535/65535/65535/65535")
+#    define _ANJ_COAP_TOKEN_HEX_STR_SIZE sizeof("11:22:33:44:55:66:77:88")
 
-#    define COAP_CODE_FORMAT(Code) _anj_coap_code_format(&(char[5]){ "" }, Code)
+const char *
+_anj_debug_coap_response_code_to_string(char (*buff)[_ANJ_COAP_CODE_STR_SIZE],
+                                        int code);
+
+const char *_anj_debug_uri_path_to_string(char (*buff)[_ANJ_URI_PATH_STR_SIZE],
+                                          const anj_uri_path_t *path);
+
+const char *
+_anj_debug_coap_token_to_string(char (*buff)[_ANJ_COAP_TOKEN_HEX_STR_SIZE],
+                                const _anj_coap_token_t *token);
+
+const char *_anj_debug_coap_operation_to_string(_anj_op_t operation);
+
+#    define _ANJ_DEBUG_COAP_RESPONSE_CODE(Code)  \
+        _anj_debug_coap_response_code_to_string( \
+                &(char[_ANJ_COAP_CODE_STR_SIZE]){ "" }, Code)
+
+#    define _ANJ_DEBUG_URI_PATH(path)                                         \
+        (_anj_debug_uri_path_to_string(&(char[_ANJ_URI_PATH_STR_SIZE]){ "" }, \
+                                       (path)))
+
+#    define _ANJ_DEBUG_COAP_TOKEN(token) \
+        _anj_debug_coap_token_to_string( \
+                &(char[_ANJ_COAP_TOKEN_HEX_STR_SIZE]){ 0 }, (token))
 
 #endif // SRC_ANJ_UTILS_H

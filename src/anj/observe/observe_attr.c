@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 47
 
@@ -117,6 +117,7 @@ int _anj_observe_attributes_apply_condition(
         const anj_uri_path_t *path,
         const _anj_attr_notification_t *attr) {
     if (!anj_uri_path_has(path, ANJ_ID_OID)) {
+        observe_log(L_ERROR, "No path provided");
         return ANJ_COAP_CODE_METHOD_NOT_ALLOWED;
     }
 
@@ -133,6 +134,8 @@ int _anj_observe_attributes_apply_condition(
         if (!(resource_type
               & (ANJ_DATA_TYPE_DOUBLE | ANJ_DATA_TYPE_INT
                  | ANJ_DATA_TYPE_UINT))) {
+            observe_log(L_ERROR,
+                        "Invalid resource type for gt/st/lt attributes");
             return ANJ_COAP_CODE_BAD_REQUEST;
         }
     }
@@ -143,6 +146,7 @@ int _anj_observe_attributes_apply_condition(
             return res;
         }
         if (resource_type != ANJ_DATA_TYPE_BOOL) {
+            observe_log(L_ERROR, "Invalid resource type for edge attribute");
             return ANJ_COAP_CODE_BAD_REQUEST;
         }
     }
@@ -228,7 +232,7 @@ static int add_attr(_anj_observe_ctx_t *ctx,
     _anj_observe_attr_storage_t *attr_rec =
             _anj_observe_get_attr_from_path(ctx, &request->uri, ssid);
     if (attr_rec) {
-        observe_log(L_DEBUG, "Attributes updated");
+        observe_log(L_DEBUG, "Existing attributes found, updating");
         _anj_observe_update_attr(&attr_rec->attr,
                                  &request->attr.notification_attr);
     } else {
@@ -240,7 +244,6 @@ static int add_attr(_anj_observe_ctx_t *ctx,
         attr_rec->ssid = ssid;
         attr_rec->path = request->uri;
         attr_rec->attr = request->attr.notification_attr;
-        observe_log(L_DEBUG, "New attributes added");
     }
     *out_record = attr_rec;
     return 0;
@@ -281,21 +284,19 @@ int _anj_observe_write_attr_handle(anj_t *anj,
     }
     // in case of error or empty attributes, remove the record
     if (res || _anj_observe_is_empty_attr(&record->attr)) {
-        observe_log(L_WARNING, "Attributes verification failed");
+        observe_log(L_ERROR, "Attributes verification failed");
         remove_attr(record);
+    } else {
+        observe_log(L_DEBUG, "New attributes successfully added");
     }
-    observe_log(L_DEBUG, "New attributes successfully added");
     return res;
 }
 
-void _anj_observe_remove_all_attr_storage(anj_t *anj, uint16_t ssid) {
-    assert(anj && ssid > 0 && ssid < ANJ_OBSERVE_ANY_SERVER);
+void _anj_observe_remove_all_attr_storage(anj_t *anj) {
+    assert(anj);
     _anj_observe_ctx_t *ctx = &anj->observe_ctx;
     for (size_t i = 0; i < ANJ_OBSERVE_MAX_WRITE_ATTRIBUTES_NUMBER; ++i) {
-        if (ctx->attributes_storage[i].ssid == ssid
-                || ssid == ANJ_OBSERVE_ANY_SERVER) {
-            ctx->attributes_storage[i].ssid = 0;
-        }
+        ctx->attributes_storage[i].ssid = 0;
     }
 }
 
@@ -305,8 +306,7 @@ int _anj_observe_get_attr_storage(anj_t *anj,
                                   bool with_parents_attr,
                                   const anj_uri_path_t *path,
                                   _anj_attr_notification_t *out_attr) {
-    assert(anj && path && out_attr && ssid > 0 && ssid < ANJ_OBSERVE_ANY_SERVER
-           && anj_uri_path_length(path));
+    assert(anj && path && out_attr && ssid > 0 && anj_uri_path_length(path));
 
     memset(out_attr, 0, sizeof(*out_attr));
     bool found = false;

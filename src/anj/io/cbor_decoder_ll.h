@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef SRC_ANJ_IO_CBOR_DECODER_LL_H
 #    define SRC_ANJ_IO_CBOR_DECODER_LL_H
@@ -124,7 +124,7 @@ int anj_cbor_ll_decoder_current_value_type(_anj_cbor_ll_decoder_t *ctx,
  * Consumes a simple null value.
  *
  * NOTE: May only be called when the next value type is @ref
- * ANJ_CBOR_LL_VALUE_NULL, otherwise an error will be reported.
+ * _ANJ_CBOR_LL_VALUE_NULL, otherwise an error will be reported.
  *
  * @param[in] ctx The CBOR decoder context to operate on.
  *
@@ -142,7 +142,7 @@ int anj_cbor_ll_decoder_null(_anj_cbor_ll_decoder_t *ctx);
  * Consumes a simple boolean value.
  *
  * NOTE: May only be called when the next value type is @ref
- * ANJ_CBOR_LL_VALUE_BOOL, otherwise an error will be reported.
+ * _ANJ_CBOR_LL_VALUE_BOOL, otherwise an error will be reported.
  *
  * @param[in]  ctx       The CBOR decoder context to operate on.
  *
@@ -162,13 +162,13 @@ int anj_cbor_ll_decoder_bool(_anj_cbor_ll_decoder_t *ctx, bool *out_value);
  * Consumes a scalar value from the context.
  *
  * NOTE: May only be called when the next value type is either:
- *  - @ref ANJ_CBOR_LL_VALUE_UINT,
- *  - @ref ANJ_CBOR_LL_VALUE_NEGATIVE_INT,
- *  - @ref ANJ_CBOR_LL_VALUE_FLOAT,
- *  - @ref ANJ_CBOR_LL_VALUE_DOUBLE,
- *  - @ref ANJ_CBOR_LL_VALUE_TIMESTAMP - in this case, the type identified in
+ *  - @ref _ANJ_CBOR_LL_VALUE_UINT,
+ *  - @ref _ANJ_CBOR_LL_VALUE_NEGATIVE_INT,
+ *  - @ref _ANJ_CBOR_LL_VALUE_FLOAT,
+ *  - @ref _ANJ_CBOR_LL_VALUE_DOUBLE,
+ *  - @ref _ANJ_CBOR_LL_VALUE_TIMESTAMP - in this case, the type identified in
  *    <c>out_value->type</c> will reflect the actual underlying data type, i.e.
- *    <c>out_value->type</c> will never be <c>ANJ_CBOR_LL_VALUE_TIMESTAMP</c>
+ *    <c>out_value->type</c> will never be <c>_ANJ_CBOR_LL_VALUE_TIMESTAMP</c>
  *
  * @param[in]  ctx       The CBOR decoder context to operate on.
  *
@@ -189,8 +189,8 @@ int anj_cbor_ll_decoder_number(_anj_cbor_ll_decoder_t *ctx,
  * Prepares for consumption of a byte or text stream element.
  *
  * NOTE: May only be called when the next value type is either:
- *  - @ref ANJ_CBOR_LL_VALUE_BYTE_STRING,
- *  - @ref ANJ_CBOR_LL_VALUE_TEXT_STRING.
+ *  - @ref _ANJ_CBOR_LL_VALUE_BYTE_STRING,
+ *  - @ref _ANJ_CBOR_LL_VALUE_TEXT_STRING.
  *
  * After successfully calling this function, you shall call @ref
  * anj_cbor_ll_decoder_bytes_get_some, possibly multiple times until it sets
@@ -272,7 +272,7 @@ int anj_cbor_ll_decoder_bytes_get_some(
  * Prepares to the consumption of the array.
  *
  * NOTE: May only be called when the next value type is @ref
- * ANJ_CBOR_LL_VALUE_ARRAY.
+ * _ANJ_CBOR_LL_VALUE_ARRAY.
  *
  * NOTE: The decoder has a limit of structure nesting levels. Any payload with
  * higher nesting degree will be rejected by the decoder by entering the error
@@ -304,7 +304,7 @@ int anj_cbor_ll_decoder_enter_array(_anj_cbor_ll_decoder_t *ctx,
  * Prepares to the consumption of the map.
  *
  * NOTE: May only be called when the next value type is @ref
- * ANJ_CBOR_LL_VALUE_MAP.
+ * _ANJ_CBOR_LL_VALUE_MAP.
  *
  * NOTE: The decoder has a limit of structure nesting levels. Any payload with
  * higher nesting degree will be rejected by the decoder by entering the error

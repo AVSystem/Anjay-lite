@@ -263,7 +263,7 @@ ANJ_UNIT_TEST(dm_read, read_res_instance) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 0);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
 
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
@@ -276,7 +276,7 @@ ANJ_UNIT_TEST(dm_read, read_res_instance) {
 
     path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
 
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(1, out_res_count);
@@ -288,7 +288,7 @@ ANJ_UNIT_TEST(dm_read, read_res_instance) {
     path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 5, 0);
     callback_value.int_value = 222;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
 
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(1, out_res_count);
@@ -309,29 +309,29 @@ ANJ_UNIT_TEST(dm_read, read_res_error) {
 
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(2, 1, 4, 0);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false,
                                                   &path),
                           ANJ_DM_ERR_NOT_FOUND);
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 2, 4, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false,
                                                   &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 6, 0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false,
                                                   &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_RESOURCE_INSTANCE_PATH(1, 1, 4, 4);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false,
                                                   &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_RESOURCE_PATH(1, 0, 6);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false,
                                                   &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -342,7 +342,7 @@ ANJ_UNIT_TEST(dm_read, empty_read) {
     size_t out_res_count = 0;
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 3);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(0, out_res_count);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
@@ -356,7 +356,7 @@ ANJ_UNIT_TEST(dm_read, read_res) {
     anj_uri_path_t path = ANJ_MAKE_RESOURCE_PATH(1, 1, 4);
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     ANJ_UNIT_ASSERT_TRUE(anj_core_ongoing_operation(&anj));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(2, out_res_count);
@@ -370,7 +370,7 @@ ANJ_UNIT_TEST(dm_read, read_res) {
 
     path = ANJ_MAKE_RESOURCE_PATH(1, 1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(1, out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&anj, &record),
@@ -387,7 +387,7 @@ ANJ_UNIT_TEST(dm_read, read_inst) {
     callback_value.int_value = 999;
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(out_res_count, 6);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&anj, &record), 0);
@@ -408,7 +408,7 @@ ANJ_UNIT_TEST(dm_read, read_inst) {
     callback_value.int_value = 7;
     path = ANJ_MAKE_INSTANCE_PATH(1, 0);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(out_res_count, 1);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&anj, &record),
@@ -425,7 +425,7 @@ ANJ_UNIT_TEST(dm_read, read_obj) {
     callback_value.int_value = 225;
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(out_res_count, 7);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&anj, &record), 0);
@@ -452,13 +452,13 @@ ANJ_UNIT_TEST(dm_read, read_obj_error) {
 
     callback_value.int_value = 225;
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false,
                                                   &path),
                           ANJ_DM_ERR_UNAUTHORIZED);
 
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_OBJECT_PATH(21);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false,
                                                   &path),
                           ANJ_DM_ERR_UNAUTHORIZED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
@@ -472,7 +472,7 @@ ANJ_UNIT_TEST(dm_read, bootstrap_read_obj) {
     callback_value.int_value = 225;
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, true, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, true, &path));
     _anj_dm_get_readable_res_count(&anj, &out_res_count);
     ANJ_UNIT_ASSERT_EQUAL(out_res_count, 7);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_get_read_entry(&anj, &record), 0);
@@ -498,33 +498,33 @@ ANJ_UNIT_TEST(dm_read, bootstrap_read_obj_error) {
     READ_INIT(anj);
 
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(3);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, true,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, true,
                                                   &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_OBJECT_PATH(2);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, true,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, true,
                                                   &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_INSTANCE_PATH(1, 4);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, true,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, true,
                                                   &path),
                           ANJ_DM_ERR_NOT_FOUND);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_RESOURCE_PATH(1, 1, 1);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, true,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, true,
                                                   &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_OBJECT_PATH(0);
-    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, true,
+    ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, true,
                                                   &path),
                           ANJ_DM_ERR_METHOD_NOT_ALLOWED);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, true, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, true, &path));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 }
 
@@ -535,7 +535,7 @@ ANJ_UNIT_TEST(dm_read, get_res_val) {
     callback_value.int_value = 3333;
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     path = ANJ_MAKE_RESOURCE_PATH(1, 0, 0);
     anj_data_type_t type = 0;
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -580,7 +580,7 @@ ANJ_UNIT_TEST(dm_read, get_res_type) {
     anj_data_type_t out_type = 0;
     anj_uri_path_t path = ANJ_MAKE_OBJECT_PATH(1);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ, false, &path));
     path = ANJ_MAKE_RESOURCE_PATH(1, 0, 0);
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_get_resource_type(&anj, &path, &out_type));
     ANJ_UNIT_ASSERT_EQUAL(ANJ_DATA_TYPE_INT, out_type);
@@ -608,7 +608,7 @@ ANJ_UNIT_TEST(dm_read, composite_read) {
     callback_value.int_value = 755;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ_COMP, false, NULL));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ_COMP, false, NULL));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_count_readable_res_if_allowed(
             &anj, &ANJ_MAKE_INSTANCE_PATH(1, 0), &out_res_count));
@@ -655,7 +655,7 @@ ANJ_UNIT_TEST(dm_read, composite_read) {
 ANJ_UNIT_TEST(dm_read, composite_read_non_existing_path) {
     READ_INIT(anj);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ_COMP, false, NULL));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ_COMP, false, NULL));
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_dm_composite_next_path(&anj, &ANJ_MAKE_RESOURCE_PATH(1, 0, 6)),
             ANJ_DM_ERR_METHOD_NOT_ALLOWED);
@@ -665,7 +665,7 @@ ANJ_UNIT_TEST(dm_read, composite_read_non_existing_path) {
 ANJ_UNIT_TEST(dm_read, composite_read_no_records) {
     READ_INIT(anj);
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ_COMP, false, NULL));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ_COMP, false, NULL));
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_dm_composite_next_path(&anj, &ANJ_MAKE_INSTANCE_PATH(1, 2)),
             _ANJ_DM_NO_RECORD);
@@ -682,7 +682,7 @@ ANJ_UNIT_TEST(dm_read, composite_read_no_instances) {
     obj21.max_inst_count = 0;
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ_COMP, false, NULL));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ_COMP, false, NULL));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_count_readable_res_if_allowed(
             &anj, &ANJ_MAKE_ROOT_PATH(), &out_res_count));
@@ -703,7 +703,7 @@ ANJ_UNIT_TEST(dm_read, composite_read_non_null_path) {
     size_t out_res_count = 0;
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_READ_COMP, false, &ANJ_MAKE_ROOT_PATH()));
+            &anj, _ANJ_OP_DM_READ_COMP, false, &ANJ_MAKE_ROOT_PATH()));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_dm_composite_next_path(&anj, &ANJ_MAKE_INSTANCE_PATH(1, 1)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_count_readable_res_if_allowed(
@@ -717,7 +717,7 @@ ANJ_UNIT_TEST(dm_read, composite_read_non_null_path) {
     };
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ_COMP, false, &path));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ_COMP, false, &path));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_dm_composite_next_path(&anj, &ANJ_MAKE_INSTANCE_PATH(1, 1)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_count_readable_res_if_allowed(
@@ -751,7 +751,7 @@ ANJ_UNIT_TEST(dm_read, composite_root_read_empty_objects) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_add_obj(&anj, &obj15));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_READ_COMP, false, NULL));
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_READ_COMP, false, NULL));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_count_readable_res_if_allowed(
             &anj, &ANJ_MAKE_ROOT_PATH(), &out_res_count));

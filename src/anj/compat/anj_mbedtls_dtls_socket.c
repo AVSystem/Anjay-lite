@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 61
 
@@ -153,7 +153,8 @@ static int load_psk(mbedtls_ssl_config *ssl_conf,
     }
 
     if (psk_identity->source == ANJ_CRYPTO_DATA_SOURCE_BUFFER) {
-        if (psk_identity->info.buffer.data_size > MBEDTLS_PSK_MAX_LEN) {
+        if (psk_identity->info.buffer.data_size
+                > ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN) {
             mbedtls_log(L_ERROR,
                         "PSK identity size exceeds maximum allowed size");
             return -1;
@@ -165,7 +166,7 @@ static int load_psk(mbedtls_ssl_config *ssl_conf,
 #    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
         if (anj_crypto_storage_resolve_security_info(
                     crypto_ctx, &psk_identity->info.external, psk_identity_buff,
-                    MBEDTLS_PSK_MAX_LEN, &psk_identity_len)) {
+                    ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN, &psk_identity_len)) {
             return -1;
         }
 #    else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
@@ -390,7 +391,7 @@ int anj_dtls_send(anj_net_ctx_t *ctx_,
             continue;
         }
         if (is_retry_result(result) && already_sent == 0) {
-            mbedtls_log(L_DEBUG, "Transport busy, need to retry send");
+            mbedtls_log(L_TRACE, "Transport busy, need to retry send");
             return secure_socket->last_send_err;
         }
         if (result < 0) {

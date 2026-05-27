@@ -34,20 +34,20 @@ static void anj_uri_path_t_compare(const anj_uri_path_t *a,
 ANJ_UNIT_TEST(raw_cbor_in, invalid_paths) {
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_EQUAL(_anj_io_in_ctx_init(&ctx,
-                                              ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                              _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                               NULL, _ANJ_COAP_FORMAT_CBOR),
                           _ANJ_IO_ERR_FORMAT);
     ANJ_UNIT_ASSERT_EQUAL(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &ANJ_MAKE_ROOT_PATH(), _ANJ_COAP_FORMAT_CBOR),
             _ANJ_IO_ERR_FORMAT);
     ANJ_UNIT_ASSERT_EQUAL(_anj_io_in_ctx_init(&ctx,
-                                              ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                              _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                               &ANJ_MAKE_OBJECT_PATH(12),
                                               _ANJ_COAP_FORMAT_CBOR),
                           _ANJ_IO_ERR_FORMAT);
     ANJ_UNIT_ASSERT_EQUAL(_anj_io_in_ctx_init(&ctx,
-                                              ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                              _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                               &ANJ_MAKE_INSTANCE_PATH(12, 34),
                                               _ANJ_COAP_FORMAT_CBOR),
                           _ANJ_IO_ERR_FORMAT);
@@ -60,7 +60,7 @@ ANJ_UNIT_TEST(raw_cbor_in, invalid_type) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -83,7 +83,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_integer) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -121,7 +121,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_negative_integer) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -156,7 +156,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_half_float) {
     char RESOURCE[] = { "\xF9\x44\x80" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -197,7 +197,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_decimal_fraction) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -233,7 +233,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_boolean) {
     char RESOURCE[] = { "\xF5" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -263,7 +263,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_string_time) {
                       "2003-12-13T18:30:02Z";
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -295,7 +295,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_objlnk) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -338,7 +338,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_objlnk_split) {
 
         _anj_io_in_ctx_t ctx;
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-                &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
+                &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
                 _ANJ_COAP_FORMAT_CBOR));
         ANJ_UNIT_ASSERT_SUCCESS(
                 _anj_io_in_ctx_feed_payload(&ctx, tmp, split, false));
@@ -384,7 +384,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_objlnk_split) {
 
         _anj_io_in_ctx_t ctx;
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-                &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
+                &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
                 _ANJ_COAP_FORMAT_CBOR));
         ANJ_UNIT_ASSERT_SUCCESS(
                 _anj_io_in_ctx_feed_payload(&ctx, tmp, split, false));
@@ -431,7 +431,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_objlnk_split) {
 
         _anj_io_in_ctx_t ctx;
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-                &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
+                &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
                 _ANJ_COAP_FORMAT_CBOR));
         ANJ_UNIT_ASSERT_SUCCESS(
                 _anj_io_in_ctx_feed_payload(&ctx, tmp, sizeof(tmp) - 1, false));
@@ -481,7 +481,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_objlnk_invalid) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -511,7 +511,7 @@ ANJ_UNIT_TEST(raw_cbor_in, single_string) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -551,7 +551,7 @@ ANJ_UNIT_TEST(raw_cbor_in, empty_string) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -594,7 +594,7 @@ ANJ_UNIT_TEST(raw_cbor_in, string_indefinite) {
     char RESOURCE[] = { "\x7F\x64" CHUNK1 "\x66" CHUNK2 "\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -654,7 +654,7 @@ ANJ_UNIT_TEST(raw_cbor_in, string_indefinite_with_empty_strings) {
     char RESOURCE[] = { "\x7F\x60\x64" CHUNK1 "\x60\x66" CHUNK2 "\x60\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -719,7 +719,7 @@ ANJ_UNIT_TEST(raw_cbor_in, string_indefinite_with_empty_strings_split) {
 
         _anj_io_in_ctx_t ctx;
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-                &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
+                &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE, &TEST_RESOURCE_PATH,
                 _ANJ_COAP_FORMAT_CBOR));
         ANJ_UNIT_ASSERT_SUCCESS(
                 _anj_io_in_ctx_feed_payload(&ctx, tmp, split, false));
@@ -792,7 +792,7 @@ ANJ_UNIT_TEST(raw_cbor_in, string_indefinite_empty_string) {
     char RESOURCE[] = { "\x7F\x60\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -830,7 +830,7 @@ ANJ_UNIT_TEST(raw_cbor_in, string_indefinite_empty_struct) {
     char RESOURCE[] = { "\x7F\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -876,7 +876,7 @@ ANJ_UNIT_TEST(raw_cbor_in, bytes_indefinite) {
     char RESOURCE[] = { "\x5F\x46" CHUNK1 "\x44" CHUNK2 "\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -929,7 +929,7 @@ ANJ_UNIT_TEST(raw_cbor_in, bytes_indefinite_with_empty_strings) {
     char RESOURCE[] = { "\x5F\x40\x46" CHUNK1 "\x40\x44" CHUNK2 "\x40\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &TEST_RESOURCE_PATH, _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
             &ctx, RESOURCE, sizeof(RESOURCE) - 1, true));
@@ -979,7 +979,7 @@ ANJ_UNIT_TEST(raw_cbor_in, bytes_indefinite_with_empty_strings) {
 ANJ_UNIT_TEST(raw_cbor_in, empty_input) {
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_INSTANCE_PATH(12, 34, 56, 78),
             _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(&ctx, NULL, 0, true));
@@ -999,7 +999,7 @@ ANJ_UNIT_TEST(raw_cbor_in, invalid_input) {
     char RESOURCE[] = { "\xFF" };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_INSTANCE_PATH(12, 34, 56, 78),
             _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(
@@ -1023,7 +1023,7 @@ ANJ_UNIT_TEST(raw_cbor_in, overlong_input) {
     };
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_RESOURCE_INSTANCE_PATH(12, 34, 56, 78),
             _ANJ_COAP_FORMAT_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_feed_payload(

@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 27
 
@@ -157,14 +157,11 @@ static int validate_instance(anj_dm_security_instance_t *inst) {
     if (!inst) {
         return -1;
     }
-    if (!valid_uri_scheme(inst->server_uri)) {
-        return -1;
-    }
-    if (!valid_security_mode((int64_t) inst->security_mode)) {
-        return -1;
-    }
-    if (inst->ssid == ANJ_ID_INVALID
+    if (!valid_uri_scheme(inst->server_uri)
+            || !valid_security_mode((int64_t) inst->security_mode)
+            || inst->ssid == ANJ_ID_INVALID
             || (inst->ssid == _ANJ_SSID_BOOTSTRAP && !inst->bootstrap_server)) {
+        dm_log(L_ERROR, "Invalid Security Object instance configuration");
         return -1;
     }
     return 0;
@@ -602,6 +599,7 @@ int anj_dm_security_obj_add_instance(
     sec_inst->iid = iid;
 
     insert_new_instance(security_obj_ctx, ANJ_ID_INVALID, iid);
+    dm_log(L_INFO, "Security Object instance added");
     return 0;
 }
 
@@ -613,7 +611,7 @@ int anj_dm_security_obj_install(anj_t *anj,
     if (res) {
         return res;
     }
-    dm_log(L_INFO, "Security object installed");
+    dm_log(L_INFO, "Security Object installed");
     security_obj_ctx->installed = true;
     return 0;
 }
@@ -820,6 +818,7 @@ int anj_dm_security_obj_store(anj_t *anj,
     assert(anj_persistence_direction(ctx) == ANJ_PERSISTENCE_STORE);
     assert(security_obj_ctx->installed);
 
+    dm_log(L_INFO, "Storing Security Object");
     uint8_t instance_count =
             (security_obj_ctx->inst[0].iid == ANJ_ID_INVALID) ? 0 : 1;
 #        ifdef ANJ_WITH_BOOTSTRAP
@@ -858,6 +857,7 @@ int anj_dm_security_obj_restore(anj_t *anj,
     assert(anj_persistence_direction(ctx) == ANJ_PERSISTENCE_RESTORE);
     assert(!security_obj_ctx->installed);
 
+    dm_log(L_INFO, "Restoring Security Object");
     if (anj_persistence_magic(ctx, g_persistence_header,
                               sizeof(g_persistence_header))) {
         return -1;

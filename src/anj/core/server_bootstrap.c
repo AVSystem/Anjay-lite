@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 14
 
@@ -29,6 +29,7 @@
 #include "../dm/dm_integration.h"
 #include "../exchange.h"
 #include "../exchange_cache.h"
+#include "../utils.h"
 #include "bootstrap.h"
 #include "core.h"
 #include "core_utils.h"
@@ -47,7 +48,7 @@ static int bootstrap_op_read_data_model(anj_t *anj) {
     assert(!_anj_core_utils_validate_security_resource_types(anj));
 
     anj_res_value_t res_val;
-    const anj_uri_path_t path =
+    anj_uri_path_t path =
             ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
                                    anj->security_instance.iid,
                                    SECURITY_OBJ_CLIENT_HOLD_OFF_TIME_RID);
@@ -115,7 +116,6 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
     _anj_coap_msg_t msg;
     int res = _anj_coap_decode_udp(anj->in_buffer, msg_size, &msg);
     if (res) {
-        ANJ_CORE_LOG_COAP_ERROR(res);
         // ignore invalid messages
         return 0;
     }
@@ -125,8 +125,7 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
 
 #    ifdef ANJ_WITH_CACHE
     // check if it's a retransmission
-    if (_anj_exchange_cache_check(&anj->exchange_cache,
-                                  msg.coap_binding_data.message_id)
+    if (_anj_exchange_cache_check(&anj->exchange_cache, &msg)
             != _ANJ_EXCHANGE_CACHE_MISS) {
         return 0;
     }
@@ -134,34 +133,24 @@ static int handle_incoming_message(anj_t *anj, size_t msg_size) {
 
     // find the right module to handle the message
     switch (msg.operation) {
-    case ANJ_OP_DM_READ:
-    case ANJ_OP_DM_DISCOVER:
-    case ANJ_OP_DM_WRITE_REPLACE:
-    case ANJ_OP_DM_DELETE:
+    case _ANJ_OP_DM_READ:
+    case _ANJ_OP_DM_DISCOVER:
+    case _ANJ_OP_DM_WRITE_REPLACE:
+    case _ANJ_OP_DM_DELETE:
         _anj_dm_process_request(anj, &msg, _ANJ_SSID_BOOTSTRAP, &response_code,
                                 &exchange_handlers);
         if (!_ANJ_COAP_CODE_IS_ERROR(response_code)) {
             _anj_bootstrap_timeout_reset(anj);
         }
         break;
-    case ANJ_OP_BOOTSTRAP_FINISH:
+    case _ANJ_OP_BOOTSTRAP_FINISH:
         _anj_bootstrap_finish_request(anj, &response_code, &exchange_handlers);
         break;
-    case ANJ_OP_COAP_PING_UDP:
+    case _ANJ_OP_COAP_PING_UDP:
         break; // PING is handled by the exchange module
-    case ANJ_OP_DM_READ_COMP:
-    case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
-    case ANJ_OP_DM_WRITE_COMP:
-    case ANJ_OP_DM_EXECUTE:
-    case ANJ_OP_DM_CREATE:
-    case ANJ_OP_DM_WRITE_ATTR:
-    case ANJ_OP_INF_OBSERVE:
-    case ANJ_OP_INF_OBSERVE_COMP:
-    case ANJ_OP_INF_CANCEL_OBSERVE:
-    case ANJ_OP_INF_CANCEL_OBSERVE_COMP:
     default: {
-        log(L_WARNING, "Invalid operation %d during Bootstrap",
-            (int) msg.operation);
+        log(L_WARNING, "Invalid operation: %s",
+            _anj_debug_coap_operation_to_string(msg.operation));
         return 0;
     }
     }
@@ -198,7 +187,6 @@ static _anj_core_next_action_t handle_bootstrap_process(anj_t *anj) {
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
         }
         if (!anj_net_is_again(result)) {
-            log(L_ERROR, "Error while receiving message: %d", result);
             anj->server_state.details.bootstrap.bootstrap_state =
                     _ANJ_SRV_BOOTSTRAP_STATE_FINISH_DISCONNECT_AND_RETRY;
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
@@ -236,9 +224,10 @@ static void calculate_communication_retry_timeout(anj_t *anj) {
             anj_time_monotonic_add(anj_time_monotonic_now(), delay);
 
     log(L_INFO,
-        "Bootstrap retry no. %" PRIu16 " will start with %s"
+        "Bootstrap retry no. %" PRIu16 " of %" PRIu16 " will start with %s"
         "s delay",
         anj->server_state.details.bootstrap.bootstrap_retry_attempt,
+        anj->bootstrap_retry_count,
         ANJ_TIME_DURATION_AS_STRING(delay, ANJ_TIME_UNIT_S));
 }
 
@@ -256,8 +245,7 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         }
         if (!anj_net_is_ok(result)) {
             anj->server_state.details.bootstrap.bootstrap_state =
-                    _ANJ_SRV_BOOTSTRAP_STATE_RETRY;
-            log(L_ERROR, "Setting connection for Bootstrap failed");
+                    _ANJ_SRV_BOOTSTRAP_STATE_DISCONNECT_AND_RETRY;
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
         }
         anj->server_state.details.bootstrap.bootstrap_state =
@@ -294,7 +282,6 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
         if (result) {
-            log(L_ERROR, "Closing connection failed");
             return _ANJ_CORE_NEXT_ACTION_CONTINUE;
         }
         *out_status = ANJ_CONN_STATUS_BOOTSTRAPPED;
@@ -317,19 +304,9 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
-        if (result) {
-            log(L_ERROR, "Closing connection failed");
-        }
-        anj->server_state.details.bootstrap.bootstrap_state =
-                _ANJ_SRV_BOOTSTRAP_STATE_RETRY;
         // terminate any ongoing exchange before retrying
         _anj_exchange_terminate(&anj->exchange_ctx,
                                 _ANJ_EXCHANGE_ERROR_TERMINATED);
-    }
-    // fall through
-    case _ANJ_SRV_BOOTSTRAP_STATE_RETRY: {
-        log(L_INFO, "Bootstrap entered retry state");
-
         if (anj->server_state.details.bootstrap.bootstrap_retry_attempt
                 >= anj->bootstrap_retry_count) {
             log(L_ERROR, "Bootstrap retry limit reached");

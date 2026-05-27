@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 32
 
@@ -118,26 +118,26 @@ handle_header_for_float_or_simple_value(_anj_cbor_ll_decoder_t *ctx) {
     switch (get_additional_info(ctx->current_item.initial_byte)) {
     case CBOR_VALUE_BOOL_FALSE:
     case CBOR_VALUE_BOOL_TRUE:
-        ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_BOOL;
+        ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_BOOL;
         break;
     case CBOR_VALUE_NULL:
-        ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_NULL;
+        ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_NULL;
         break;
 #    ifdef ANJ_WITH_CBOR_DECODE_HALF_FLOAT
     case CBOR_VALUE_FLOAT_16:
 #    endif // ANJ_WITH_CBOR_DECODE_HALF_FLOAT
     case CBOR_VALUE_FLOAT_32:
-        ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_FLOAT;
+        ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_FLOAT;
         break;
     case CBOR_VALUE_FLOAT_64:
-        ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_DOUBLE;
+        ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_DOUBLE;
         break;
     case CBOR_VALUE_UNDEFINED:
     case CBOR_VALUE_IN_NEXT_BYTE:
     default:
         /* As per "Table 2: Simple Values", range 32..255 is unassigned, so
          * we may call it an error. */
-        ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+        ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
     }
 }
 
@@ -158,7 +158,7 @@ static void ignore_tag(_anj_cbor_ll_decoder_t *ctx) {
     if (ext_len_size) {
         if (ctx->prebuffer_offset + ext_len_size > ctx->prebuffer_size) {
             assert(ctx->input_last);
-            ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+            ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
         } else {
             ctx->prebuffer_offset += ext_len_size;
         }
@@ -176,7 +176,7 @@ nested_state_top(_anj_cbor_ll_decoder_t *ctx) {
 #    endif // _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
 
 static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
-    while (ctx->state == ANJ_CBOR_LL_DECODER_STATE_OK) {
+    while (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_OK) {
 #    if _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
         while (ctx->nest_stack_size) {
             _anj_cbor_ll_nested_state_t *top = nested_state_top(ctx);
@@ -203,9 +203,9 @@ static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
             ) {
                 /* All tags must be followed with data, otherwise the CBOR
                  * payload is malformed */
-                ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+                ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
             } else {
-                ctx->state = ANJ_CBOR_LL_DECODER_STATE_FINISHED;
+                ctx->state = _ANJ_CBOR_LL_DECODER_STATE_FINISHED;
             }
             return 0;
         }
@@ -215,13 +215,13 @@ static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
             /* end of the indefinite map, array or byte/text string */
 #    if _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
             if (ctx->nest_stack_size && is_indefinite(nested_state_top(ctx))
-                    && (nested_state_top(ctx)->type != ANJ_CBOR_LL_VALUE_MAP
+                    && (nested_state_top(ctx)->type != _ANJ_CBOR_LL_VALUE_MAP
                         || !nested_state_top(ctx)->items_parsed.odd)) {
                 nested_state_pop(ctx);
             } else
 #    endif // _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
             {
-                ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+                ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
             }
             continue;
         }
@@ -229,22 +229,22 @@ static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
 
         if (get_major_type(ctx->current_item.initial_byte)
                 == CBOR_MAJOR_TYPE_UINT) {
-            ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_UINT;
+            ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_UINT;
         } else if (get_major_type(ctx->current_item.initial_byte)
                    == CBOR_MAJOR_TYPE_NEGATIVE_INT) {
-            ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_NEGATIVE_INT;
+            ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_NEGATIVE_INT;
         } else if (get_major_type(ctx->current_item.initial_byte)
                    == CBOR_MAJOR_TYPE_BYTE_STRING) {
-            ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_BYTE_STRING;
+            ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_BYTE_STRING;
         } else if (get_major_type(ctx->current_item.initial_byte)
                    == CBOR_MAJOR_TYPE_TEXT_STRING) {
-            ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_TEXT_STRING;
+            ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_TEXT_STRING;
         } else if (get_major_type(ctx->current_item.initial_byte)
                    == CBOR_MAJOR_TYPE_ARRAY) {
-            ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_ARRAY;
+            ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_ARRAY;
         } else if (get_major_type(ctx->current_item.initial_byte)
                    == CBOR_MAJOR_TYPE_MAP) {
-            ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_MAP;
+            ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_MAP;
         } else if (get_major_type(ctx->current_item.initial_byte)
                    == CBOR_MAJOR_TYPE_FLOAT_OR_SIMPLE_VALUE) {
             handle_header_for_float_or_simple_value(ctx);
@@ -257,11 +257,11 @@ static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
             case CBOR_DECODER_TAG_STRING_TIME:
 #    endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
             case CBOR_DECODER_TAG_EPOCH_BASED_TIME:
-                if (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE) {
-                    ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+                if (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE) {
+                    ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
                     return 0;
                 }
-                ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_TIMESTAMP;
+                ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_TIMESTAMP;
                 break;
 #    ifdef ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
             case CBOR_DECODER_TAG_DECIMAL_FRACTION:
@@ -299,11 +299,11 @@ static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
                  * double and just hope for the best -- there is no dedicated
                  * type in LwM2M for decimal fractions.
                  */
-                if (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE) {
-                    ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+                if (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE) {
+                    ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
                     return 0;
                 }
-                ctx->current_item.value_type = ANJ_CBOR_LL_VALUE_DOUBLE;
+                ctx->current_item.value_type = _ANJ_CBOR_LL_VALUE_DOUBLE;
                 break;
 #    endif // ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
             default:
@@ -316,7 +316,7 @@ static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
         break;
     }
 
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_ERROR) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_ERROR) {
         return 0;
     }
 
@@ -336,7 +336,7 @@ static int preprocess_next_value(_anj_cbor_ll_decoder_t *ctx) {
 }
 
 static int ensure_value_or_error_available(_anj_cbor_ll_decoder_t *ctx) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
             || !ctx->needs_preprocessing) {
         return 0;
     }
@@ -350,7 +350,7 @@ static int parse_uint(_anj_cbor_ll_decoder_t *ctx, uint64_t *out_value) {
                 (uint64_t) get_additional_info(ctx->current_item.initial_byte);
         if (*out_value >= CBOR_EXT_LENGTH_1BYTE) {
             // Invalid short primitive value
-            ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+            ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
             return _ANJ_IO_ERR_FORMAT;
         }
         return 0;
@@ -368,7 +368,7 @@ static int parse_uint(_anj_cbor_ll_decoder_t *ctx, uint64_t *out_value) {
     } value;
     if (ctx->prebuffer_offset + ext_len_size > ctx->prebuffer_size) {
         assert(ctx->input_last);
-        ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+        ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
         return _ANJ_IO_ERR_FORMAT;
     }
     memcpy(&value, ctx->prebuffer + ctx->prebuffer_offset, ext_len_size);
@@ -420,12 +420,12 @@ static int parse_ptrdiff(_anj_cbor_ll_decoder_t *ctx, ptrdiff_t *out_value) {
 }
 
 static int nested_state_push(_anj_cbor_ll_decoder_t *ctx) {
-    assert(ctx->state == ANJ_CBOR_LL_DECODER_STATE_OK);
-    assert(ctx->current_item.value_type == ANJ_CBOR_LL_VALUE_ARRAY
-           || ctx->current_item.value_type == ANJ_CBOR_LL_VALUE_MAP
-           || ((ctx->current_item.value_type == ANJ_CBOR_LL_VALUE_BYTE_STRING
+    assert(ctx->state == _ANJ_CBOR_LL_DECODER_STATE_OK);
+    assert(ctx->current_item.value_type == _ANJ_CBOR_LL_VALUE_ARRAY
+           || ctx->current_item.value_type == _ANJ_CBOR_LL_VALUE_MAP
+           || ((ctx->current_item.value_type == _ANJ_CBOR_LL_VALUE_BYTE_STRING
                 || ctx->current_item.value_type
-                           == ANJ_CBOR_LL_VALUE_TEXT_STRING)
+                           == _ANJ_CBOR_LL_VALUE_TEXT_STRING)
                && get_additional_info(ctx->current_item.initial_byte)
                           == CBOR_EXT_LENGTH_INDEFINITE));
 
@@ -440,7 +440,7 @@ static int nested_state_push(_anj_cbor_ll_decoder_t *ctx) {
     }
 
     switch (state.type) {
-    case ANJ_CBOR_LL_VALUE_ARRAY:
+    case _ANJ_CBOR_LL_VALUE_ARRAY:
         if (get_additional_info(ctx->current_item.initial_byte)
                 == CBOR_EXT_LENGTH_INDEFINITE) {
             /* indefinite array */
@@ -449,7 +449,7 @@ static int nested_state_push(_anj_cbor_ll_decoder_t *ctx) {
             goto error;
         }
         break;
-    case ANJ_CBOR_LL_VALUE_MAP:
+    case _ANJ_CBOR_LL_VALUE_MAP:
         if (get_additional_info(ctx->current_item.initial_byte)
                 == CBOR_EXT_LENGTH_INDEFINITE) {
             /* indefinite map */
@@ -468,8 +468,8 @@ static int nested_state_push(_anj_cbor_ll_decoder_t *ctx) {
         }
         break;
 #        ifdef ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
-    case ANJ_CBOR_LL_VALUE_BYTE_STRING:
-    case ANJ_CBOR_LL_VALUE_TEXT_STRING:
+    case _ANJ_CBOR_LL_VALUE_BYTE_STRING:
+    case _ANJ_CBOR_LL_VALUE_TEXT_STRING:
         state.all_items = ANJ_CBOR_LL_DECODER_ITEMS_INDEFINITE;
         break;
 #        endif // ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
@@ -483,7 +483,7 @@ static int nested_state_push(_anj_cbor_ll_decoder_t *ctx) {
     return 0;
 error:
     if (result < 0) {
-        ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+        ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
     }
     return result;
 }
@@ -499,13 +499,13 @@ static void nested_state_pop(_anj_cbor_ll_decoder_t *ctx) {
 #    endif // _ANJ_MAX_CBOR_NEST_STACK_SIZE > 0
 
 static int decode_uint(_anj_cbor_ll_decoder_t *ctx, uint64_t *out_value) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
                 && ctx->subparser_type
-                           != ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME)) {
+                           != _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME)) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_UINT) {
+    if (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_UINT) {
         return _ANJ_IO_ERR_FORMAT;
     }
     assert(!ctx->needs_preprocessing);
@@ -519,13 +519,13 @@ static int decode_uint(_anj_cbor_ll_decoder_t *ctx, uint64_t *out_value) {
 
 static int decode_negative_int(_anj_cbor_ll_decoder_t *ctx,
                                int64_t *out_value) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
                 && ctx->subparser_type
-                           != ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME)) {
+                           != _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME)) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
+    if (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
         return _ANJ_IO_ERR_FORMAT;
     }
     assert(!ctx->needs_preprocessing);
@@ -536,7 +536,7 @@ static int decode_negative_int(_anj_cbor_ll_decoder_t *ctx,
     }
     /* equivalent to if (u64 >= -INT64_MIN) */
     if (u64 >= (uint64_t) INT64_MAX + 1) {
-        ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+        ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
         return _ANJ_IO_ERR_FORMAT;
     }
     *out_value = -(int64_t) u64 - INT64_C(1);
@@ -565,13 +565,13 @@ static float decode_half_float(uint16_t half) {
 #    endif // ANJ_WITH_CBOR_DECODE_HALF_FLOAT
 
 static int decode_float(_anj_cbor_ll_decoder_t *ctx, float *out_value) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
                 && ctx->subparser_type
-                           != ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME)) {
+                           != _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME)) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_FLOAT) {
+    if (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_FLOAT) {
         return _ANJ_IO_ERR_FORMAT;
     }
     assert(!ctx->needs_preprocessing);
@@ -613,7 +613,7 @@ static int decode_float(_anj_cbor_ll_decoder_t *ctx, float *out_value) {
     }
     if (result) {
         assert(result < 0);
-        ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+        ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
     } else {
         ctx->needs_preprocessing = true;
         ctx->after_tag = false;
@@ -624,12 +624,13 @@ static int decode_float(_anj_cbor_ll_decoder_t *ctx, float *out_value) {
 #    ifdef ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
 static int reinterpret_fraction_component_as_double(_anj_cbor_ll_decoder_t *ctx,
                                                     double *out_value) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK) {
         return _ANJ_IO_ERR_FORMAT;
     }
     assert(!ctx->needs_preprocessing);
-    if (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_UINT
-            && ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
+    if (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_UINT
+            && ctx->current_item.value_type
+                           != _ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
         return _ANJ_IO_ERR_FORMAT;
     }
     uint64_t value;
@@ -642,7 +643,7 @@ static int reinterpret_fraction_component_as_double(_anj_cbor_ll_decoder_t *ctx,
         return result;
     }
     *out_value = (double) value;
-    if (ctx->current_item.value_type == ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
+    if (ctx->current_item.value_type == _ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
         *out_value = -*out_value - 1.0;
     }
     return 0;
@@ -676,28 +677,28 @@ static int decode_decimal_fraction(_anj_cbor_ll_decoder_t *ctx,
      * > mantissa m.  Decimal fractions (tag 4) use base-10 exponents; the
      * > value of a decimal fraction data item is m*(10**e).
      */
-    if (ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_NONE) {
+    if (ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_NONE) {
         size_t current_level;
         if ((result = anj_cbor_ll_decoder_nesting_level(ctx, &current_level))) {
             return result;
         }
         assert(get_major_type(ctx->current_item.initial_byte)
                        == CBOR_MAJOR_TYPE_TAG
-               || ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK);
+               || ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK);
         ctx->subparser.decimal_fraction.array_level = current_level + 1;
         ctx->subparser.decimal_fraction.entered_array = false;
         ctx->subparser.decimal_fraction.exponent = NAN;
         ctx->subparser.decimal_fraction.mantissa = NAN;
-        ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION;
+        ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION;
         ctx->needs_preprocessing = true;
         ctx->after_tag = true;
-    } else if (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION) {
+    } else if (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION) {
         return _ANJ_IO_ERR_FORMAT;
     }
     if (!ctx->subparser.decimal_fraction.entered_array) {
         if ((result = ensure_value_or_error_available(ctx))
-                || ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-                || ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_ARRAY
+                || ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+                || ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_ARRAY
                 || (result = nested_state_push(ctx))) {
             return result ? result : _ANJ_IO_ERR_FORMAT;
         }
@@ -712,21 +713,21 @@ static int decode_decimal_fraction(_anj_cbor_ll_decoder_t *ctx,
         return result;
     }
     if ((result = ensure_value_or_error_available(ctx))
-            || ctx->state == ANJ_CBOR_LL_DECODER_STATE_ERROR
-            || (ctx->state == ANJ_CBOR_LL_DECODER_STATE_OK
+            || ctx->state == _ANJ_CBOR_LL_DECODER_STATE_ERROR
+            || (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_OK
                 && ctx->nest_stack_size
                            == ctx->subparser.decimal_fraction.array_level)) {
         return result ? result : _ANJ_IO_ERR_FORMAT;
     }
     *out_value = ctx->subparser.decimal_fraction.mantissa
                  * pow(10.0, ctx->subparser.decimal_fraction.exponent);
-    ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_NONE;
+    ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_NONE;
     return 0;
 }
 #    endif // ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
 
 static int decode_double(_anj_cbor_ll_decoder_t *ctx, double *out_value) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK) {
         return _ANJ_IO_ERR_LOGIC;
     }
     assert(!ctx->needs_preprocessing);
@@ -739,24 +740,24 @@ static int decode_double(_anj_cbor_ll_decoder_t *ctx, double *out_value) {
      * land in this function for non-floating-point types (as ensured by the
      * if above).
      */
-    if (ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION
-            || (ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_NONE
-                && ctx->current_item.value_type == ANJ_CBOR_LL_VALUE_DOUBLE
+    if (ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION
+            || (ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_NONE
+                && ctx->current_item.value_type == _ANJ_CBOR_LL_VALUE_DOUBLE
                 && get_additional_info(ctx->current_item.initial_byte)
                            == CBOR_DECODER_TAG_DECIMAL_FRACTION)) {
-        assert(ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION
+        assert(ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION
                || get_major_type(ctx->current_item.initial_byte)
                           == CBOR_MAJOR_TYPE_TAG);
         result = decode_decimal_fraction(ctx, out_value);
     } else
 #    endif // ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
-            if (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_DOUBLE) {
+            if (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_DOUBLE) {
         return _ANJ_IO_ERR_FORMAT;
     } else {
         uint64_t value;
         if (!(result = fill_prebuffer(ctx, sizeof(value)))) {
             if (ctx->prebuffer_offset + sizeof(value) > ctx->prebuffer_size) {
-                ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+                ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
                 result = _ANJ_IO_ERR_FORMAT;
             } else {
                 memcpy(&value,
@@ -780,21 +781,21 @@ static int decode_simple_number(_anj_cbor_ll_decoder_t *ctx,
     if (result) {
         return result;
     }
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK) {
         return _ANJ_IO_ERR_FORMAT;
     }
     out_value->type = ctx->current_item.value_type;
     switch (out_value->type) {
-    case ANJ_CBOR_LL_VALUE_UINT:
+    case _ANJ_CBOR_LL_VALUE_UINT:
         return decode_uint(ctx, &out_value->value.u64);
-    case ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
+    case _ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
         return decode_negative_int(ctx, &out_value->value.i64);
-    case ANJ_CBOR_LL_VALUE_FLOAT:
+    case _ANJ_CBOR_LL_VALUE_FLOAT:
         return decode_float(ctx, &out_value->value.f32);
-    case ANJ_CBOR_LL_VALUE_DOUBLE:
+    case _ANJ_CBOR_LL_VALUE_DOUBLE:
         return decode_double(ctx, &out_value->value.f64);
     default:
         return _ANJ_IO_ERR_FORMAT;
@@ -803,17 +804,17 @@ static int decode_simple_number(_anj_cbor_ll_decoder_t *ctx,
 
 static int cbor_get_bytes_size(_anj_cbor_ll_decoder_t *ctx,
                                size_t *out_bytes_size) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
-                && ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_STRING
-                && ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_BYTES
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
+                && ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_STRING
+                && ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_BYTES
 #    ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-                && ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_STRING_TIME
+                && ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_STRING_TIME
 #    endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
                 )
-            || (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_BYTE_STRING
+            || (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_BYTE_STRING
                 && ctx->current_item.value_type
-                           != ANJ_CBOR_LL_VALUE_TEXT_STRING)) {
+                           != _ANJ_CBOR_LL_VALUE_TEXT_STRING)) {
         return _ANJ_IO_ERR_FORMAT;
     }
     return parse_size(ctx, out_bytes_size);
@@ -825,13 +826,13 @@ static int initialize_bytes_subparser(_anj_cbor_ll_decoder_t *ctx) {
         return result;
     }
 
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_BYTE_STRING
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_BYTE_STRING
                 && ctx->current_item.value_type
-                           != ANJ_CBOR_LL_VALUE_TEXT_STRING)) {
+                           != _ANJ_CBOR_LL_VALUE_TEXT_STRING)) {
         return _ANJ_IO_ERR_FORMAT;
     }
 
@@ -850,7 +851,7 @@ static int initialize_bytes_subparser(_anj_cbor_ll_decoder_t *ctx) {
 #    endif // ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
     } else if ((result = cbor_get_bytes_size(ctx, &bytes_available))) {
         if (result < 0) {
-            ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+            ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
         }
         return result;
     }
@@ -1009,13 +1010,13 @@ static int parse_time_string(_anj_cbor_ll_number_t *out_value,
     }
     timestamp -= tzoffset_seconds_east;
     if (nanosecond) {
-        out_value->type = ANJ_CBOR_LL_VALUE_DOUBLE;
+        out_value->type = _ANJ_CBOR_LL_VALUE_DOUBLE;
         out_value->value.f64 = (double) timestamp + (double) nanosecond / 1.0e9;
     } else if (timestamp >= 0) {
-        out_value->type = ANJ_CBOR_LL_VALUE_UINT;
+        out_value->type = _ANJ_CBOR_LL_VALUE_UINT;
         out_value->value.u64 = (uint64_t) timestamp;
     } else {
-        out_value->type = ANJ_CBOR_LL_VALUE_NEGATIVE_INT;
+        out_value->type = _ANJ_CBOR_LL_VALUE_NEGATIVE_INT;
         out_value->value.i64 = timestamp;
     }
     return 0;
@@ -1024,18 +1025,18 @@ static int parse_time_string(_anj_cbor_ll_number_t *out_value,
 
 static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
                             _anj_cbor_ll_number_t *out_value) {
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK) {
         return _ANJ_IO_ERR_LOGIC;
     }
     assert(!ctx->needs_preprocessing);
 
-    if (ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_NONE) {
+    if (ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_NONE) {
 #    ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
         if (get_additional_info(ctx->current_item.initial_byte)
                 == CBOR_DECODER_TAG_STRING_TIME) {
             memset(&ctx->subparser.string_or_bytes_or_string_time, 0,
                    sizeof(ctx->subparser.string_or_bytes_or_string_time));
-            ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_STRING_TIME;
+            ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_STRING_TIME;
             ctx->needs_preprocessing = true;
             ctx->after_tag = true;
         } else
@@ -1043,7 +1044,7 @@ static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
         {
             assert(get_additional_info(ctx->current_item.initial_byte)
                    == CBOR_DECODER_TAG_EPOCH_BASED_TIME);
-            ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME;
+            ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME;
             ctx->needs_preprocessing = true;
             ctx->after_tag = true;
         }
@@ -1052,7 +1053,7 @@ static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
     int result;
     switch (ctx->subparser_type) {
 #    ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-    case ANJ_CBOR_LL_SUBPARSER_STRING_TIME: {
+    case _ANJ_CBOR_LL_SUBPARSER_STRING_TIME: {
         if (!ctx->subparser.string_or_bytes_or_string_time.string_time
                      .initialized) {
             if ((result = initialize_bytes_subparser(ctx))) {
@@ -1060,7 +1061,7 @@ static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
             }
             if (get_major_type(ctx->current_item.initial_byte)
                     != CBOR_MAJOR_TYPE_TEXT_STRING) {
-                ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+                ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
                 return _ANJ_IO_ERR_FORMAT;
             }
             ctx->subparser.string_or_bytes_or_string_time.string_time
@@ -1081,7 +1082,7 @@ static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
                                 + buf_size
                         >= sizeof(ctx->subparser.string_or_bytes_or_string_time
                                           .string_time.buffer)) {
-                    ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+                    ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
                     return _ANJ_IO_ERR_FORMAT;
                 }
                 memcpy(ctx->subparser.string_or_bytes_or_string_time.string_time
@@ -1095,8 +1096,8 @@ static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
             }
         }
         // after message_finished, anj_cbor_ll_decoder_bytes_get_some() will
-        // reset subparser_type to ANJ_CBOR_LL_SUBPARSER_NONE
-        assert(ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_NONE);
+        // reset subparser_type to _ANJ_CBOR_LL_SUBPARSER_NONE
+        assert(ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_NONE);
         assert(ctx->subparser.string_or_bytes_or_string_time.string_time
                        .bytes_read
                < sizeof(ctx->subparser.string_or_bytes_or_string_time
@@ -1108,14 +1109,14 @@ static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
                      out_value,
                      ctx->subparser.string_or_bytes_or_string_time.string_time
                              .buffer))) {
-            ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+            ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
         }
         return result;
     }
 #    endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
-    case ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME: {
+    case _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME: {
         if (!(result = decode_simple_number(ctx, out_value))) {
-            ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_NONE;
+            ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_NONE;
         }
         return result;
     }
@@ -1130,12 +1131,12 @@ static int decode_timestamp(_anj_cbor_ll_decoder_t *ctx,
 static int try_preprocess_next_bytes_chunk(_anj_cbor_ll_decoder_t *ctx,
                                            bool *out_message_finished) {
 #        ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-    assert(ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_STRING
-           || ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_BYTES
-           || ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_STRING_TIME);
+    assert(ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_STRING
+           || ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_BYTES
+           || ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_STRING_TIME);
 #        else  // ANJ_WITH_CBOR_DECODE_STRING_TIME
-    assert(ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_STRING
-           || ctx->subparser_type == ANJ_CBOR_LL_SUBPARSER_BYTES);
+    assert(ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_STRING
+           || ctx->subparser_type == _ANJ_CBOR_LL_SUBPARSER_BYTES);
 #        endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
     assert(ctx->subparser.string_or_bytes_or_string_time.indefinite);
     assert(!ctx->subparser.string_or_bytes_or_string_time.bytes_available);
@@ -1149,7 +1150,7 @@ static int try_preprocess_next_bytes_chunk(_anj_cbor_ll_decoder_t *ctx,
                      ctx, &ctx->subparser.string_or_bytes_or_string_time
                                    .bytes_available))
                 < 0) {
-            ctx->state = ANJ_CBOR_LL_DECODER_STATE_ERROR;
+            ctx->state = _ANJ_CBOR_LL_DECODER_STATE_ERROR;
         }
         *out_message_finished = false;
         return result;
@@ -1167,10 +1168,10 @@ static int bytes_get_some_impl(_anj_cbor_ll_decoder_bytes_ctx_t *bytes_ctx,
     assert(bytes_ctx);
     _anj_cbor_ll_decoder_t *ctx =
             ANJ_CONTAINER_OF(bytes_ctx, _anj_cbor_ll_decoder_t, subparser);
-    if (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_STRING
-            && ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_BYTES
+    if (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_STRING
+            && ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_BYTES
 #    ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-            && ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_STRING_TIME
+            && ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_STRING_TIME
 #    endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
     ) {
         return _ANJ_IO_ERR_LOGIC;
@@ -1179,7 +1180,7 @@ static int bytes_get_some_impl(_anj_cbor_ll_decoder_bytes_ctx_t *bytes_ctx,
     *out_message_finished = false;
 #    ifdef ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
     int result = 0;
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_OK && bytes_ctx->indefinite
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_OK && bytes_ctx->indefinite
             && !ctx->subparser.string_or_bytes_or_string_time.bytes_available
             && (result = try_preprocess_next_bytes_chunk(
                         ctx, out_message_finished))) {
@@ -1237,14 +1238,14 @@ static int bytes_get_some_impl(_anj_cbor_ll_decoder_bytes_ctx_t *bytes_ctx,
         }
     }
     if (*out_message_finished) {
-        ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_NONE;
+        ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_NONE;
     }
     return 0;
 }
 
 void anj_cbor_ll_decoder_init(_anj_cbor_ll_decoder_t *ctx) {
     memset(ctx, 0, sizeof(*ctx));
-    ctx->state = ANJ_CBOR_LL_DECODER_STATE_OK;
+    ctx->state = _ANJ_CBOR_LL_DECODER_STATE_OK;
     ctx->needs_preprocessing = true;
     ctx->after_tag = false;
 }
@@ -1274,11 +1275,11 @@ int anj_cbor_ll_decoder_errno(_anj_cbor_ll_decoder_t *ctx) {
         return result;
     }
     switch (ctx->state) {
-    case ANJ_CBOR_LL_DECODER_STATE_OK:
+    case _ANJ_CBOR_LL_DECODER_STATE_OK:
         return 0;
-    case ANJ_CBOR_LL_DECODER_STATE_FINISHED:
+    case _ANJ_CBOR_LL_DECODER_STATE_FINISHED:
         return _ANJ_IO_EOF;
-    case ANJ_CBOR_LL_DECODER_STATE_ERROR:
+    case _ANJ_CBOR_LL_DECODER_STATE_ERROR:
         return _ANJ_IO_ERR_FORMAT;
     }
     ANJ_UNREACHABLE("invalid _anj_cbor_ll_decoder_state_t value");
@@ -1288,35 +1289,35 @@ int anj_cbor_ll_decoder_errno(_anj_cbor_ll_decoder_t *ctx) {
 int anj_cbor_ll_decoder_current_value_type(
         _anj_cbor_ll_decoder_t *ctx, _anj_cbor_ll_value_type_t *out_type) {
     switch (ctx->subparser_type) {
-    case ANJ_CBOR_LL_SUBPARSER_NONE: {
+    case _ANJ_CBOR_LL_SUBPARSER_NONE: {
         int result = ensure_value_or_error_available(ctx);
         if (result) {
             return result;
         }
-        if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+        if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
             return _ANJ_IO_ERR_LOGIC;
         }
-        if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_OK) {
+        if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_OK) {
             *out_type = ctx->current_item.value_type;
             return 0;
         }
         break;
     }
-    case ANJ_CBOR_LL_SUBPARSER_STRING:
-        *out_type = ANJ_CBOR_LL_VALUE_TEXT_STRING;
+    case _ANJ_CBOR_LL_SUBPARSER_STRING:
+        *out_type = _ANJ_CBOR_LL_VALUE_TEXT_STRING;
         return 0;
-    case ANJ_CBOR_LL_SUBPARSER_BYTES:
-        *out_type = ANJ_CBOR_LL_VALUE_BYTE_STRING;
+    case _ANJ_CBOR_LL_SUBPARSER_BYTES:
+        *out_type = _ANJ_CBOR_LL_VALUE_BYTE_STRING;
         return 0;
-    case ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME:
+    case _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME:
 #    ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-    case ANJ_CBOR_LL_SUBPARSER_STRING_TIME:
+    case _ANJ_CBOR_LL_SUBPARSER_STRING_TIME:
 #    endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
-        *out_type = ANJ_CBOR_LL_VALUE_TIMESTAMP;
+        *out_type = _ANJ_CBOR_LL_VALUE_TIMESTAMP;
         return 0;
 #    ifdef ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
-    case ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION:
-        *out_type = ANJ_CBOR_LL_VALUE_DOUBLE;
+    case _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION:
+        *out_type = _ANJ_CBOR_LL_VALUE_DOUBLE;
         return 0;
 #    endif // ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
     }
@@ -1328,12 +1329,12 @@ int anj_cbor_ll_decoder_null(_anj_cbor_ll_decoder_t *ctx) {
     if (result) {
         return result;
     }
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
-            || ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_NULL) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
+            || ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_NULL) {
         return _ANJ_IO_ERR_FORMAT;
     }
     ctx->needs_preprocessing = true;
@@ -1346,12 +1347,12 @@ int anj_cbor_ll_decoder_bool(_anj_cbor_ll_decoder_t *ctx, bool *out_value) {
     if (result) {
         return result;
     }
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
-            || ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_BOOL) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
+            || ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_BOOL) {
         return _ANJ_IO_ERR_FORMAT;
     }
     switch (get_additional_info(ctx->current_item.initial_byte)) {
@@ -1376,31 +1377,31 @@ int anj_cbor_ll_decoder_number(_anj_cbor_ll_decoder_t *ctx,
     if (result) {
         return result;
     }
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK) {
         return _ANJ_IO_ERR_FORMAT;
     }
     out_value->type = (_anj_cbor_ll_value_type_t) -1;
     switch (ctx->subparser_type) {
-    case ANJ_CBOR_LL_SUBPARSER_NONE:
-        if (ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_TIMESTAMP) {
+    case _ANJ_CBOR_LL_SUBPARSER_NONE:
+        if (ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_TIMESTAMP) {
             return decode_simple_number(ctx, out_value);
         }
         // fall through
-    case ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME:
+    case _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME:
 #    ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-    case ANJ_CBOR_LL_SUBPARSER_STRING_TIME:
+    case _ANJ_CBOR_LL_SUBPARSER_STRING_TIME:
 #    endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
         return decode_timestamp(ctx, out_value);
 #    ifdef ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
-    case ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION:
-        out_value->type = ANJ_CBOR_LL_VALUE_DOUBLE;
+    case _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION:
+        out_value->type = _ANJ_CBOR_LL_VALUE_DOUBLE;
         return decode_decimal_fraction(ctx, &out_value->value.f64);
 #    endif // ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
-    case ANJ_CBOR_LL_SUBPARSER_STRING:
-    case ANJ_CBOR_LL_SUBPARSER_BYTES:;
+    case _ANJ_CBOR_LL_SUBPARSER_STRING:
+    case _ANJ_CBOR_LL_SUBPARSER_BYTES:;
     }
     return _ANJ_IO_ERR_LOGIC;
 }
@@ -1409,17 +1410,17 @@ int anj_cbor_ll_decoder_bytes(_anj_cbor_ll_decoder_t *ctx,
                               _anj_cbor_ll_decoder_bytes_ctx_t **out_bytes_ctx,
                               ptrdiff_t *out_total_size) {
     *out_bytes_ctx = NULL;
-    if (ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE) {
+    if (ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE) {
         return _ANJ_IO_ERR_FORMAT;
     }
     int result = initialize_bytes_subparser(ctx);
     if (!result) {
-        if (ctx->current_item.value_type == ANJ_CBOR_LL_VALUE_TEXT_STRING) {
-            ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_STRING;
+        if (ctx->current_item.value_type == _ANJ_CBOR_LL_VALUE_TEXT_STRING) {
+            ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_STRING;
         } else {
             assert(ctx->current_item.value_type
-                   == ANJ_CBOR_LL_VALUE_BYTE_STRING);
-            ctx->subparser_type = ANJ_CBOR_LL_SUBPARSER_BYTES;
+                   == _ANJ_CBOR_LL_VALUE_BYTE_STRING);
+            ctx->subparser_type = _ANJ_CBOR_LL_SUBPARSER_BYTES;
         }
         *out_bytes_ctx = &ctx->subparser.string_or_bytes_or_string_time;
         if (out_total_size) {
@@ -1464,12 +1465,12 @@ int anj_cbor_ll_decoder_enter_array(_anj_cbor_ll_decoder_t *ctx,
     if (result) {
         return result;
     }
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
-            || ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_ARRAY) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
+            || ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_ARRAY) {
         return _ANJ_IO_ERR_FORMAT;
     }
     if ((result = nested_state_push(ctx))) {
@@ -1489,12 +1490,12 @@ int anj_cbor_ll_decoder_enter_map(_anj_cbor_ll_decoder_t *ctx,
     if (result) {
         return result;
     }
-    if (ctx->state == ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
+    if (ctx->state == _ANJ_CBOR_LL_DECODER_STATE_FINISHED) {
         return _ANJ_IO_ERR_LOGIC;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK
-            || ctx->subparser_type != ANJ_CBOR_LL_SUBPARSER_NONE
-            || ctx->current_item.value_type != ANJ_CBOR_LL_VALUE_MAP) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK
+            || ctx->subparser_type != _ANJ_CBOR_LL_SUBPARSER_NONE
+            || ctx->current_item.value_type != _ANJ_CBOR_LL_VALUE_MAP) {
         return _ANJ_IO_ERR_FORMAT;
     }
     if ((result = nested_state_push(ctx))) {
@@ -1517,13 +1518,13 @@ int anj_cbor_ll_decoder_nesting_level(_anj_cbor_ll_decoder_t *ctx,
     if (result) {
         return result;
     }
-    if (ctx->state != ANJ_CBOR_LL_DECODER_STATE_OK) {
+    if (ctx->state != _ANJ_CBOR_LL_DECODER_STATE_OK) {
         *out_nesting_level = 0;
         return 0;
     }
     switch (ctx->subparser_type) {
 #        ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-    case ANJ_CBOR_LL_SUBPARSER_STRING_TIME:
+    case _ANJ_CBOR_LL_SUBPARSER_STRING_TIME:
         if (!ctx->subparser.string_or_bytes_or_string_time.string_time
                      .initialized) {
             *out_nesting_level = ctx->nest_stack_size;
@@ -1531,8 +1532,8 @@ int anj_cbor_ll_decoder_nesting_level(_anj_cbor_ll_decoder_t *ctx,
         }
 #        endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
         // fall through
-    case ANJ_CBOR_LL_SUBPARSER_STRING:
-    case ANJ_CBOR_LL_SUBPARSER_BYTES:
+    case _ANJ_CBOR_LL_SUBPARSER_STRING:
+    case _ANJ_CBOR_LL_SUBPARSER_BYTES:
 #        ifdef ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
         if (ctx->subparser.string_or_bytes_or_string_time.indefinite) {
             *out_nesting_level = ctx->subparser.string_or_bytes_or_string_time
@@ -1542,12 +1543,12 @@ int anj_cbor_ll_decoder_nesting_level(_anj_cbor_ll_decoder_t *ctx,
         }
 #        endif // ANJ_WITH_CBOR_DECODE_INDEFINITE_BYTES
                // fall through
-    case ANJ_CBOR_LL_SUBPARSER_NONE:
-    case ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME:
+    case _ANJ_CBOR_LL_SUBPARSER_NONE:
+    case _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME:
         *out_nesting_level = ctx->nest_stack_size;
         return 0;
 #        ifdef ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
-    case ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION:
+    case _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION:
         *out_nesting_level = ctx->subparser.decimal_fraction.array_level - 1;
         return 0;
 #        endif // ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS

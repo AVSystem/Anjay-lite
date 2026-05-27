@@ -7,13 +7,10 @@
  * See the attached LICENSE file for details.
  */
 
-#define _DEFAULT_SOURCE
-
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 
 #include <anj/core.h>
 #include <anj/defs.h>

@@ -8,88 +8,83 @@
 cmake_minimum_required(VERSION 3.16.0)
 project(anjay_lite_docs NONE)
 
+set(REPO_ROOT "${CMAKE_CURRENT_LIST_DIR}/..")
+
+# Sources
+set(SPHINX_DIR      "${CMAKE_CURRENT_SOURCE_DIR}/sphinx")
+set(DOC_SOURCE_MAIN "${SPHINX_DIR}/source")
+set(DOC_SOURCE_API  "${SPHINX_DIR}/source_api")
+set(INCLUDE_PUBLIC  "${REPO_ROOT}/include_public")
+
+# Output (Build dir)
+set(DOC_BUILD_DIR   "${REPO_ROOT}/build/doc")
+set(DOXYGEN_OUTPUT  "${DOC_BUILD_DIR}/doxygen")
+set(SPHINX_OUTPUT   "${DOC_BUILD_DIR}/html")
+
+set(DOXYGEN_INPUT_PATHS "${DOXYGEN_OUTPUT}/config")
+
 find_program(SPHINX_EXECUTABLE sphinx-build)
+find_package(Doxygen)
 
-add_custom_target(doc)
+if(SPHINX_EXECUTABLE AND DOXYGEN_FOUND AND
+   EXISTS "${DOC_SOURCE_MAIN}/conf.py.in" AND 
+   EXISTS "${DOC_SOURCE_API}/conf.py.in" AND
+   EXISTS "${REPO_ROOT}/Doxyfile")
 
-if(NOT SPHINX_EXECUTABLE)
-    message(FATAL_ERROR "Sphinx was not found. Please install Sphinx and make sure it's in your PATH.")
-endif()
+    # no template for Doxyfile in this project
 
-set(repo_root "${CMAKE_CURRENT_LIST_DIR}/..")
-set(SPHINX_DIR ${repo_root}/doc/sphinx)
-set(SPHINX_SOURCE ${repo_root}/doc/sphinx/source)
-set(SPHINX_BUILD ${repo_root}/doc/build/sphinx)
-set(SNIPPET_SOURCE_MD5FILE ${SPHINX_DIR})
-file(MAKE_DIRECTORY ${repo_root}/doc/build)
-
-if(EXISTS "${SPHINX_SOURCE}/conf.py.in")
-    set(DOC_VERSION "2.0.0")
-
-    configure_file(${SPHINX_SOURCE}/conf.py.in
-                   ${SPHINX_DIR}/conf.py
+    # configure Sphinx config file for main documentation
+    set(CURRENT_TEMPLATES_DIR "${DOC_SOURCE_MAIN}/_templates")
+    configure_file(${DOC_SOURCE_MAIN}/conf.py.in
+                   ${DOC_BUILD_DIR}/sphinx/conf_main/conf.py
                    @ONLY)
 
-    add_custom_target(doc_sphinx
-        COMMAND ${SPHINX_EXECUTABLE}
-             -b html ${SPHINX_SOURCE}
-             -c ${SPHINX_DIR}
-             ${SPHINX_BUILD}
-        WORKING_DIRECTORY ${SPHINX_DIR}
-        COMMENT "Generating HTML documentation with Sphinx"
+    # configure Sphinx config file for API docs
+    set(CURRENT_TEMPLATES_DIR "${DOC_SOURCE_API}/_templates")
+    configure_file(${DOC_SOURCE_API}/conf.py.in
+                   ${DOC_BUILD_DIR}/sphinx/conf_api/conf.py
+                   @ONLY)
+
+    # declare the common target for docs
+    add_custom_target(doc
+        # ensure headers in output folder are up-to-date and generate Doxygen XML files
+        # (copy and build inside this script)
+        COMMAND python3 ${REPO_ROOT}/tools/build_doxygen_docs.py
+                "${DOXYGEN_INPUT_PATHS}"
+                "${REPO_ROOT}/Doxyfile"
+                "${DOXYGEN_OUTPUT}/doxygen.md5"
+
+        # generate Sphinx API docs
+        COMMAND python3 ${REPO_ROOT}/tools/build_sphinx_docs.py
+                "${DOC_SOURCE_API}"
+                "${DOC_BUILD_DIR}/sphinx/conf_api"
+                "${SPHINX_OUTPUT}/api"
+                "${SPHINX_OUTPUT}/api/sphinx.md5"
+                "${DOXYGEN_OUTPUT}/xml"
+
+        # generate Sphinx main documentation
+        COMMAND python3 ${REPO_ROOT}/tools/build_sphinx_docs.py
+                "${DOC_SOURCE_MAIN}"
+                "${DOC_BUILD_DIR}/sphinx/conf_main"
+                "${SPHINX_OUTPUT}"
+                "${SPHINX_OUTPUT}/sphinx.md5"
+
+        WORKING_DIRECTORY ${REPO_ROOT}
+        COMMENT "Building Anjay Lite Documentation (Doxygen -> Sphinx API -> Sphinx Main)"
+        VERBATIM
     )
-    add_dependencies(doc doc_sphinx)
 
     # sphinx-based .. snippet-source:: validation
     add_custom_target(test_doc_snippet
                 COMMAND ${CMAKE_COMMAND} -E env
-                        "CMAKE_SOURCE_DIR=${repo_root}"
+                        "CMAKE_SOURCE_DIR=${REPO_ROOT}"
                         "SNIPPET_SOURCE_MD5FILE=${SPHINX_DIR}/snippet_sources.md5"
-                        "ANJ_SPHINX_DOC_CONF_DIR=${SPHINX_DIR}"
-                        "ANJ_SPHINX_DOC_ROOT_DIR=${SPHINX_SOURCE}"
+                        "ANJ_SPHINX_DOC_CONF_DIR=${DOC_BUILD_DIR}/sphinx/conf_main"
+                        "ANJ_SPHINX_DOC_ROOT_DIR=${DOC_SOURCE_MAIN}"
                         ${SPHINX_EXECUTABLE}
                         -Q -b snippet_source_lint
-                        -c ${SPHINX_DIR}
-                        ${SPHINX_SOURCE}
-                        ${SPHINX_BUILD}/lint
+                        -c ${DOC_BUILD_DIR}/sphinx/conf_main
+                        ${DOC_SOURCE_MAIN}
+                        ${DOC_BUILD_DIR}/lint
                 WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/sphinx)
-endif()
-
-if(EXISTS "${repo_root}/Doxyfile")
-    find_package(Doxygen)
-
-    message(STATUS "Doxygen target being added")
-
-    # configure anj_config.h with default options...
-    configure_file("${repo_root}/include_public/anj/anj_config.h.in"
-               "${repo_root}/doc/build/anj/anj_config.h")
-    # ... and manually enable every option so it's visible in doxygen
-    file(READ "${repo_root}/doc/build/anj/anj_config.h" ANJ_CONFIG_CONTENT)
-    string(REGEX REPLACE
-        "/\\* *#undef ([A-Za-z0-9_]+) *\\*/"
-        "#define \\1"
-        ANJ_CONFIG_CONTENT
-        "${ANJ_CONFIG_CONTENT}"
-    )
-    file(WRITE "${repo_root}/doc/build/anj/anj_config.h" "${ANJ_CONFIG_CONTENT}")
-
-    file(WRITE "${CMAKE_BINARY_DIR}/check_doxygen_css.cmake"
-        "if(NOT EXISTS \"${repo_root}/tools/doxygen-awesome-css\" OR\n"
-        "   NOT EXISTS \"${repo_root}/tools/doxygen-awesome-css/doxygen-awesome.css\")\n"
-        "    message(FATAL_ERROR \"ERROR: Doxygen Awesome CSS submodule is missing or not initialized!\\n\"\n"
-        "                        \"Run the following command to fix this issue:\\n\\n\"\n"
-        "                        \"    git submodule update --init --recursive\\n\")\n"
-        "endif()\n"
-    )
-
-    add_custom_target(doc_doxygen
-        COMMAND ${CMAKE_COMMAND} -E echo "Checking Doxygen Awesome CSS..."
-        COMMAND ${CMAKE_COMMAND} -P "${CMAKE_BINARY_DIR}/check_doxygen_css.cmake"
-        COMMAND ${CMAKE_COMMAND} -E echo "Doxygen Awesome CSS found, generating documentation..."
-        COMMAND ${DOXYGEN_EXECUTABLE} ${repo_root}/Doxyfile
-        WORKING_DIRECTORY ${repo_root}
-        DEPENDS ${repo_root}/Doxyfile
-    )
-
-    add_dependencies(doc doc_doxygen)
 endif()

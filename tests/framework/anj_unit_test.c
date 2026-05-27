@@ -650,7 +650,6 @@ int main(int argc, char *argv[]) {
     const char *selected_test = NULL;
     node_t *suite_n = _suites_list.head;
     suite_element_t *suite_ele;
-
     set_remove_callback(&_suites_list, remove_suite);
     while (suite_n) {
         suite_ele = (suite_element_t *) suite_n->element;

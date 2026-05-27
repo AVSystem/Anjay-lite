@@ -32,7 +32,7 @@ or memory analysis.
 
 .. code-block:: bash
 
-   apt-get install -yq python3 python3-pip clang-tools valgrind curl doxygen
+   apt-get install -yq python3 python3-dev python3-pip clang-tools valgrind curl doxygen
 
 To simplify environment setup (including creating/activating a Python virtual
 environment and installing Python dependencies), you can use the ``devconfig``

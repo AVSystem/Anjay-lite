@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 15
 
@@ -158,7 +158,7 @@ int _anj_server_register_start_register_operation(anj_t *anj) {
     anj_send_abort(anj, ANJ_SEND_ID_ALL);
 #endif // ANJ_WITH_LWM2M_SEND
 #ifdef ANJ_WITH_OBSERVE
-    _anj_observe_remove_all_observations(anj, ANJ_OBSERVE_ANY_SERVER);
+    _anj_observe_remove_all_observations(anj);
 #endif // ANJ_WITH_OBSERVE
 
     return 0;
@@ -245,11 +245,9 @@ _anj_server_register_process_register_operation(anj_t *anj,
         if (result) {
             anj->server_state.details.registration.registration_state =
                     _ANJ_SRV_REG_STATE_ERROR_HANDLING_IN_PROGRESS;
-            log(L_ERROR, "Registration error: %d", result);
         }
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }
-
     case _ANJ_SRV_REG_STATE_REGISTER_IN_PROGRESS: {
         int result = _anj_srv_conn_handle_request(anj);
         if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
@@ -262,9 +260,6 @@ _anj_server_register_process_register_operation(anj_t *anj,
                                != _ANJ_REGISTER_OPERATION_FINISHED) {
             anj->server_state.details.registration.registration_state =
                     _ANJ_SRV_REG_STATE_ERROR_HANDLING_IN_PROGRESS;
-            if (result) {
-                log(L_ERROR, "Registration error: %d", result);
-            }
         } else {
             *out_status = ANJ_CONN_STATUS_REGISTERED;
         }

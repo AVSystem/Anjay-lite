@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 26
 
@@ -48,7 +48,8 @@ int _anj_dm_get_register_record(anj_t *anj,
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
     assert(dm->op_count);
-    assert(dm->operation == ANJ_OP_REGISTER || dm->operation == ANJ_OP_UPDATE);
+    assert(dm->operation == _ANJ_OP_REGISTER
+           || dm->operation == _ANJ_OP_UPDATE);
 
     _anj_dm_reg_ctx_t *reg_ctx = &dm->op_ctx.reg_ctx;
     assert(reg_ctx->obj_idx < dm->objs_count);

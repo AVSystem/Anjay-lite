@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 2
 
@@ -60,7 +60,7 @@ int _anj_block_decode(anj_coap_options_t *opts, _anj_block_t *block) {
         return _ANJ_ERR_MALFORMED_MESSAGE;
     } else if (!res && block_option_size <= _ANJ_BLOCK_OPTION_MAX_SIZE) {
         block->block_type =
-                check_block2_opt ? ANJ_OPTION_BLOCK_2 : ANJ_OPTION_BLOCK_1;
+                check_block2_opt ? _ANJ_OPTION_BLOCK_2 : _ANJ_OPTION_BLOCK_1;
         block->more_flag = !!(block_buff[block_option_size - 1]
                               & _ANJ_BLOCK_OPTION_M_MASK);
 
@@ -100,12 +100,12 @@ int _anj_block_decode(anj_coap_options_t *opts, _anj_block_t *block) {
 int _anj_block_prepare(anj_coap_options_t *opts, const _anj_block_t *block) {
     uint16_t opt_number;
 
-    if (block->block_type == ANJ_OPTION_BLOCK_1) {
+    if (block->block_type == _ANJ_OPTION_BLOCK_1) {
         opt_number = _ANJ_COAP_OPTION_BLOCK1;
-    } else if (block->block_type == ANJ_OPTION_BLOCK_2) {
+    } else if (block->block_type == _ANJ_OPTION_BLOCK_2) {
         opt_number = _ANJ_COAP_OPTION_BLOCK2;
     } else {
-        return _ANJ_ERR_INPUT_ARG;
+        return _ANJ_ERR_MALFORMED_MESSAGE;
     }
 
     // prepare SZX parameter
@@ -120,7 +120,7 @@ int _anj_block_prepare(anj_coap_options_t *opts, const _anj_block_t *block) {
     }
     if (SZX == 0xFF) {
         // incorrect block_size_option
-        return _ANJ_ERR_INPUT_ARG;
+        return _ANJ_ERR_MALFORMED_MESSAGE;
     }
 
     // determine block option size
@@ -133,7 +133,7 @@ int _anj_block_prepare(anj_coap_options_t *opts, const _anj_block_t *block) {
     }
     if (block->number > _ANJ_BLOCK_NUM_MAX_VALUE) {
         // block number out of the range
-        return _ANJ_ERR_INPUT_ARG;
+        return _ANJ_ERR_MALFORMED_MESSAGE;
     }
 
     uint8_t buff[_ANJ_BLOCK_OPTION_MAX_SIZE];

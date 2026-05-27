@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 52
 
@@ -286,6 +286,7 @@ static bool ntp_period_exceeded(anj_time_monotonic_t last_sync,
 }
 
 static int connect_with_server(anj_ntp_t *ntp) {
+    ntp_log(L_TRACE, "Connecting to NTP server");
     anj_net_config_t net_cfg = {
         .raw_socket_config = ntp->net_socket_cfg
     };
@@ -320,7 +321,9 @@ static void handle_retries(anj_ntp_t *ntp) {
         }
     } else {
         // retry with the same server
-        ntp_log(L_INFO, "Retrying NTP synchronization (attempt %u of %u)",
+        ntp_log(L_INFO,
+                "Retrying NTP synchronization (attempt %" PRIu16 " of %" PRIu16
+                ")",
                 ntp->attempts + 1, ntp->max_attempts);
         ntp->internal_state = INTERNAL_STATE_CONNECTING;
     }
@@ -418,10 +421,9 @@ void anj_ntp_step(anj_ntp_t *ntp) {
         }
         if (!anj_net_is_ok(result)) {
             ntp->internal_state = INTERNAL_STATE_DISCONNECTING;
-            ntp_log(L_ERROR, "Failed to connect to server: %d", result);
+            ntp_log(L_ERROR, "Failed to connect to NTP server");
             break;
         }
-        ntp_log(L_TRACE, "Connected to NTP server");
 
         prepare_ntp_request(ntp);
         ntp->internal_state = INTERNAL_STATE_SENDING_REQUEST;
@@ -435,10 +437,9 @@ void anj_ntp_step(anj_ntp_t *ntp) {
         }
         if (!anj_net_is_ok(result)) {
             ntp->internal_state = INTERNAL_STATE_DISCONNECTING;
-            ntp_log(L_ERROR, "Failed to send NTP request: %d", result);
+            ntp_log(L_ERROR, "Failed to send NTP request");
             break;
         }
-        ntp_log(L_TRACE, "NTP request sent");
         ntp->internal_state = INTERNAL_STATE_WAITING_RESPONSE;
         ntp->recv_wait_start_time = anj_time_monotonic_now();
         break;
@@ -462,7 +463,7 @@ void anj_ntp_step(anj_ntp_t *ntp) {
         }
         if (!anj_net_is_ok(result)) {
             ntp->internal_state = INTERNAL_STATE_DISCONNECTING;
-            ntp_log(L_ERROR, "Failed to receive NTP response: %d", result);
+            ntp_log(L_ERROR, "Failed to receive NTP response");
             break;
         }
         if (recv_len < _ANJ_NTP_MSG_SIZE) {
@@ -480,13 +481,7 @@ void anj_ntp_step(anj_ntp_t *ntp) {
         if (anj_net_is_inprogress(result)) {
             break;
         }
-        if (!anj_net_is_ok(result)) {
-            // error while closing connection but does not affect state
-            ntp_log(L_ERROR, "Error while closing connection: %d", result);
-        } else {
-            ntp_log(L_TRACE, "Connection closed");
-        }
-
+        // error while closing connection does not affect state
         if (ntp->synchronized) {
             // completed successfully
             ntp->internal_state = INTERNAL_STATE_IDLE;
@@ -504,7 +499,7 @@ int anj_ntp_init(anj_t *anj,
                  anj_ntp_t *ntp,
                  const anj_ntp_configuration_t *config) {
     assert(anj && ntp && config);
-    ntp_log(L_DEBUG, "Initializing NTP module");
+    ntp_log(L_INFO, "Initializing NTP module");
     memset(ntp, 0, sizeof(*ntp));
 
     /**

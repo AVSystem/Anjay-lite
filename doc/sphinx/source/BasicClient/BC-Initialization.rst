@@ -73,7 +73,7 @@ Now, we can begin the actual client implementation. Create a ``main.c`` file in 
 
     #include <stdbool.h>
     #include <stdio.h>
-    #include <unistd.h>
+    #include <time.h>
 
     #include <anj/core.h>
     #include <anj/log.h>
@@ -98,7 +98,8 @@ Now, we can begin the actual client implementation. Create a ``main.c`` file in 
 
         while (true) {
             anj_core_step(&anj);
-            usleep(50 * 1000);
+            struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+            nanosleep(&ts, NULL);
         }
         return 0;
     }

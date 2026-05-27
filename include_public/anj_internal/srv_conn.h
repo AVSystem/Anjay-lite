@@ -25,6 +25,8 @@ typedef struct anj_server_connection_ctx_struct {
     size_t bytes_sent;
     anj_net_binding_type_t type;
     bool send_in_progress;
+    // random generated ID is used for logging purposes
+    uint8_t ID;
 } _anj_server_connection_ctx_t;
 
 #ifdef __cplusplus

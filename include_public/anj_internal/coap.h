@@ -25,59 +25,60 @@ extern "C" {
  * CoAP block option type.
  */
 typedef enum {
-    ANJ_OPTION_BLOCK_NOT_DEFINED,
-    ANJ_OPTION_BLOCK_1,
-    ANJ_OPTION_BLOCK_2,
+    _ANJ_OPTION_BLOCK_NOT_DEFINED,
+    _ANJ_OPTION_BLOCK_1,
+    _ANJ_OPTION_BLOCK_2,
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    // Used only in @ref anj_coap_encode_udp for
+    // Used only in @ref _anj_coap_encode_udp for
     // composite operations with block-wise transfer in both directions. BLOCK2
     // option is always encoded with number=0 and more_flag=1, BLOCK1 option is
     // always encoded with more_flag=0. Both options size is set to the same
     // value.
-    ANJ_OPTION_BLOCK_BOTH
+    _ANJ_OPTION_BLOCK_BOTH
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
 } _anj_block_option_t;
 
 /** @anj_internal_api_do_not_use */
 typedef enum {
-    ANJ_OP_NONE,
+    _ANJ_OP_NONE,
     // Bootstrap Interface
-    ANJ_OP_BOOTSTRAP_REQ,
-    ANJ_OP_BOOTSTRAP_FINISH,
-    ANJ_OP_BOOTSTRAP_PACK_REQ,
+    _ANJ_OP_BOOTSTRAP_REQ,
+    _ANJ_OP_BOOTSTRAP_FINISH,
+    _ANJ_OP_BOOTSTRAP_PACK_REQ,
     // Registration Interface
-    ANJ_OP_REGISTER,
-    ANJ_OP_UPDATE,
-    ANJ_OP_DEREGISTER,
+    _ANJ_OP_REGISTER,
+    _ANJ_OP_UPDATE,
+    _ANJ_OP_DEREGISTER,
     // DM Interface,
-    ANJ_OP_DM_READ,
-    ANJ_OP_DM_READ_COMP,
-    ANJ_OP_DM_DISCOVER,
-    ANJ_OP_DM_WRITE_REPLACE,
-    ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
-    ANJ_OP_DM_WRITE_ATTR,
-    ANJ_OP_DM_WRITE_COMP,
-    ANJ_OP_DM_EXECUTE,
-    ANJ_OP_DM_CREATE,
-    ANJ_OP_DM_DELETE,
+    _ANJ_OP_DM_READ,
+    _ANJ_OP_DM_READ_COMP,
+    _ANJ_OP_DM_DISCOVER,
+    _ANJ_OP_DM_WRITE_REPLACE,
+    _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+    _ANJ_OP_DM_WRITE_ATTR,
+    _ANJ_OP_DM_WRITE_COMP,
+    _ANJ_OP_DM_EXECUTE,
+    _ANJ_OP_DM_CREATE,
+    _ANJ_OP_DM_DELETE,
     // Information reporting interface
-    ANJ_OP_INF_OBSERVE,
-    ANJ_OP_INF_OBSERVE_COMP,
-    ANJ_OP_INF_CANCEL_OBSERVE,
-    ANJ_OP_INF_CANCEL_OBSERVE_COMP,
-    ANJ_OP_INF_INITIAL_NOTIFY,
-    ANJ_OP_INF_CON_NOTIFY,
-    ANJ_OP_INF_NON_CON_NOTIFY,
-    ANJ_OP_INF_CON_SEND,
-    ANJ_OP_INF_NON_CON_SEND,
+    _ANJ_OP_INF_OBSERVE,
+    _ANJ_OP_INF_OBSERVE_COMP,
+    _ANJ_OP_INF_CANCEL_OBSERVE,
+    _ANJ_OP_INF_CANCEL_OBSERVE_COMP,
+    _ANJ_OP_INF_INITIAL_NOTIFY,
+    _ANJ_OP_INF_CON_NOTIFY,
+    _ANJ_OP_INF_NON_CON_NOTIFY,
+    _ANJ_OP_INF_CON_SEND,
     // CoAP Downloader Interface
-    ANJ_OP_COAP_DOWNLOADER_GET,
-    // client/server response - piggybacked/non-con/con
-    ANJ_OP_RESPONSE,
+    _ANJ_OP_COAP_DOWNLOADER_GET,
+    // client/server response - piggybacked/con
+    _ANJ_OP_RESPONSE_CON_OR_ACK,
+    // client/server response - non-confirmable
+    _ANJ_OP_RESPONSE_NON_CON,
     // CoAP related messages
-    ANJ_OP_COAP_RESET,
-    ANJ_OP_COAP_PING_UDP,
-    ANJ_OP_COAP_EMPTY_MSG,
+    _ANJ_OP_COAP_RESET,
+    _ANJ_OP_COAP_PING_UDP,
+    _ANJ_OP_COAP_EMPTY_MSG,
 } _anj_op_t;
 
 /**
@@ -177,10 +178,10 @@ typedef struct {
  * @anj_internal_api_do_not_use
  * Location-Path from REGISTER operation response. If the number of
  * Location-Paths exceeds @ref ANJ_COAP_MAX_LOCATION_PATHS_NUMBER then
- * @ref anj_coap_decode_udp returns a @ref
- * _ANJ_ERR_LOCATION_PATHS_NUMBER error. For every @ref anj_coap_encode_udp
- * calls for UPDATE and DEREGISTER operations, this structure must be filled.
- * After @ref anj_coap_encode_udp @p location points to message buffer, so they
+ * @ref _anj_coap_decode_udp returns a _ANJ_ERR_LOCATION_PATHS_NUMBER error.
+ * For every @ref _anj_coap_encode_udp calls for UPDATE and DEREGISTER
+ * operations, this structure must be filled.
+ * After @ref _anj_coap_encode_udp @p location points to message buffer, so they
  * have to be copied into user memory.
  */
 typedef struct {
@@ -220,10 +221,10 @@ typedef struct {
  * CoAP message type, as defined in RFC 7252.
  */
 typedef enum {
-    ANJ_COAP_UDP_TYPE_CONFIRMABLE,
-    ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE,
-    ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT,
-    ANJ_COAP_UDP_TYPE_RESET
+    _ANJ_COAP_UDP_TYPE_CONFIRMABLE,
+    _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE,
+    _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT,
+    _ANJ_COAP_UDP_TYPE_RESET
 } _anj_coap_udp_type_t;
 
 /** @anj_internal_api_do_not_use */
@@ -255,10 +256,10 @@ typedef struct {
  *
  * This structure serves as the central representation of CoAP messages within
  * the library. It is populated by the decode functions:
- * @ref anj_coap_decode_udp, which parse raw CoAP
+ * @ref _anj_coap_decode_udp, which parse raw CoAP
  * message buffers into this structured form.
  *
- * Conversely, the encode functions — @ref anj_coap_encode_udp — serialize the
+ * Conversely, the encode functions — @ref _anj_coap_encode_udp — serialize the
  * contents of this structure into a raw CoAP message buffer for transmission
  * over the network.
  *
@@ -271,13 +272,13 @@ typedef struct {
 typedef struct {
     /**
      * ANJ operation type, which indicates LwM2M operation or specific CoAP
-     * message. Must be defined before @ref anj_coap_encode_udp call.
+     * message. Must be defined before @ref _anj_coap_encode_udp call.
      */
     _anj_op_t operation;
 
     /**
-     * Pointer to CoAP msg payload. Set in @ref anj_coap_decode_udp, @ref
-     * anj_coap_encode_udp copies payload directly to message buffer.
+     * Pointer to CoAP msg payload. Set in @ref _anj_coap_decode_udp, @ref
+     * _anj_coap_encode_udp copies payload directly to message buffer.
      *
      * IMPORTANT: Payload is not encoded or decoded by ANJ functions, use
      * ANJ_IO API to achieve this.
@@ -289,9 +290,9 @@ typedef struct {
 
     /**
      * Stores the value of Content Format option. If payload is present it
-     * describes its format. In @ref anj_coap_decode_udp set to
+     * describes its format. In @ref _anj_coap_decode_udp set to
      * _ANJ_COAP_FORMAT_NOT_DEFINED if not present. If message contains payload,
-     * must be set before @ref anj_coap_encode_udp call.
+     * must be set before @ref _anj_coap_encode_udp call.
      */
     uint16_t content_format;
 
@@ -314,7 +315,7 @@ typedef struct {
 
     /**
      * Stores the value of Block option. If block type is defined
-     * @ref anj_coap_encode_udp will add block
+     * @ref _anj_coap_encode_udp will add block
      * option to the message.
      */
     _anj_block_t block;
@@ -340,7 +341,7 @@ typedef struct {
     } attr;
 
     /**
-     * Coap msg code. Must be set before @ref anj_coap_encode_udp call if
+     * Coap msg code. Must be set before @ref _anj_coap_encode_udp call if
      * message is any kind of response.
      */
     uint8_t msg_code;
@@ -356,6 +357,15 @@ typedef struct {
      */
     _anj_coap_token_t token;
 } _anj_coap_msg_t;
+
+/**
+ * @anj_internal_api_do_not_use
+ *
+ * Check if operation is a response.
+ */
+static inline bool _anj_coap_is_response(_anj_op_t op) {
+    return op == _ANJ_OP_RESPONSE_CON_OR_ACK || op == _ANJ_OP_RESPONSE_NON_CON;
+}
 
 #ifdef __cplusplus
 }

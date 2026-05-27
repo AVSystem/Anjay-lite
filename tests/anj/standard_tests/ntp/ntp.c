@@ -523,7 +523,7 @@ ANJ_UNIT_TEST(ntp, ntp_address_changed) {
 
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_dm_operation_begin(&anj,
-                                    ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                     false,
                                     &ANJ_MAKE_INSTANCE_PATH(3415, 0)));
     anj_io_out_entry_t record = {
@@ -567,7 +567,7 @@ ANJ_UNIT_TEST(ntp, ntp_address_change_failed) {
     char new_addr[] = "invalidinvalidinvalidinvalidinvalid.ntp.pl";
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_dm_operation_begin(&anj,
-                                    ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                     false,
                                     &ANJ_MAKE_INSTANCE_PATH(3415, 0)));
     anj_io_out_entry_t record = {
@@ -608,7 +608,7 @@ ANJ_UNIT_TEST(ntp, ntp_period_changed) {
     // change NTP synchronization period
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_dm_operation_begin(&anj,
-                                    ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+                                    _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                     false,
                                     &ANJ_MAKE_INSTANCE_PATH(3415, 0)));
     anj_io_out_entry_t record = {
@@ -648,7 +648,7 @@ ANJ_UNIT_TEST(ntp, ntp_period_changed) {
 #define READ_LAST_SYNC_RESOURCE()                                          \
     ANJ_UNIT_ASSERT_SUCCESS(                                               \
             _anj_dm_operation_begin(&anj,                                  \
-                                    ANJ_OP_DM_READ,                        \
+                                    _ANJ_OP_DM_READ,                       \
                                     false,                                 \
                                     &ANJ_MAKE_RESOURCE_PATH(3415, 0, 4))); \
     anj_io_out_entry_t record = { 0 };                                     \
@@ -659,7 +659,7 @@ ANJ_UNIT_TEST(ntp, ntp_period_changed) {
 #define READ_TIME_SYNC_ERR_RESOURCE()                                      \
     ANJ_UNIT_ASSERT_SUCCESS(                                               \
             _anj_dm_operation_begin(&anj,                                  \
-                                    ANJ_OP_DM_READ,                        \
+                                    _ANJ_OP_DM_READ,                       \
                                     false,                                 \
                                     &ANJ_MAKE_RESOURCE_PATH(3415, 0, 5))); \
     anj_io_out_entry_t record = { 0 };                                     \

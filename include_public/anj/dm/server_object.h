@@ -42,6 +42,7 @@ extern "C" {
 #        else // ANJ_WITH_LWM2M12
 #            define ANJ_DM_SERVER_OBJ_BINDINGS "UTSN"
 #        endif // ANJ_WITH_LWM2M12
+#        define ANJ_DM_SERVER_BINDING_SIZE (sizeof(ANJ_DM_SERVER_OBJ_BINDINGS))
 /** @endcond */
 
 /** @anj_internal_fields_do_not_use */
@@ -53,7 +54,7 @@ typedef struct {
     uint32_t disable_timeout;
     uint8_t default_notification_mode;
     anj_communication_retry_res_t comm_retry_res;
-    char binding[sizeof("UMHTSN")];
+    char binding[ANJ_DM_SERVER_BINDING_SIZE];
     bool bootstrap_on_registration_failure;
     bool mute_send;
     bool notification_storing;

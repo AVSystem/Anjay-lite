@@ -47,9 +47,9 @@ Initialization with persistence restore
 When the application starts, it attempts to restore the NTP Object state
 from persistent storage using ``anj_ntp_obj_restore()``. If the restoration
 succeeds, the NTP module continues using the previously saved configuration.
-Please note that ``anj_ntp_obj_restore()`` is called after ``anj_ntp_init()``
-and this is slightly different from the usual pattern described in the
-:doc:`AT-Persistence` tutorial.
+Please note that ``anj_ntp_obj_restore()`` is called after NTP Object instance
+initialization, but if the restore operation fails, the configuration provided
+during initialization is not overwritten.
 
 .. highlight:: c
 .. snippet-source:: examples/tutorial/AT-TimeSynchronizationPersistence/src/main.c

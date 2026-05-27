@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../../../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 56
 
@@ -89,7 +89,7 @@ int anj_crypto_storage_create_new_record(void *crypto_ctx,
                                 "File '%s' already exists, deleting it",
                                 external_info->identity);
                 if (remove(external_info->identity) == 0) {
-                    data_loader_log(L_INFO, "file deleted successfully");
+                    data_loader_log(L_INFO, "File deleted successfully");
                 }
             }
             return 0;

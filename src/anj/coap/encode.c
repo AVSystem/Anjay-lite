@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 5
 
@@ -28,25 +28,25 @@
 
 #include "options.h"
 #include "udp_header.h"
+#include "utils.h"
 
 static int add_uri_path(anj_coap_options_t *opts, const _anj_coap_msg_t *msg) {
     int res = 0;
 
-    if (msg->operation == ANJ_OP_BOOTSTRAP_REQ) {
+    if (msg->operation == _ANJ_OP_BOOTSTRAP_REQ) {
         res = _anj_coap_options_add_string(opts, _ANJ_COAP_OPTION_URI_PATH,
                                            "bs");
-    } else if (msg->operation == ANJ_OP_BOOTSTRAP_PACK_REQ) {
+    } else if (msg->operation == _ANJ_OP_BOOTSTRAP_PACK_REQ) {
         res = _anj_coap_options_add_string(opts, _ANJ_COAP_OPTION_URI_PATH,
                                            "bspack");
-    } else if (msg->operation == ANJ_OP_REGISTER) {
+    } else if (msg->operation == _ANJ_OP_REGISTER) {
         res = _anj_coap_options_add_string(opts, _ANJ_COAP_OPTION_URI_PATH,
                                            "rd");
-    } else if (msg->operation == ANJ_OP_INF_CON_SEND
-               || msg->operation == ANJ_OP_INF_NON_CON_SEND) {
+    } else if (msg->operation == _ANJ_OP_INF_CON_SEND) {
         res = _anj_coap_options_add_string(opts, _ANJ_COAP_OPTION_URI_PATH,
                                            "dp");
-    } else if (msg->operation == ANJ_OP_UPDATE
-               || msg->operation == ANJ_OP_DEREGISTER) {
+    } else if (msg->operation == _ANJ_OP_UPDATE
+               || msg->operation == _ANJ_OP_DEREGISTER) {
         for (size_t i = 0; i < msg->location_path.location_count; i++) {
             res = _anj_coap_options_add_data(
                     opts, _ANJ_COAP_OPTION_URI_PATH,
@@ -105,7 +105,7 @@ static int coap_standard_msg_options_add(anj_coap_options_t *opts,
 
     // accept option: only for BootstrapPack-Request
     if (msg->accept != _ANJ_COAP_FORMAT_NOT_DEFINED
-            && msg->operation == ANJ_OP_BOOTSTRAP_PACK_REQ) {
+            && msg->operation == _ANJ_OP_BOOTSTRAP_PACK_REQ) {
         res = _anj_coap_options_add_u16(opts, _ANJ_COAP_OPTION_ACCEPT,
                                         msg->accept);
         _RET_IF_ERROR(res);
@@ -116,9 +116,9 @@ static int coap_standard_msg_options_add(anj_coap_options_t *opts,
     _RET_IF_ERROR(res);
 
     // observe option: only for Notify
-    if ((msg->operation == ANJ_OP_INF_CON_NOTIFY
-         || msg->operation == ANJ_OP_INF_INITIAL_NOTIFY
-         || msg->operation == ANJ_OP_INF_NON_CON_NOTIFY)
+    if ((msg->operation == _ANJ_OP_INF_CON_NOTIFY
+         || msg->operation == _ANJ_OP_INF_INITIAL_NOTIFY
+         || msg->operation == _ANJ_OP_INF_NON_CON_NOTIFY)
             && msg->msg_code == ANJ_COAP_CODE_CONTENT) {
         res = _anj_coap_options_add_u32(opts, _ANJ_COAP_OPTION_OBSERVE,
                                         msg->observe_number);
@@ -126,22 +126,22 @@ static int coap_standard_msg_options_add(anj_coap_options_t *opts,
     }
 
     // block option
-    if (msg->block.block_type == ANJ_OPTION_BLOCK_1
-            || msg->block.block_type == ANJ_OPTION_BLOCK_2) {
+    if (msg->block.block_type == _ANJ_OPTION_BLOCK_1
+            || msg->block.block_type == _ANJ_OPTION_BLOCK_2) {
         res = _anj_block_prepare(opts, &msg->block);
         _RET_IF_ERROR(res);
     }
 #ifdef ANJ_WITH_COMPOSITE_OPERATIONS
-    else if (msg->block.block_type == ANJ_OPTION_BLOCK_BOTH) {
+    else if (msg->block.block_type == _ANJ_OPTION_BLOCK_BOTH) {
         res = _anj_block_prepare(opts, &(_anj_block_t) {
-                                           .block_type = ANJ_OPTION_BLOCK_1,
+                                           .block_type = _ANJ_OPTION_BLOCK_1,
                                            .number = msg->block.number,
                                            .size = msg->block.size,
                                            .more_flag = false
                                        });
         _RET_IF_ERROR(res);
         res = _anj_block_prepare(opts, &(_anj_block_t) {
-                                           .block_type = ANJ_OPTION_BLOCK_2,
+                                           .block_type = _ANJ_OPTION_BLOCK_2,
                                            .number = 0,
                                            .size = msg->block.size,
                                            .more_flag = true
@@ -149,25 +149,27 @@ static int coap_standard_msg_options_add(anj_coap_options_t *opts,
         _RET_IF_ERROR(res);
     }
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
-
     // attributes: uri-query
-    if (msg->operation == ANJ_OP_REGISTER || msg->operation == ANJ_OP_UPDATE) {
+    if (msg->operation == _ANJ_OP_REGISTER
+            || msg->operation == _ANJ_OP_UPDATE) {
         res = anj_attr_register_prepare(opts, &msg->attr.register_attr);
-    } else if (msg->operation == ANJ_OP_BOOTSTRAP_REQ) {
+    } else if (msg->operation == _ANJ_OP_BOOTSTRAP_REQ) {
         res = anj_attr_bootstrap_prepare(opts, &msg->attr.bootstrap_attr,
                                          false);
-    } else if (msg->operation == ANJ_OP_BOOTSTRAP_PACK_REQ) {
+    } else if (msg->operation == _ANJ_OP_BOOTSTRAP_PACK_REQ) {
         res = anj_attr_bootstrap_prepare(opts, &msg->attr.bootstrap_attr, true);
-    } else if (msg->operation == ANJ_OP_RESPONSE
-               && msg->msg_code == ANJ_COAP_CODE_CREATED) {
+    } else if (msg->msg_code == ANJ_COAP_CODE_CREATED) {
+        // Anjay sends Non-confirmable response only as a response to the
+        // Non-confirmable execute operation. For this operation LwM2M
+        // specification doesn't allow response code 2.01.
+        assert(msg->operation == _ANJ_OP_RESPONSE_CON_OR_ACK);
         res = anj_attr_create_ack_prepare(opts, &msg->attr.create_attr);
     }
 #ifdef ANJ_WITH_COAP_DOWNLOADER
-    else if (msg->operation == ANJ_OP_COAP_DOWNLOADER_GET) {
+    else if (msg->operation == _ANJ_OP_COAP_DOWNLOADER_GET) {
         res = anj_attr_downloader_prepare(opts, &msg->attr.downloader_attr);
     }
 #endif // ANJ_WITH_COAP_DOWNLOADER
-
     return res;
 }
 
@@ -175,11 +177,11 @@ static int _anj_coap_payload_serialize(anj_coap_message_t *msg,
                                        uint8_t *buf,
                                        size_t buf_size,
                                        size_t *out_bytes_written) {
-    assert(msg);
-    assert(buf);
-    assert(out_bytes_written);
-    assert(buf_size >= msg->occupied_buff_size);
-
+    // Option are already written to the buffer (through pointer set in
+    // _anj_coap_udp_header_serialize()) but `occupied_buff_size` is not yet
+    // updated, so we just need to calculate how many bytes are occupied by
+    // options and move the pointer to the end of options, where payload should
+    // be written.
     if (msg->options && msg->options->options_number > 0) {
         anj_coap_option_t last_option =
                 msg->options->options[msg->options->options_number - 1];
@@ -188,6 +190,11 @@ static int _anj_coap_payload_serialize(anj_coap_message_t *msg,
                           - msg->options->buff_begin);
     }
 
+    // make the check before `buf_size - msg->occupied_buff_size` to prevent
+    // underflow
+    if (msg->occupied_buff_size >= buf_size) {
+        return _ANJ_ERR_BUFF;
+    }
     _anj_bytes_appender_t appender =
             _anj_make_bytes_appender(buf + msg->occupied_buff_size,
                                      buf_size - msg->occupied_buff_size);
@@ -208,39 +215,39 @@ static int _anj_coap_payload_serialize(anj_coap_message_t *msg,
 
 static int recognize_msg_code(_anj_coap_msg_t *msg) {
     switch (msg->operation) {
-    case ANJ_OP_BOOTSTRAP_REQ:
+    case _ANJ_OP_BOOTSTRAP_REQ:
         msg->msg_code = ANJ_COAP_CODE_POST;
         break;
-    case ANJ_OP_BOOTSTRAP_PACK_REQ:
+    case _ANJ_OP_BOOTSTRAP_PACK_REQ:
         msg->msg_code = ANJ_COAP_CODE_GET;
         break;
-    case ANJ_OP_REGISTER:
+    case _ANJ_OP_REGISTER:
         msg->msg_code = ANJ_COAP_CODE_POST;
         break;
-    case ANJ_OP_UPDATE:
+    case _ANJ_OP_UPDATE:
         msg->msg_code = ANJ_COAP_CODE_POST;
         break;
-    case ANJ_OP_DEREGISTER:
+    case _ANJ_OP_DEREGISTER:
         msg->msg_code = ANJ_COAP_CODE_DELETE;
         break;
-    case ANJ_OP_INF_CON_NOTIFY:
-    case ANJ_OP_INF_NON_CON_NOTIFY:
+    case _ANJ_OP_INF_CON_NOTIFY:
+    case _ANJ_OP_INF_NON_CON_NOTIFY:
         msg->msg_code = ANJ_COAP_CODE_CONTENT;
         break;
-    case ANJ_OP_INF_CON_SEND:
-    case ANJ_OP_INF_NON_CON_SEND:
+    case _ANJ_OP_INF_CON_SEND:
         msg->msg_code = ANJ_COAP_CODE_POST;
         break;
-    case ANJ_OP_COAP_RESET:
-    case ANJ_OP_COAP_PING_UDP:
-    case ANJ_OP_COAP_EMPTY_MSG:
+    case _ANJ_OP_COAP_RESET:
+    case _ANJ_OP_COAP_PING_UDP:
+    case _ANJ_OP_COAP_EMPTY_MSG:
         msg->msg_code = ANJ_COAP_CODE_EMPTY;
         break;
-    case ANJ_OP_RESPONSE:
-    case ANJ_OP_INF_INITIAL_NOTIFY:
+    case _ANJ_OP_RESPONSE_CON_OR_ACK:
+    case _ANJ_OP_RESPONSE_NON_CON:
+    case _ANJ_OP_INF_INITIAL_NOTIFY:
         // msg code must be defined
         break;
-    case ANJ_OP_COAP_DOWNLOADER_GET:
+    case _ANJ_OP_COAP_DOWNLOADER_GET:
         msg->msg_code = ANJ_COAP_CODE_GET;
         break;
     default:
@@ -250,13 +257,37 @@ static int recognize_msg_code(_anj_coap_msg_t *msg) {
     return 0;
 }
 
+static void recognize_type_and_configure_token(_anj_coap_msg_t *msg) {
+    if (msg->operation == _ANJ_OP_INF_CON_NOTIFY) {
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+    } else if (msg->operation == _ANJ_OP_INF_NON_CON_NOTIFY) {
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE;
+    } else if (msg->operation == _ANJ_OP_RESPONSE_CON_OR_ACK
+               || msg->operation == _ANJ_OP_INF_INITIAL_NOTIFY) {
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    } else if (msg->operation == _ANJ_OP_RESPONSE_NON_CON) {
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE;
+    } else if (msg->operation == _ANJ_OP_COAP_RESET) {
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_RESET;
+        msg->payload_size = 0;
+        msg->token.size = 0;
+    } else if (msg->operation == _ANJ_OP_COAP_PING_UDP) {
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+        msg->payload_size = 0;
+        msg->token.size = 0;
+    } else if (msg->operation == _ANJ_OP_COAP_EMPTY_MSG) {
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+        msg->token.size = 0;
+        msg->payload_size = 0;
+    } else {
+        // client request
+        msg->coap_binding_data.type = _ANJ_COAP_UDP_TYPE_CONFIRMABLE;
+    }
+}
+
 static int _anj_coap_udp_header_serialize(anj_coap_message_t *msg,
                                           uint8_t *buf,
                                           size_t buf_size) {
-    assert(msg);
-    assert(buf);
-    assert(buf_size > _ANJ_COAP_UDP_HEADER_LENGTH);
-
     _anj_bytes_appender_t appender = _anj_make_bytes_appender(buf, buf_size);
 
     uint8_t version_type_token_length =
@@ -304,39 +335,14 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
     assert(out_msg_size);
     assert(out_buff_size > _ANJ_COAP_UDP_HEADER_LENGTH);
 
-    if (msg->operation == ANJ_OP_INF_CON_NOTIFY) {
-        assert(msg->token.size != 0);
-        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
-    } else if (msg->operation == ANJ_OP_INF_NON_CON_NOTIFY) {
-        assert(msg->token.size != 0);
-        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE;
-    } else if (msg->operation == ANJ_OP_RESPONSE
-               || msg->operation == ANJ_OP_INF_INITIAL_NOTIFY) {
-        assert(msg->token.size != 0);
-        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
-    } else if (msg->operation == ANJ_OP_COAP_RESET) {
-        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_RESET;
-        msg->payload_size = 0;
-        msg->token.size = 0;
-    } else if (msg->operation == ANJ_OP_COAP_PING_UDP) {
-        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_CONFIRMABLE;
-        msg->payload_size = 0;
-        msg->token.size = 0;
-    } else if (msg->operation == ANJ_OP_COAP_EMPTY_MSG) {
-        msg->coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
-        msg->token.size = 0;
-        msg->payload_size = 0;
-    } else {
-        // client request
-        msg->coap_binding_data.type =
-                (msg->operation == ANJ_OP_INF_NON_CON_SEND)
-                        ? ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE
-                        : ANJ_COAP_UDP_TYPE_CONFIRMABLE;
-    }
-
     int res;
-    res = recognize_msg_code(msg);
-    _RET_IF_ERROR(res);
+
+    {
+        recognize_type_and_configure_token(msg);
+        _anj_log_msg_info(msg, false);
+        res = recognize_msg_code(msg);
+        _RET_IF_ERROR(res);
+    }
 
     _ANJ_COAP_OPTIONS_INIT_EMPTY(opts, ANJ_COAP_MAX_OPTIONS_NUMBER);
     anj_coap_message_t coap_msg = {
@@ -359,8 +365,9 @@ int _anj_coap_encode_udp(_anj_coap_msg_t *msg,
     res = coap_standard_msg_options_add(&opts, msg);
     _RET_IF_ERROR(res);
 
-    return _anj_coap_payload_serialize(&coap_msg, out_buff, out_buff_size,
-                                       out_msg_size);
+    res = _anj_coap_payload_serialize(&coap_msg, out_buff, out_buff_size,
+                                      out_msg_size);
+    return res;
 }
 
 #define _ANJ_COAP_PAYLOAD_MARKER_SIZE 1
@@ -452,49 +459,63 @@ static size_t calculate_location_path_size(const _anj_location_path_t *path) {
     return max_size;
 }
 
-size_t _anj_coap_calculate_msg_header_max_size(const _anj_coap_msg_t *msg) {
+size_t _anj_coap_calculate_msg_header_max_size(
+        const _anj_coap_msg_t *msg,
+        _anj_coap_outgoing_msg_kind_t outgoing_msg_kind) {
+    // Anjay sends Non-confirmable response only as a response to the
+    // Non-confirmable execute operation. This is why we don't need to check it
+    // in the below condition -
+    assert(!(msg->operation == _ANJ_OP_RESPONSE_NON_CON
+             && msg->attr.create_attr.has_uri));
+
+    if (outgoing_msg_kind == _ANJ_COAP_OUTGOING_MSG_KIND_RESPONSE) {
+        return _ANJ_COAP_UDP_RESPONSE_MSG_HEADER_MAX_SIZE;
+    }
+
     size_t max_size = 0;
     max_size = _ANJ_COAP_UDP_HEADER_LENGTH + _ANJ_COAP_MAX_TOKEN_LENGTH
                + _ANJ_COAP_PAYLOAD_MARKER_SIZE;
 
     // calculate options size
-    if (msg->operation == ANJ_OP_INF_INITIAL_NOTIFY
-            || msg->operation == ANJ_OP_INF_CON_NOTIFY
-            || msg->operation == ANJ_OP_INF_NON_CON_NOTIFY) {
+    if (msg->operation == _ANJ_OP_INF_INITIAL_NOTIFY
+            || msg->operation == _ANJ_OP_INF_CON_NOTIFY
+            || msg->operation == _ANJ_OP_INF_NON_CON_NOTIFY) {
         max_size += _ANJ_COAP_OBSERVE_OPTION_MAX_SIZE
                     + _ANJ_COAP_CONTENT_FORMAT_OPTION_MAX_SIZE
                     + _ANJ_COAP_BLOCK_OPTION_MAX_SIZE;
-    } else if (msg->operation == ANJ_OP_INF_CON_SEND
-               || msg->operation == ANJ_OP_INF_NON_CON_SEND) {
+    } else if (msg->operation == _ANJ_OP_INF_CON_SEND) {
         max_size += _ANJ_COAP_DP_PATH_SIZE
                     + _ANJ_COAP_CONTENT_FORMAT_OPTION_MAX_SIZE
                     + _ANJ_COAP_BLOCK_OPTION_MAX_SIZE;
-    } else if (msg->operation == ANJ_OP_REGISTER) {
+    } else if (msg->operation == _ANJ_OP_REGISTER) {
         max_size +=
                 _ANJ_COAP_RD_PATH_SIZE
                 + _ANJ_COAP_CONTENT_FORMAT_OPTION_MAX_SIZE
                 + _ANJ_COAP_BLOCK_OPTION_MAX_SIZE
                 + calculate_register_uri_query_size(&msg->attr.register_attr);
-    } else if (msg->operation == ANJ_OP_UPDATE) {
+    } else if (msg->operation == _ANJ_OP_UPDATE) {
         max_size += calculate_register_uri_query_size(&msg->attr.register_attr)
                     + calculate_location_path_size(&msg->location_path)
                     + _ANJ_COAP_CONTENT_FORMAT_OPTION_MAX_SIZE
                     + _ANJ_COAP_BLOCK_OPTION_MAX_SIZE;
-    } else if (msg->operation == ANJ_OP_DEREGISTER) {
+    } else if (msg->operation == _ANJ_OP_DEREGISTER) {
         max_size += calculate_location_path_size(&msg->location_path);
-    } else if (msg->operation == ANJ_OP_BOOTSTRAP_REQ) {
+    } else if (msg->operation == _ANJ_OP_BOOTSTRAP_REQ) {
         max_size +=
                 calculate_bootstrap_uri_query_size(&msg->attr.bootstrap_attr,
                                                    false)
                 + _ANJ_COAP_BS_PATH_SIZE;
-    } else if (msg->operation == ANJ_OP_BOOTSTRAP_PACK_REQ) {
+    } else if (msg->operation == _ANJ_OP_BOOTSTRAP_PACK_REQ) {
         max_size +=
                 calculate_bootstrap_uri_query_size(&msg->attr.bootstrap_attr,
                                                    true)
                 + _ANJ_COAP_BSPACK_PATH_SIZE + _ANJ_COAP_ACCEPT_OPTION_MAX_SIZE;
-    } else if (msg->operation == ANJ_OP_RESPONSE
-               && msg->attr.create_attr.has_uri) {
+    } else if (msg->attr.create_attr.has_uri) {
+        // Anjay sends Non-confirmable response only as a response to the
+        // Non-confirmable execute operation.
+        assert(msg->operation == _ANJ_OP_RESPONSE_CON_OR_ACK);
         max_size += _ANJ_COAP_CREATE_ACK_PATH_SIZE;
     }
+
     return max_size;
 }

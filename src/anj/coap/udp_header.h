@@ -7,12 +7,11 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef SRC_ANJ_COAP_UDP_H
 #    define SRC_ANJ_COAP_UDP_H
 
-#    include <assert.h>
 #    include <stddef.h>
 #    include <stdint.h>
 #    include <string.h>
@@ -25,49 +24,26 @@
 
 #    define _ANJ_COAP_UDP_HEADER_VERSION_MASK 0xC0
 #    define _ANJ_COAP_UDP_HEADER_VERSION_SHIFT 6
+#    define _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_MASK 0x0F
+#    define _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_SHIFT 0
+#    define _ANJ_COAP_UDP_HEADER_TYPE_MASK 0x30
+#    define _ANJ_COAP_UDP_HEADER_TYPE_SHIFT 4
 
 static inline uint8_t
 _anj_coap_udp_header_get_version(uint8_t version_type_token_length) {
     uint8_t val = _ANJ_FIELD_GET(version_type_token_length,
                                  _ANJ_COAP_UDP_HEADER_VERSION_MASK,
                                  _ANJ_COAP_UDP_HEADER_VERSION_SHIFT);
-    assert(val <= 3);
     return val;
 }
-
-static inline void
-_anj_coap_udp_header_set_version(uint8_t *version_type_token_length,
-                                 uint8_t version) {
-    assert(version_type_token_length);
-    assert(version <= 3);
-    _ANJ_FIELD_SET(*version_type_token_length,
-                   _ANJ_COAP_UDP_HEADER_VERSION_MASK,
-                   _ANJ_COAP_UDP_HEADER_VERSION_SHIFT, version);
-}
-
-#    define _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_MASK 0x0F
-#    define _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_SHIFT 0
 
 static inline uint8_t
 _anj_coap_udp_header_get_token_length(uint8_t version_type_token_length) {
     uint8_t val = _ANJ_FIELD_GET(version_type_token_length,
                                  _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_MASK,
                                  _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_SHIFT);
-    assert(val <= _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_MASK);
     return val;
 }
-
-static inline void
-_anj_coap_udp_header_set_token_length(uint8_t *version_type_token_length,
-                                      uint8_t token_length) {
-    assert(version_type_token_length);
-    _ANJ_FIELD_SET(*version_type_token_length,
-                   _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_MASK,
-                   _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_SHIFT, token_length);
-}
-
-#    define _ANJ_COAP_UDP_HEADER_TYPE_MASK 0x30
-#    define _ANJ_COAP_UDP_HEADER_TYPE_SHIFT 4
 
 static inline _anj_coap_udp_type_t
 _anj_coap_udp_header_get_type(uint8_t version_type_token_length) {
@@ -77,22 +53,19 @@ _anj_coap_udp_header_get_type(uint8_t version_type_token_length) {
     return (_anj_coap_udp_type_t) val;
 }
 
-static inline void
-_anj_coap_udp_header_set_type(uint8_t *version_type_token_length,
-                              _anj_coap_udp_type_t type) {
-    assert(version_type_token_length);
-    _ANJ_FIELD_SET(*version_type_token_length, _ANJ_COAP_UDP_HEADER_TYPE_MASK,
-                   _ANJ_COAP_UDP_HEADER_TYPE_SHIFT, type);
-}
-
 static inline uint8_t _anj_coap_udp_prepare_version_type_token_len_field(
         uint8_t version, uint8_t type, uint8_t token_len) {
     uint8_t version_type_token_length = 0;
-    _anj_coap_udp_header_set_version(&version_type_token_length, version);
-    _anj_coap_udp_header_set_type(&version_type_token_length,
-                                  (_anj_coap_udp_type_t) type);
-    _anj_coap_udp_header_set_token_length(&version_type_token_length,
-                                          token_len);
+    // set version
+    _ANJ_FIELD_SET(version_type_token_length, _ANJ_COAP_UDP_HEADER_VERSION_MASK,
+                   _ANJ_COAP_UDP_HEADER_VERSION_SHIFT, version);
+    // set type
+    _ANJ_FIELD_SET(version_type_token_length, _ANJ_COAP_UDP_HEADER_TYPE_MASK,
+                   _ANJ_COAP_UDP_HEADER_TYPE_SHIFT, type);
+    // set token length
+    _ANJ_FIELD_SET(version_type_token_length,
+                   _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_MASK,
+                   _ANJ_COAP_UDP_HEADER_TOKEN_LENGTH_SHIFT, token_len);
     return version_type_token_length;
 }
 

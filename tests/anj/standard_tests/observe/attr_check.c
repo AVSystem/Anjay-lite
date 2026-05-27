@@ -334,7 +334,7 @@ ANJ_UNIT_TEST(attr_check, find_records) {
               (ptrdiff_t) &ctx.attributes_storage[2]);
 }
 
-ANJ_UNIT_TEST(attr_check, clean_attr_storage_for_id) {
+ANJ_UNIT_TEST(attr_check, clean_attr_storage) {
     anj_t anj = { 0 };
     anj.observe_ctx = (_anj_observe_ctx_t) {
         .attributes_storage =
@@ -344,11 +344,7 @@ ANJ_UNIT_TEST(attr_check, clean_attr_storage_for_id) {
                         .ssid = 1
                     },
                     {
-                        .path = ANJ_MAKE_RESOURCE_PATH(3, 1, 1),
-                        .ssid = 2
-                    },
-                    {
-                        .path = ANJ_MAKE_RESOURCE_PATH(3, 1, 3),
+                        .path = ANJ_MAKE_RESOURCE_PATH(3, 2, 1),
                         .ssid = 1
                     }
                 }
@@ -358,19 +354,11 @@ ANJ_UNIT_TEST(attr_check, clean_attr_storage_for_id) {
                       ctx, &ANJ_MAKE_RESOURCE_PATH(3, 1, 1), 1),
               (ptrdiff_t) &ctx->attributes_storage[0]);
     ASSERT_EQ((ptrdiff_t) _anj_observe_get_attr_from_path(
-                      ctx, &ANJ_MAKE_RESOURCE_PATH(3, 1, 1), 2),
+                      ctx, &ANJ_MAKE_RESOURCE_PATH(3, 2, 1), 1),
               (ptrdiff_t) &ctx->attributes_storage[1]);
-    ASSERT_EQ((ptrdiff_t) _anj_observe_get_attr_from_path(
-                      ctx, &ANJ_MAKE_RESOURCE_PATH(3, 1, 3), 1),
-              (ptrdiff_t) &ctx->attributes_storage[2]);
-    _anj_observe_remove_all_attr_storage(&anj, 1);
-    ASSERT_NULL(_anj_observe_get_attr_from_path(
-            ctx, &ANJ_MAKE_RESOURCE_PATH(3, 1, 1), 1));
-    ASSERT_EQ((ptrdiff_t) _anj_observe_get_attr_from_path(
-                      ctx, &ANJ_MAKE_RESOURCE_PATH(3, 1, 1), 2),
-              (ptrdiff_t) &ctx->attributes_storage[1]);
-    ASSERT_NULL(_anj_observe_get_attr_from_path(
-            ctx, &ANJ_MAKE_RESOURCE_PATH(3, 1, 3), 1));
+    _anj_observe_remove_all_attr_storage(&anj);
+    ASSERT_EQ(anj.observe_ctx.attributes_storage[0].ssid, 0);
+    ASSERT_EQ(anj.observe_ctx.attributes_storage[1].ssid, 0);
 }
 
 #endif // ANJ_WITH_OBSERVE

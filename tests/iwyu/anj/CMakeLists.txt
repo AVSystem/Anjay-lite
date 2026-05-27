@@ -109,7 +109,7 @@ find_package(anjay_lite REQUIRED)
 
 set(ANJ_IWYU_PATH_AND_OPTIONS
     ${ANJ_IWYU_PATH}
-    -Xiwyu --keep=*/anj/init.h
+    -Xiwyu --keep=*/anj/init.h -Xiwyu --keep=*/init_internal.h
 )
 set_target_properties(anj PROPERTIES
         C_INCLUDE_WHAT_YOU_USE "${ANJ_IWYU_PATH_AND_OPTIONS}")

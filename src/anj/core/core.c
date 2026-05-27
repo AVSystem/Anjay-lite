@@ -7,11 +7,12 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 8
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -53,6 +54,33 @@
 #    include "server_bootstrap.h"
 #    define _ANJ_CORE_BOOTSTRAP_DEFAULT_TIMEOUT 247
 #endif // ANJ_WITH_BOOTSTRAP
+
+static const char *conn_status_to_string(anj_conn_status_t status) {
+    switch (status) {
+    case ANJ_CONN_STATUS_INITIAL:
+        return "Initial";
+    case ANJ_CONN_STATUS_INVALID:
+        return "Invalid";
+    case ANJ_CONN_STATUS_FAILURE:
+        return "Failure";
+    case ANJ_CONN_STATUS_BOOTSTRAPPING:
+        return "Bootstrapping";
+    case ANJ_CONN_STATUS_BOOTSTRAPPED:
+        return "Bootstrapped";
+    case ANJ_CONN_STATUS_REGISTERING:
+        return "Registering";
+    case ANJ_CONN_STATUS_REGISTERED:
+        return "Registered";
+    case ANJ_CONN_STATUS_SUSPENDED:
+        return "Suspended";
+    case ANJ_CONN_STATUS_ENTERING_QUEUE_MODE:
+        return "Queue Mode (Entering)";
+    case ANJ_CONN_STATUS_QUEUE_MODE:
+        return "Queue Mode";
+    default:
+        return "?";
+    }
+}
 
 bool _anj_core_state_transition_forced(anj_t *anj) {
     return anj->server_state.bootstrap_request_triggered
@@ -96,7 +124,6 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config) {
     _anj_dm_initialize(anj);
 
     if (_anj_exchange_init(&anj->exchange_ctx)) {
-        log(L_ERROR, "Exchange module initialization failed");
         return -1;
     }
 #ifdef ANJ_WITH_CACHE
@@ -149,17 +176,19 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config) {
     }
 
     anj->server_state.conn_status = ANJ_CONN_STATUS_INITIAL;
-    log(L_INFO, "Anjay Lite initialized");
+    log(L_INFO, "Anjay Lite initialized. Endpoint name: %s",
+        anj->endpoint_name);
     return 0;
 }
 
 void anj_core_server_obj_disable_executed(anj_t *anj, uint32_t timeout) {
     assert(anj);
     if (anj->server_state.conn_status != ANJ_CONN_STATUS_REGISTERED) {
-        log(L_ERROR, "Invalid state for the operation");
+        log(L_ERROR, "Request ignored: client not registered");
         return;
     }
-    log(L_INFO, "Disable resource executed");
+    log(L_INFO, "Disable resource executed, with timeout set to: %" PRIu32 "s",
+        timeout);
     anj->server_state.disable_triggered = true;
     anj->server_state.enable_time = anj_time_monotonic_add(
             anj_time_monotonic_now(),
@@ -169,7 +198,7 @@ void anj_core_server_obj_disable_executed(anj_t *anj, uint32_t timeout) {
 void anj_core_server_obj_registration_update_trigger_executed(anj_t *anj) {
     assert(anj);
     if (anj->server_state.conn_status != ANJ_CONN_STATUS_REGISTERED) {
-        log(L_ERROR, "Invalid state for the operation");
+        log(L_ERROR, "Request ignored: client not registered");
         return;
     }
     log(L_INFO, "Registration Update Trigger resource executed");
@@ -179,7 +208,7 @@ void anj_core_server_obj_registration_update_trigger_executed(anj_t *anj) {
 void anj_core_server_obj_bootstrap_request_trigger_executed(anj_t *anj) {
     assert(anj);
     if (anj->server_state.conn_status != ANJ_CONN_STATUS_REGISTERED) {
-        log(L_ERROR, "Invalid state for the operation");
+        log(L_ERROR, "Request ignored: client not registered");
         return;
     }
     log(L_INFO, "Bootstrap Request Trigger resource executed");
@@ -196,9 +225,10 @@ bool _anj_core_client_registered(anj_t *anj) {
 void anj_core_request_update(anj_t *anj) {
     assert(anj);
     if (!_anj_core_client_registered(anj)) {
-        log(L_ERROR, "Invalid state for the operation");
+        log(L_ERROR, "Request ignored: client not registered");
         return;
     }
+    log(L_INFO, "Registration Update requested by user");
     anj->server_state.registration_update_triggered = true;
 }
 
@@ -303,20 +333,20 @@ static void init_new_conn_status(anj_t *anj,
         if (_anj_server_bootstrap_start_bootstrap_operation(anj)) {
             anj->server_state.conn_status = ANJ_CONN_STATUS_INVALID;
         }
-        return;
+        break;
 #endif // ANJ_WITH_BOOTSTRAP
     case ANJ_CONN_STATUS_REGISTERING:
         if (_anj_server_register_start_register_operation(anj)) {
             anj->server_state.conn_status = ANJ_CONN_STATUS_INVALID;
         }
-        return;
+        break;
     case ANJ_CONN_STATUS_REGISTERED:
         if (last_conn_status == ANJ_CONN_STATUS_REGISTERING) {
             _anj_reg_session_init(anj);
         }
-        return;
+        break;
     case ANJ_CONN_STATUS_SUSPENDED:
-        log(L_INFO, "Client suspended");
+        break;
     default:
         break;
     }
@@ -365,8 +395,9 @@ void anj_core_step(anj_t *anj) {
                                     anj->server_state.conn_status);
             }
             init_new_conn_status(anj, last_conn_status);
-            log(L_TRACE, "Connection status changed from %d to %d",
-                (int) last_conn_status, (int) anj->server_state.conn_status);
+            log(L_INFO, "Status changed from %s to %s",
+                conn_status_to_string(last_conn_status),
+                conn_status_to_string(anj->server_state.conn_status));
         }
     }
 }
@@ -374,7 +405,9 @@ void anj_core_step(anj_t *anj) {
 anj_time_duration_t anj_core_next_step_time(anj_t *anj) {
     assert(anj);
     anj_time_monotonic_t current_time = anj_time_monotonic_now();
-    if (anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED) {
+
+    switch (anj->server_state.conn_status) {
+    case ANJ_CONN_STATUS_SUSPENDED: {
         anj_time_monotonic_t enable_time;
         if (anj_time_monotonic_gt(anj->server_state.enable_time_user_triggered,
                                   anj->server_state.enable_time)) {
@@ -382,11 +415,36 @@ anj_time_duration_t anj_core_next_step_time(anj_t *anj) {
         } else {
             enable_time = anj->server_state.enable_time;
         }
-
         if (anj_time_monotonic_gt(enable_time, current_time)) {
             return anj_time_monotonic_diff(enable_time, current_time);
         }
-    } else if (anj->server_state.conn_status == ANJ_CONN_STATUS_QUEUE_MODE) {
+        break;
+    }
+#ifdef ANJ_WITH_BOOTSTRAP
+    case ANJ_CONN_STATUS_BOOTSTRAPPING: {
+        if (anj->server_state.details.bootstrap.bootstrap_state
+                == _ANJ_SRV_BOOTSTRAP_STATE_WAITING) {
+            anj_time_monotonic_t bootstrap_timeout =
+                    anj->server_state.details.bootstrap.bootstrap_timeout;
+            if (anj_time_monotonic_gt(bootstrap_timeout, current_time)) {
+                return anj_time_monotonic_diff(bootstrap_timeout, current_time);
+            }
+        }
+        break;
+    }
+#endif // ANJ_WITH_BOOTSTRAP
+    case ANJ_CONN_STATUS_REGISTERING: {
+        if (anj->server_state.details.registration.registration_state
+                == _ANJ_SRV_REG_STATE_RESTART_IN_PROGRESS) {
+            anj_time_monotonic_t retry_timeout =
+                    anj->server_state.details.registration.retry_timeout;
+            if (anj_time_monotonic_gt(retry_timeout, current_time)) {
+                return anj_time_monotonic_diff(retry_timeout, current_time);
+            }
+        }
+        break;
+    }
+    case ANJ_CONN_STATUS_QUEUE_MODE: {
         anj_time_monotonic_t next_update_time =
                 anj->server_state.details.registered.next_update_time;
         assert(anj_time_monotonic_is_valid(next_update_time));
@@ -415,12 +473,21 @@ anj_time_duration_t anj_core_next_step_time(anj_t *anj) {
 #endif // ANJ_WITH_OBSERVE
         return time_to_next_update;
     }
+    default:
+        break;
+    }
+
     return ANJ_TIME_DURATION_ZERO;
 }
 
 void anj_core_disable_server(anj_t *anj, anj_time_duration_t timeout) {
     assert(anj);
-    log(L_INFO, "Disable called");
+    if (anj_time_duration_eq(timeout, ANJ_TIME_DURATION_INVALID)) {
+        log(L_INFO, "Disable called, with timeout set to: infinite");
+    } else {
+        log(L_INFO, "Disable called, with timeout set to: %" PRId64 "s",
+            anj_time_duration_to_scalar(timeout, ANJ_TIME_UNIT_S));
+    }
     if (!anj_time_duration_is_valid(timeout)) {
         anj->server_state.enable_time_user_triggered =
                 ANJ_TIME_MONOTONIC_INVALID;
@@ -428,10 +495,9 @@ void anj_core_disable_server(anj_t *anj, anj_time_duration_t timeout) {
         anj->server_state.enable_time_user_triggered =
                 anj_time_monotonic_add(anj_time_monotonic_now(), timeout);
     }
-
     if (anj->server_state.conn_status == ANJ_CONN_STATUS_SUSPENDED
             || anj->server_state.disable_triggered == true) {
-        log(L_DEBUG, "Already in progress");
+        log(L_DEBUG, "Timeout updated");
         return;
     }
     _anj_exchange_terminate(&anj->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
@@ -440,24 +506,24 @@ void anj_core_disable_server(anj_t *anj, anj_time_duration_t timeout) {
 
 void anj_core_request_bootstrap(anj_t *anj) {
     assert(anj);
-    log(L_INFO, "Bootstrap request triggered");
     if (anj->server_state.conn_status == ANJ_CONN_STATUS_BOOTSTRAPPING
             || anj->server_state.conn_status == ANJ_CONN_STATUS_BOOTSTRAPPED
             || anj->server_state.bootstrap_request_triggered == true) {
         log(L_DEBUG, "Already in progress");
         return;
     }
+    log(L_INFO, "Bootstrap request triggered");
     _anj_exchange_terminate(&anj->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     anj->server_state.bootstrap_request_triggered = true;
 }
 
 void anj_core_restart(anj_t *anj) {
     assert(anj);
-    log(L_INFO, "Restart triggered");
     if (anj->server_state.restart_triggered == true) {
         log(L_DEBUG, "Already in progress");
         return;
     }
+    log(L_INFO, "Restart triggered");
     _anj_exchange_terminate(&anj->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
     anj->server_state.restart_triggered = true;
 }
@@ -486,6 +552,6 @@ int anj_core_shutdown(anj_t *anj) {
     memset(anj, 0, sizeof(*anj));
     anj->server_state.conn_status = ANJ_CONN_STATUS_INVALID;
 
-    log(L_INFO, "Anjay Lite instance shutdown with result %d", res);
+    log(L_INFO, "Anjay Lite instance shutdown");
     return res;
 }

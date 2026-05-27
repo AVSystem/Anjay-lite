@@ -18,7 +18,7 @@ set(CMAKE_BUILD_TYPE Debug)
 set(ANJ_TESTING ON)
 
 # data model configuration
-set(ANJ_DM_MAX_OBJECTS_NUMBER 15)
+set(ANJ_DM_MAX_OBJECTS_NUMBER 18)
 
 # FOTA object configuration
 set(ANJ_FOTA_WITH_COAP_TCP ON)
@@ -39,6 +39,7 @@ set(ANJ_LWM2M_SEND_QUEUE_SIZE 3)
 
 # compat layer configuration
 set(ANJ_WITH_TIME_POSIX_COMPAT OFF)
+set(ANJ_WITH_RNG_POSIX_COMPAT OFF)
 set(ANJ_WITH_SOCKET_POSIX_COMPAT OFF)
 
 # security configuration

@@ -61,11 +61,11 @@ verify_payload(char *expected, size_t expected_len, _anj_coap_msg_t *msg) {
     ASSERT_EQ(_anj_exchange_new_client_request(&Exchange_ctx, &Msg,         \
                                                &Exchange_handlers, Payload, \
                                                sizeof(Payload)),            \
-              ANJ_EXCHANGE_STATE_MSG_TO_SEND);                              \
+              _ANJ_EXCHANGE_STATE_MSG_TO_SEND);                             \
     ASSERT_EQ(_anj_exchange_process(&Exchange_ctx,                          \
                                     ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,   \
                                     &Msg),                                  \
-              ANJ_EXCHANGE_STATE_WAITING_MSG);
+              _ANJ_EXCHANGE_STATE_WAITING_MSG);
 
 // update and deregister should use location path from register response
 ANJ_UNIT_TEST(register, base_register_update_deregister) {
@@ -110,8 +110,8 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
             "</1>;ver=1.2,</1/0>,</3>;ver=1.0,</3/0>";
     verify_payload(expected_register, sizeof(expected_register) - 1, &msg);
     // register message response with 2 location paths
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     msg.location_path.location_count = 2;
@@ -122,7 +122,7 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_FINISHED);
 
@@ -140,14 +140,14 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
                              "\x03\x65\x65\x65"; // uri path /eee
     verify_payload(expected_update, sizeof(expected_update) - 1, &msg);
     // empty response
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_FINISHED);
 
@@ -164,14 +164,14 @@ ANJ_UNIT_TEST(register, base_register_update_deregister) {
                                  "\x03\x65\x65\x65"; // uri path /eee
     verify_payload(expected_deregister, sizeof(expected_deregister) - 1, &msg);
     // empty response
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_DELETED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_FINISHED);
 }
@@ -227,8 +227,8 @@ ANJ_UNIT_TEST(register, location_path_too_long) {
     NEW_REQUEST(msg, exchange_ctx, exchange_handlers, payload);
 
     // register message response with 2 location paths
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     msg.location_path.location_count = 1;
@@ -238,7 +238,7 @@ ANJ_UNIT_TEST(register, location_path_too_long) {
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_ERROR);
 }
@@ -277,14 +277,14 @@ ANJ_UNIT_TEST(register, register_with_block_transfer) {
     verify_payload(expected_register_1, sizeof(expected_register_1) - 1, &msg);
 
     // first block response
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CONTINUE;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_MSG_TO_SEND);
+                          _ANJ_EXCHANGE_STATE_MSG_TO_SEND);
     // second block request
     char expected_register_2[] =
             "\x41"             // Confirmable, tkl 1
@@ -299,17 +299,17 @@ ANJ_UNIT_TEST(register, register_with_block_transfer) {
     ANJ_UNIT_ASSERT_EQUAL(
             _anj_exchange_process(&exchange_ctx,
                                   ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION, &msg),
-            ANJ_EXCHANGE_STATE_WAITING_MSG);
+            _ANJ_EXCHANGE_STATE_WAITING_MSG);
     // second block response
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CREATED;
     msg.payload_size = 0;
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_IN_PROGRESS);
     ASSERT_EQ(_anj_exchange_process(&exchange_ctx, ANJ_EXCHANGE_EVENT_NEW_MSG,
                                     &msg),
-              ANJ_EXCHANGE_STATE_FINISHED);
+              _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_FINISHED);
 }
@@ -369,14 +369,14 @@ ANJ_UNIT_TEST(register, update_with_data_model_payload) {
             "</1>;ver=1.2,</1/0>,</3>;ver=1.0,</3/0>";
     verify_payload(expected_update, sizeof(expected_update) - 1, &msg);
     // empty response
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_FINISHED);
 }
@@ -406,14 +406,14 @@ ANJ_UNIT_TEST(register, update_with_lifetime) {
                              "\x44\x6c\x74\x3d\x32"; // uri-query lt=2
     verify_payload(expected_update, sizeof(expected_update) - 1, &msg);
     // empty response
-    msg.operation = ANJ_OP_RESPONSE;
-    msg.coap_binding_data.type = ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
+    msg.operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+    msg.coap_binding_data.type = _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT;
     msg.msg_code = ANJ_COAP_CODE_CHANGED;
     msg.payload_size = 0;
     ANJ_UNIT_ASSERT_EQUAL(_anj_exchange_process(&exchange_ctx,
                                                 ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                 &msg),
-                          ANJ_EXCHANGE_STATE_FINISHED);
+                          _ANJ_EXCHANGE_STATE_FINISHED);
     ASSERT_EQ(_anj_register_operation_status(&anj),
               _ANJ_REGISTER_OPERATION_FINISHED);
 }

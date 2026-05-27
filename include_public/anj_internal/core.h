@@ -35,7 +35,7 @@ extern "C" {
 #undef ANJ_INTERNAL_INCLUDE_IO_CTX
 
 #define ANJ_INTERNAL_INCLUDE_SERVER
-#include <anj_internal/srv_conn.h>
+#include <anj_internal/srv_conn.h> // IWYU pragma: export
 #undef ANJ_INTERNAL_INCLUDE_SERVER
 
 /**
@@ -90,20 +90,20 @@ typedef struct anj_struct {
         /** Used in handling of incoming message payload. */
         _anj_io_in_ctx_t in_ctx;
         /**
-         * Used to prepare outgoing message payload for @ref ANJ_OP_REGISTER
+         * Used to prepare outgoing message payload for @ref _ANJ_OP_REGISTER
          * operation.
          */
         _anj_io_register_ctx_t register_ctx;
 #ifdef ANJ_WITH_DISCOVER
         /**
-         * Used to prepare outgoing message payload for @ref ANJ_OP_DM_DISCOVER
+         * Used to prepare outgoing message payload for @ref _ANJ_OP_DM_DISCOVER
          * operation.
          */
         _anj_io_discover_ctx_t discover_ctx;
 #endif // ANJ_WITH_DISCOVER
 #ifdef ANJ_WITH_BOOTSTRAP_DISCOVER
         /**
-         * Used to prepare outgoing message payload for @ref ANJ_OP_DM_DISCOVER
+         * Used to prepare outgoing message payload for @ref _ANJ_OP_DM_DISCOVER
          * for Bootstrap Server connection.
          */
         _anj_io_bootstrap_discover_ctx_t bootstrap_discover_ctx;

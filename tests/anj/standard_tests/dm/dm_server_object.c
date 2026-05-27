@@ -50,7 +50,7 @@ enum server_resources {
             anj_uri_path_t path =                                        \
                     ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER, Iid, Rid); \
             ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(             \
-                    &anj, ANJ_OP_DM_READ, false, &path));                \
+                    &anj, _ANJ_OP_DM_READ, false, &path));               \
             ANJ_UNIT_ASSERT_SUCCESS(anj_dm_res_read(&anj, &path, &val)); \
             ANJ_UNIT_ASSERT_EQUAL(val.int_value, Expected_val);          \
             _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);     \
@@ -62,7 +62,7 @@ enum server_resources {
             anj_uri_path_t path =                                        \
                     ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER, Iid, Rid); \
             ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(             \
-                    &anj, ANJ_OP_DM_READ, false, &path));                \
+                    &anj, _ANJ_OP_DM_READ, false, &path));               \
             ANJ_UNIT_ASSERT_SUCCESS(anj_dm_res_read(&anj, &path, &val)); \
             ANJ_UNIT_ASSERT_EQUAL(val.bool_value, Expected_val);         \
             _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);     \
@@ -74,7 +74,7 @@ enum server_resources {
             anj_uri_path_t path =                                        \
                     ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER, Iid, Rid); \
             ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(             \
-                    &anj, ANJ_OP_DM_READ, false, &path));                \
+                    &anj, _ANJ_OP_DM_READ, false, &path));               \
             ANJ_UNIT_ASSERT_SUCCESS(anj_dm_res_read(&anj, &path, &val)); \
             ANJ_UNIT_ASSERT_EQUAL_STRING(val.bytes_or_string.data,       \
                                          Expected_val);                  \
@@ -166,7 +166,7 @@ ANJ_UNIT_TEST(dm_server_object, write_replace) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_server_obj_install(&anj, &server_object));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_WRITE_REPLACE, true,
+            &anj, _ANJ_OP_DM_WRITE_REPLACE, true,
             &ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SERVER, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(
             &anj,
@@ -268,7 +268,7 @@ ANJ_UNIT_TEST(dm_server_object, server_create_instance_minimal) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_server_obj_install(&anj, &server_object));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, true,
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, true,
                                     &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SERVER)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, 20));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(
@@ -330,7 +330,7 @@ ANJ_UNIT_TEST(dm_server_object, server_create_instance) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_server_obj_install(&anj, &server_object));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, true,
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, true,
                                     &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SERVER)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, 22));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_write_entry(
@@ -419,7 +419,7 @@ ANJ_UNIT_TEST(dm_server_object, server_create_error) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_server_obj_install(&anj, &server_object));
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_dm_operation_begin(&anj, ANJ_OP_DM_CREATE, true,
+            _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, true,
                                     &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SERVER)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, 20));
     ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_validate(&anj));
@@ -446,7 +446,7 @@ ANJ_UNIT_TEST(dm_server_object, server_delete_instance) {
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_server_obj_install(&anj, &server_object));
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
-            &anj, ANJ_OP_DM_DELETE, false,
+            &anj, _ANJ_OP_DM_DELETE, false,
             &ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SERVER, 0)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);

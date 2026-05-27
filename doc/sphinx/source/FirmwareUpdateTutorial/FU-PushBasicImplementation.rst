@@ -173,7 +173,8 @@ These are in turn called in the ``main.c``:
     while (true) {
         anj_core_step(&anj);
         fw_update_check();
-        usleep(50 * 1000);
+        struct timespec ts = { 0, 50 * 1000 * 1000 }; // 50 ms
+        nanosleep(&ts, NULL);
     }
 
 Implement handlers and installation routine

@@ -6,10 +6,10 @@ static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
 {% if multiple_insts and dynamic_object_instances %}
 
     // Backup current object instance IDs
-    memcpy(ctx->obj_insts_ids,
-           ctx->obj_insts_ids_cached,
-           sizeof(ctx->obj_insts_ids));
-    memcpy(ctx->obj_insts, ctx->obj_insts_cached, sizeof(ctx->obj_insts));
+    memcpy(ctx->obj_insts_ids_cached,
+           ctx->obj_insts_ids,
+           sizeof(ctx->obj_insts_ids_cached));
+    memcpy(ctx->obj_insts_cached, ctx->obj_insts, sizeof(ctx->obj_insts_cached));
 {% endif %}
 
 {% if obj.has_any_multiple_resources and dynamic_resources_instances %}
@@ -34,10 +34,10 @@ static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
     // Backup current resource instance IDs
     memcpy({{ res.name_snake }}_res_insts_ids_cached,
            {{ res.name_snake }}_res_insts_ids,
-           sizeof({{ res.name_snake }}_res_insts_ids));
+           sizeof({{ res.name_snake }}_res_insts_ids_cached));
     memcpy({{ res.name_snake }}_res_insts_cached,
            {{ res.name_snake }}_res_insts,
-           sizeof({{ res.name_snake }}_res_insts));
+           sizeof({{ res.name_snake }}_res_insts_cached));
 {% endfor %}
 {% endif %}
 {% endif %}

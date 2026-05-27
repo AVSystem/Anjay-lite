@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 31
 
@@ -29,19 +29,19 @@
 int _anj_cbor_get_i64_from_ll_number(const _anj_cbor_ll_number_t *number,
                                      int64_t *out_value,
                                      bool allow_convert_fractions) {
-    if (number->type == ANJ_CBOR_LL_VALUE_UINT) {
+    if (number->type == _ANJ_CBOR_LL_VALUE_UINT) {
         if (number->value.u64 > INT64_MAX) {
             return _ANJ_IO_ERR_FORMAT;
         }
         *out_value = (int64_t) number->value.u64;
-    } else if (number->type == ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
+    } else if (number->type == _ANJ_CBOR_LL_VALUE_NEGATIVE_INT) {
         *out_value = number->value.i64;
     } else {
         double input;
-        if (number->type == ANJ_CBOR_LL_VALUE_FLOAT) {
+        if (number->type == _ANJ_CBOR_LL_VALUE_FLOAT) {
             input = (double) number->value.f32;
         } else {
-            assert(number->type == ANJ_CBOR_LL_VALUE_DOUBLE);
+            assert(number->type == _ANJ_CBOR_LL_VALUE_DOUBLE);
             input = number->value.f64;
         }
         if (allow_convert_fractions) {
@@ -58,13 +58,13 @@ int _anj_cbor_get_i64_from_ll_number(const _anj_cbor_ll_number_t *number,
 
 int _anj_cbor_get_u64_from_ll_number(const _anj_cbor_ll_number_t *number,
                                      uint64_t *out_value) {
-    if (number->type == ANJ_CBOR_LL_VALUE_UINT) {
+    if (number->type == _ANJ_CBOR_LL_VALUE_UINT) {
         *out_value = number->value.u64;
     } else {
         double input;
-        if (number->type == ANJ_CBOR_LL_VALUE_FLOAT) {
+        if (number->type == _ANJ_CBOR_LL_VALUE_FLOAT) {
             input = (double) number->value.f32;
-        } else if (number->type == ANJ_CBOR_LL_VALUE_DOUBLE) {
+        } else if (number->type == _ANJ_CBOR_LL_VALUE_DOUBLE) {
             input = number->value.f64;
         } else {
             return _ANJ_IO_ERR_FORMAT;
@@ -81,16 +81,16 @@ int _anj_cbor_get_u64_from_ll_number(const _anj_cbor_ll_number_t *number,
 int _anj_cbor_get_double_from_ll_number(const _anj_cbor_ll_number_t *number,
                                         double *out_value) {
     switch (number->type) {
-    case ANJ_CBOR_LL_VALUE_FLOAT:
+    case _ANJ_CBOR_LL_VALUE_FLOAT:
         *out_value = number->value.f32;
         break;
-    case ANJ_CBOR_LL_VALUE_DOUBLE:
+    case _ANJ_CBOR_LL_VALUE_DOUBLE:
         *out_value = number->value.f64;
         break;
-    case ANJ_CBOR_LL_VALUE_UINT:
+    case _ANJ_CBOR_LL_VALUE_UINT:
         *out_value = (double) number->value.u64;
         break;
-    case ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
+    case _ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
         *out_value = (double) number->value.i64;
         break;
     default:
@@ -141,21 +141,21 @@ int _anj_cbor_get_short_string(_anj_cbor_ll_decoder_t *ctx,
 static anj_data_type_t
 lwm2m_type_from_cbor_ll_type(_anj_cbor_ll_value_type_t type) {
     switch (type) {
-    case ANJ_CBOR_LL_VALUE_UINT:
+    case _ANJ_CBOR_LL_VALUE_UINT:
         return ANJ_DATA_TYPE_INT | ANJ_DATA_TYPE_UINT | ANJ_DATA_TYPE_DOUBLE;
-    case ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
+    case _ANJ_CBOR_LL_VALUE_NEGATIVE_INT:
         return ANJ_DATA_TYPE_INT | ANJ_DATA_TYPE_DOUBLE;
-    case ANJ_CBOR_LL_VALUE_BYTE_STRING:
+    case _ANJ_CBOR_LL_VALUE_BYTE_STRING:
         return ANJ_DATA_TYPE_BYTES;
-    case ANJ_CBOR_LL_VALUE_TEXT_STRING:
+    case _ANJ_CBOR_LL_VALUE_TEXT_STRING:
         return ANJ_DATA_TYPE_STRING | ANJ_DATA_TYPE_OBJLNK;
-    case ANJ_CBOR_LL_VALUE_FLOAT:
+    case _ANJ_CBOR_LL_VALUE_FLOAT:
         return ANJ_DATA_TYPE_INT | ANJ_DATA_TYPE_UINT | ANJ_DATA_TYPE_DOUBLE;
-    case ANJ_CBOR_LL_VALUE_DOUBLE:
+    case _ANJ_CBOR_LL_VALUE_DOUBLE:
         return ANJ_DATA_TYPE_INT | ANJ_DATA_TYPE_UINT | ANJ_DATA_TYPE_DOUBLE;
-    case ANJ_CBOR_LL_VALUE_BOOL:
+    case _ANJ_CBOR_LL_VALUE_BOOL:
         return ANJ_DATA_TYPE_BOOL;
-    case ANJ_CBOR_LL_VALUE_TIMESTAMP:
+    case _ANJ_CBOR_LL_VALUE_TIMESTAMP:
         return ANJ_DATA_TYPE_TIME;
     default:
         return ANJ_DATA_TYPE_NULL;

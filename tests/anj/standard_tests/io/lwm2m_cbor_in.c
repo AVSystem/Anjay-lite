@@ -30,7 +30,7 @@ static void anj_uri_path_t_compare(const anj_uri_path_t *a,
 static void test_single_resource(void *buff, size_t buff_size) {
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &ANJ_MAKE_RESOURCE_PATH(13, 26, 1),
                                 _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -94,7 +94,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource, single_resource_nested_arrays) {
 static void test_single_resource_instance(void *buff, size_t buff_size) {
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &ANJ_MAKE_RESOURCE_INSTANCE_PATH(13, 26, 1, 2),
                                 _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -138,7 +138,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource_instance, max_possible_nesting) {
 static void test_two_resources(void *buff, size_t buff_size) {
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_INSTANCE_PATH(13, 26), _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_io_in_ctx_feed_payload(&ctx, buff, buff_size, true));
@@ -221,7 +221,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource, bytes) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &ANJ_MAKE_RESOURCE_PATH(13, 26, 1),
                                 _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -261,7 +261,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource, bytes_indefinite) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &ANJ_MAKE_RESOURCE_PATH(13, 26, 1),
                                 _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -321,7 +321,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource, string) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &ANJ_MAKE_RESOURCE_PATH(13, 26, 1),
                                 _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -364,7 +364,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource_instance, null_and_int) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(
-            _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
                                 &ANJ_MAKE_RESOURCE_PATH(13, 26, 1),
                                 _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
@@ -415,7 +415,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource, all_types) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
+            &ctx, _ANJ_OP_DM_WRITE_PARTIAL_UPDATE,
             &ANJ_MAKE_INSTANCE_PATH(13, 26), _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_io_in_ctx_feed_payload(&ctx, DATA, sizeof(DATA) - 1, true));
@@ -534,7 +534,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in_resource, all_types) {
 static void test_composite(void *buff, size_t buff_size) {
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
+            &ctx, _ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
             _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_io_in_ctx_feed_payload(&ctx, buff, buff_size, true));
@@ -608,7 +608,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in, path_too_long_1) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
+            &ctx, _ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
             _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_io_in_ctx_feed_payload(&ctx, DATA, sizeof(DATA) - 1, true));
@@ -629,7 +629,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in, path_too_long_2) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
+            &ctx, _ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
             _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_io_in_ctx_feed_payload(&ctx, DATA, sizeof(DATA) - 1, true));
@@ -667,7 +667,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in, path_too_long_3) {
 
     _anj_io_in_ctx_t ctx;
     ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-            &ctx, ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
+            &ctx, _ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
             _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_io_in_ctx_feed_payload(&ctx, DATA, sizeof(DATA) - 1, true));
@@ -699,7 +699,7 @@ ANJ_UNIT_TEST(lwm2m_cbor_in, split_payload) {
 
         _anj_io_in_ctx_t ctx;
         ANJ_UNIT_ASSERT_SUCCESS(_anj_io_in_ctx_init(
-                &ctx, ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
+                &ctx, _ANJ_OP_DM_WRITE_COMP, &ANJ_MAKE_ROOT_PATH(),
                 _ANJ_COAP_FORMAT_OMA_LWM2M_CBOR));
         ANJ_UNIT_ASSERT_SUCCESS(
                 _anj_io_in_ctx_feed_payload(&ctx, copy, split, false));

@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 40
 
@@ -82,7 +82,7 @@ static int get_senml_cbor_label(_anj_io_in_ctx_t *ctx) {
      * > there is no intention to define any additional integer map keys;
      * > any extensions will use **string** map keys.
      */
-    if (type == ANJ_CBOR_LL_VALUE_TEXT_STRING) {
+    if (type == _ANJ_CBOR_LL_VALUE_TEXT_STRING) {
         if ((result = get_short_string(ctx, state->short_string_buf,
                                        sizeof(state->short_string_buf)))) {
             return result;
@@ -189,7 +189,7 @@ static int parse_senml_name(_anj_io_in_ctx_t *ctx) {
     if (result) {
         return result;
     }
-    if (type != ANJ_CBOR_LL_VALUE_TEXT_STRING) {
+    if (type != _ANJ_CBOR_LL_VALUE_TEXT_STRING) {
         return _ANJ_IO_ERR_FORMAT;
     }
 
@@ -250,7 +250,7 @@ static int parse_senml_value(_anj_io_in_ctx_t *ctx) {
         return result;
     }
     switch (type) {
-    case ANJ_CBOR_LL_VALUE_NULL:
+    case _ANJ_CBOR_LL_VALUE_NULL:
         if (state->label != SENML_LABEL_VALUE) {
             return _ANJ_IO_ERR_FORMAT;
         }
@@ -260,13 +260,13 @@ static int parse_senml_value(_anj_io_in_ctx_t *ctx) {
         }
         state->has_value = true;
         return 0;
-    case ANJ_CBOR_LL_VALUE_BYTE_STRING:
+    case _ANJ_CBOR_LL_VALUE_BYTE_STRING:
         if (state->label != SENML_LABEL_VALUE_OPAQUE) {
             return _ANJ_IO_ERR_FORMAT;
         }
         entry->type = ANJ_DATA_TYPE_BYTES;
         return process_bytes_value(ctx);
-    case ANJ_CBOR_LL_VALUE_TEXT_STRING:
+    case _ANJ_CBOR_LL_VALUE_TEXT_STRING:
         switch (state->label) {
         case SENML_LABEL_VALUE_STRING:
             entry->type = ANJ_DATA_TYPE_STRING;
@@ -286,7 +286,7 @@ static int parse_senml_value(_anj_io_in_ctx_t *ctx) {
         default:
             return _ANJ_IO_ERR_FORMAT;
         }
-    case ANJ_CBOR_LL_VALUE_BOOL:
+    case _ANJ_CBOR_LL_VALUE_BOOL:
         if (state->label != SENML_LABEL_VALUE_BOOL) {
             return _ANJ_IO_ERR_FORMAT;
         }
@@ -301,7 +301,7 @@ static int parse_senml_value(_anj_io_in_ctx_t *ctx) {
         if (state->label != SENML_LABEL_VALUE) {
             return _ANJ_IO_ERR_FORMAT;
         }
-        if (type == ANJ_CBOR_LL_VALUE_TIMESTAMP) {
+        if (type == _ANJ_CBOR_LL_VALUE_TIMESTAMP) {
             entry->type = ANJ_DATA_TYPE_TIME;
         } else {
             entry->type = ANJ_DATA_TYPE_INT | ANJ_DATA_TYPE_DOUBLE
@@ -327,7 +327,7 @@ static int parse_senml_basename(_anj_io_in_ctx_t *ctx) {
     if (result) {
         return result;
     }
-    if (type != ANJ_CBOR_LL_VALUE_TEXT_STRING) {
+    if (type != _ANJ_CBOR_LL_VALUE_TEXT_STRING) {
         return _ANJ_IO_ERR_FORMAT;
     }
 
@@ -344,13 +344,13 @@ int _anj_senml_cbor_decoder_init(_anj_io_in_ctx_t *ctx,
     anj_cbor_ll_decoder_init(&ctx->decoder.senml_cbor.ctx);
 #    ifdef ANJ_WITH_COMPOSITE_OPERATIONS
     ctx->decoder.senml_cbor.base =
-            (operation_type == ANJ_OP_DM_READ_COMP
-             || operation_type == ANJ_OP_INF_OBSERVE_COMP)
+            (operation_type == _ANJ_OP_DM_READ_COMP
+             || operation_type == _ANJ_OP_INF_OBSERVE_COMP)
                     ? (anj_uri_path_t) { 0 }
                     : *base_path;
     ctx->decoder.senml_cbor.composite_read_observe =
-            (operation_type == ANJ_OP_DM_READ_COMP
-             || operation_type == ANJ_OP_INF_OBSERVE_COMP);
+            (operation_type == _ANJ_OP_DM_READ_COMP
+             || operation_type == _ANJ_OP_INF_OBSERVE_COMP);
 #    else  // ANJ_WITH_COMPOSITE_OPERATIONS
     (void) operation_type;
     ctx->decoder.senml_cbor.base = *base_path;

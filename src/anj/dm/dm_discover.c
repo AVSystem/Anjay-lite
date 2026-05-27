@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 20
 
@@ -173,7 +173,7 @@ int _anj_dm_get_bootstrap_discover_record(anj_t *anj,
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
     assert(dm->op_count);
-    assert(dm->operation == ANJ_OP_DM_DISCOVER && dm->bootstrap_operation);
+    assert(dm->operation == _ANJ_OP_DM_DISCOVER && dm->bootstrap_operation);
 
     _anj_dm_disc_ctx_t *disc_ctx = &dm->op_ctx.disc_ctx;
     assert(disc_ctx->obj_idx < dm->objs_count);
@@ -355,7 +355,7 @@ int _anj_dm_get_discover_record(anj_t *anj,
     _anj_dm_data_model_t *dm = &anj->dm;
     assert(dm->op_in_progress);
     assert(dm->op_count);
-    assert(dm->operation == ANJ_OP_DM_DISCOVER && !dm->bootstrap_operation);
+    assert(dm->operation == _ANJ_OP_DM_DISCOVER && !dm->bootstrap_operation);
 
     _anj_dm_disc_ctx_t *disc_ctx = &dm->op_ctx.disc_ctx;
 

@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #define ANJ_LOG_SOURCE_FILE_ID 4
 
@@ -18,18 +18,25 @@
 #include <string.h>
 
 #include <anj/defs.h>
+#include <anj/log.h>
 #include <anj/utils.h>
+
+#define ANJ_INTERNAL_INCLUDE_COAP
+#include <anj_internal/coap.h>
+#undef ANJ_INTERNAL_INCLUDE_COAP
 
 #include "../utils.h"
 #include "attributes.h"
 #include "block.h"
 #include "coap.h"
 #include "common.h"
-
 #include "options.h"
 #include "udp_header.h"
+#include "utils.h"
 
 #define _URI_PATH_MAX_LEN_STR sizeof("65534")
+
+#define log(...) anj_log(coap, __VA_ARGS__)
 
 static int get_uri_path(anj_coap_options_t *options,
                         anj_uri_path_t *uri,
@@ -144,35 +151,35 @@ static int get_observe_option(anj_coap_options_t *options,
 
 static int validate_uri_path(_anj_op_t operation, anj_uri_path_t *uri) {
     switch (operation) {
-    case ANJ_OP_DM_READ:
-    case ANJ_OP_INF_OBSERVE:
-    case ANJ_OP_INF_CANCEL_OBSERVE:
+    case _ANJ_OP_DM_READ:
+    case _ANJ_OP_INF_OBSERVE:
+    case _ANJ_OP_INF_CANCEL_OBSERVE:
         if (!anj_uri_path_has(uri, ANJ_ID_OID)) {
             return _ANJ_ERR_INPUT_ARG;
         }
         break;
-    case ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
-    case ANJ_OP_DM_WRITE_REPLACE:
+    case _ANJ_OP_DM_WRITE_PARTIAL_UPDATE:
+    case _ANJ_OP_DM_WRITE_REPLACE:
         if (!anj_uri_path_has(uri, ANJ_ID_IID)) {
             return _ANJ_ERR_INPUT_ARG;
         }
         break;
-    case ANJ_OP_DM_DISCOVER:
+    case _ANJ_OP_DM_DISCOVER:
         if (anj_uri_path_has(uri, ANJ_ID_RIID)) {
             return _ANJ_ERR_INPUT_ARG;
         }
         break;
-    case ANJ_OP_DM_EXECUTE:
+    case _ANJ_OP_DM_EXECUTE:
         if (!anj_uri_path_is(uri, ANJ_ID_RID)) {
             return _ANJ_ERR_INPUT_ARG;
         }
         break;
-    case ANJ_OP_DM_CREATE:
+    case _ANJ_OP_DM_CREATE:
         if (!anj_uri_path_is(uri, ANJ_ID_OID)) {
             return _ANJ_ERR_INPUT_ARG;
         }
         break;
-    case ANJ_OP_DM_DELETE:
+    case _ANJ_OP_DM_DELETE:
         if (anj_uri_path_is(uri, ANJ_ID_RID)) {
             return _ANJ_ERR_INPUT_ARG;
         }
@@ -196,26 +203,26 @@ static int recognize_lwm2m_operation(anj_coap_options_t *options,
     case ANJ_COAP_CODE_GET:
         if (observe_opt_present) {
             if (observe_value) {
-                inout_data->operation = ANJ_OP_INF_CANCEL_OBSERVE;
+                inout_data->operation = _ANJ_OP_INF_CANCEL_OBSERVE;
             } else {
-                inout_data->operation = ANJ_OP_INF_OBSERVE;
+                inout_data->operation = _ANJ_OP_INF_OBSERVE;
             }
         } else {
             if (inout_data->accept == _ANJ_COAP_FORMAT_LINK_FORMAT) {
-                inout_data->operation = ANJ_OP_DM_DISCOVER;
+                inout_data->operation = _ANJ_OP_DM_DISCOVER;
             } else {
-                inout_data->operation = ANJ_OP_DM_READ;
+                inout_data->operation = _ANJ_OP_DM_READ;
             }
         }
         break;
 
     case ANJ_COAP_CODE_POST:
         if (is_bs_uri) {
-            inout_data->operation = ANJ_OP_BOOTSTRAP_FINISH;
+            inout_data->operation = _ANJ_OP_BOOTSTRAP_FINISH;
         } else if (anj_uri_path_is(&inout_data->uri, ANJ_ID_OID)) {
-            inout_data->operation = ANJ_OP_DM_CREATE;
+            inout_data->operation = _ANJ_OP_DM_CREATE;
         } else if (anj_uri_path_is(&inout_data->uri, ANJ_ID_IID)) {
-            inout_data->operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+            inout_data->operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
         } else if (anj_uri_path_is(&inout_data->uri, ANJ_ID_RID)) {
             // IMPORTANT: Transport Bindings
             // (OMA-TS-LightweightM2M_Transport-V1_2-20201110-A) allows the
@@ -226,9 +233,9 @@ static int recognize_lwm2m_operation(anj_coap_options_t *options,
             if (inout_data->content_format == _ANJ_COAP_FORMAT_NOT_DEFINED
                     || inout_data->content_format
                                    == _ANJ_COAP_FORMAT_PLAINTEXT) {
-                inout_data->operation = ANJ_OP_DM_EXECUTE;
+                inout_data->operation = _ANJ_OP_DM_EXECUTE;
             } else {
-                inout_data->operation = ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
+                inout_data->operation = _ANJ_OP_DM_WRITE_PARTIAL_UPDATE;
             }
         } else {
             return _ANJ_ERR_MALFORMED_MESSAGE;
@@ -238,28 +245,28 @@ static int recognize_lwm2m_operation(anj_coap_options_t *options,
     case ANJ_COAP_CODE_FETCH:
         if (observe_opt_present) {
             if (observe_value) {
-                inout_data->operation = ANJ_OP_INF_CANCEL_OBSERVE_COMP;
+                inout_data->operation = _ANJ_OP_INF_CANCEL_OBSERVE_COMP;
             } else {
-                inout_data->operation = ANJ_OP_INF_OBSERVE_COMP;
+                inout_data->operation = _ANJ_OP_INF_OBSERVE_COMP;
             }
         } else {
-            inout_data->operation = ANJ_OP_DM_READ_COMP;
+            inout_data->operation = _ANJ_OP_DM_READ_COMP;
         }
         break;
 
     case ANJ_COAP_CODE_PUT:
         if (inout_data->content_format != _ANJ_COAP_FORMAT_NOT_DEFINED) {
-            inout_data->operation = ANJ_OP_DM_WRITE_REPLACE;
+            inout_data->operation = _ANJ_OP_DM_WRITE_REPLACE;
         } else {
-            inout_data->operation = ANJ_OP_DM_WRITE_ATTR;
+            inout_data->operation = _ANJ_OP_DM_WRITE_ATTR;
         }
         break;
 
     case ANJ_COAP_CODE_IPATCH:
-        inout_data->operation = ANJ_OP_DM_WRITE_COMP;
+        inout_data->operation = _ANJ_OP_DM_WRITE_COMP;
         break;
     case ANJ_COAP_CODE_DELETE:
-        inout_data->operation = ANJ_OP_DM_DELETE;
+        inout_data->operation = _ANJ_OP_DM_DELETE;
         break;
     default:
         return _ANJ_ERR_MALFORMED_MESSAGE;
@@ -277,8 +284,10 @@ static int decode_payload(anj_coap_message_t *out_coap_msg,
         return 0;
     }
 
-    // ensured by decode_options
-    assert(*dispenser->read_ptr == _ANJ_COAP_PAYLOAD_MARKER);
+    if (*dispenser->read_ptr != _ANJ_COAP_PAYLOAD_MARKER) {
+        // payload marker must be present if there is payload
+        return _ANJ_ERR_MALFORMED_MESSAGE;
+    }
 
     out_coap_msg->payload = (uint8_t *) (intptr_t) dispenser->read_ptr + 1;
     out_coap_msg->payload_size = dispenser->bytes_left - 1;
@@ -307,21 +316,22 @@ static int decode_options(anj_coap_message_t *out_coap_msg,
 
     res = _anj_coap_options_decode(out_coap_msg->options, dispenser->read_ptr,
                                    dispenser->bytes_left, &bytes_read);
-
+    if (res) {
+        return res;
+    }
     dispenser->read_ptr += bytes_read;
     dispenser->bytes_left -= bytes_read;
-
     return res;
 }
 
 static int decode_attributes(_anj_coap_msg_t *inout_data,
                              anj_coap_message_t *out_coap_msg) {
-    if (inout_data->operation == ANJ_OP_DM_DISCOVER) {
+    if (inout_data->operation == _ANJ_OP_DM_DISCOVER) {
         return anj_attr_discover_decode(out_coap_msg->options,
                                         &inout_data->attr.discover_attr);
-    } else if (inout_data->operation == ANJ_OP_DM_WRITE_ATTR
-               || inout_data->operation == ANJ_OP_INF_OBSERVE
-               || inout_data->operation == ANJ_OP_INF_OBSERVE_COMP) {
+    } else if (inout_data->operation == _ANJ_OP_DM_WRITE_ATTR
+               || inout_data->operation == _ANJ_OP_INF_OBSERVE
+               || inout_data->operation == _ANJ_OP_INF_OBSERVE_COMP) {
         return anj_attr_notification_attr_decode(
                 out_coap_msg->options, &inout_data->attr.notification_attr);
     }
@@ -366,6 +376,7 @@ static int get_location_path(anj_coap_options_t *opt,
         if (opt->options[i].option_number == _ANJ_COAP_OPTION_LOCATION_PATH) {
             if (loc_path->location_count
                     >= ANJ_COAP_MAX_LOCATION_PATHS_NUMBER) {
+                log(L_ERROR, "ANJ_COAP_MAX_LOCATION_PATHS_NUMBER exceeded");
                 return _ANJ_ERR_LOCATION_PATHS_NUMBER;
             }
             loc_path->location_len[loc_path->location_count] =
@@ -386,32 +397,37 @@ static int recognize_operation_and_options_udp(anj_coap_message_t *out_coap_msg,
                                       _ANJ_COAP_OPTION_CONTENT_FORMAT, NULL,
                                       &inout_data->content_format);
 
-    if (inout_data->coap_binding_data.type == ANJ_COAP_UDP_TYPE_RESET) {
-        inout_data->operation = ANJ_OP_COAP_RESET;
+    if (inout_data->coap_binding_data.type == _ANJ_COAP_UDP_TYPE_RESET) {
+        inout_data->operation = _ANJ_OP_COAP_RESET;
     } else if (inout_data->coap_binding_data.type
-                       == ANJ_COAP_UDP_TYPE_CONFIRMABLE
+                       == _ANJ_COAP_UDP_TYPE_CONFIRMABLE
                && inout_data->msg_code == ANJ_COAP_CODE_EMPTY) {
-        inout_data->operation = ANJ_OP_COAP_PING_UDP;
+        inout_data->operation = _ANJ_OP_COAP_PING_UDP;
     } else if (inout_data->msg_code >= ANJ_COAP_CODE_GET
                && inout_data->msg_code <= ANJ_COAP_CODE_IPATCH
                && (inout_data->coap_binding_data.type
-                           == ANJ_COAP_UDP_TYPE_CONFIRMABLE
+                           == _ANJ_COAP_UDP_TYPE_CONFIRMABLE
                    || inout_data->coap_binding_data.type
-                              == ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE)) {
-        if (inout_data->coap_binding_data.type
-                == ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE) {
-            if (inout_data->msg_code == ANJ_COAP_CODE_POST) {
-                inout_data->operation = ANJ_OP_DM_EXECUTE;
-            } else {
-                return _ANJ_ERR_MALFORMED_MESSAGE;
-            }
-        }
+                              == _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE)) {
         res = handle_lwm2m_request(inout_data, out_coap_msg);
+        if (inout_data->coap_binding_data.type
+                        == _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE
+                && inout_data->operation != _ANJ_OP_DM_EXECUTE) {
+            return _ANJ_ERR_MALFORMED_MESSAGE;
+        }
     } else if (inout_data->msg_code >= ANJ_COAP_CODE_CREATED
                && inout_data->msg_code
                           <= ANJ_COAP_CODE_PROXYING_NOT_SUPPORTED) {
         // server response
-        inout_data->operation = ANJ_OP_RESPONSE;
+        if (inout_data->coap_binding_data.type == _ANJ_COAP_UDP_TYPE_CONFIRMABLE
+                || inout_data->coap_binding_data.type
+                               == _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT) {
+            inout_data->operation = _ANJ_OP_RESPONSE_CON_OR_ACK;
+        } else {
+            assert(inout_data->coap_binding_data.type
+                   == _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE);
+            inout_data->operation = _ANJ_OP_RESPONSE_NON_CON;
+        }
         res = get_location_path(out_coap_msg->options,
                                 &inout_data->location_path);
         _RET_IF_ERROR(res);
@@ -422,8 +438,8 @@ static int recognize_operation_and_options_udp(anj_coap_message_t *out_coap_msg,
 #endif // ANJ_WITH_COAP_DOWNLOADER
     } else if (inout_data->msg_code == ANJ_COAP_CODE_EMPTY
                && inout_data->coap_binding_data.type
-                          == ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT) {
-        inout_data->operation = ANJ_OP_COAP_EMPTY_MSG;
+                          == _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT) {
+        inout_data->operation = _ANJ_OP_COAP_EMPTY_MSG;
         return 0;
     } else {
         res = _ANJ_ERR_COAP_BAD_MSG;
@@ -458,24 +474,23 @@ static bool is_udp_msg_header_valid(const anj_coap_message_t *out_coap_msg) {
     }
 
     switch (out_coap_msg->header.udp_header.type) {
-    case ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT:
+    case _ANJ_COAP_UDP_TYPE_ACKNOWLEDGEMENT:
         if (_anj_coap_code_is_request(out_coap_msg->header.code)) {
             return false;
         }
         break;
-    case ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE:
-        // ANJ_COAP_CODE_EMPTY with ANJ_COAP_UDP_TYPE_CONFIRMABLE
+    case _ANJ_COAP_UDP_TYPE_NON_CONFIRMABLE:
+        // ANJ_COAP_CODE_EMPTY with _ANJ_COAP_UDP_TYPE_CONFIRMABLE
         // means "CoAP ping"
         if (out_coap_msg->header.code == ANJ_COAP_CODE_EMPTY) {
             return false;
         }
         break;
-    case ANJ_COAP_UDP_TYPE_RESET:
+    case _ANJ_COAP_UDP_TYPE_RESET:
         if (out_coap_msg->header.code != ANJ_COAP_CODE_EMPTY) {
             return false;
         }
         break;
-
     default:
         break;
     }
@@ -491,7 +506,7 @@ static int decode_header_udp(anj_coap_message_t *out_coap_msg,
                            sizeof(version_type_token_length))) {
         return _ANJ_ERR_MALFORMED_MESSAGE;
     }
-
+    // version is not used in further processing
     out_coap_msg->header.udp_header.version =
             _anj_coap_udp_header_get_version(version_type_token_length);
     out_coap_msg->header.udp_header.type =
@@ -538,8 +553,7 @@ static int _anj_coap_udp_frame_decode(void *datagram,
     anj_bytes_dispenser_t dispenser =
             _anj_make_bytes_dispenser(datagram, datagram_size);
 
-    int res;
-    res = decode_header_udp(&out_coap_msg, &dispenser);
+    int res = decode_header_udp(&out_coap_msg, &dispenser);
     _RET_IF_ERROR(res)
 
     if (out_coap_msg.header.token_length > 0) {
@@ -572,5 +586,15 @@ int _anj_coap_decode_udp(uint8_t *datagram,
     out_data->accept = _ANJ_COAP_FORMAT_NOT_DEFINED;
     out_data->content_format = _ANJ_COAP_FORMAT_NOT_DEFINED;
 
-    return _anj_coap_udp_frame_decode(datagram, datagram_size, out_data);
+    int res = _anj_coap_udp_frame_decode(datagram, datagram_size, out_data);
+    if (!res) {
+        _anj_log_msg_info(out_data, true);
+    } else if (res == _ANJ_ERR_MALFORMED_MESSAGE) {
+        log(L_ERROR, "Message is malformed");
+    } else if (res == _ANJ_ERR_INPUT_ARG) {
+        log(L_ERROR, "Message is not valid according to LwM2M specification");
+    } else {
+        log(L_ERROR, "Failed to decode CoAP message: error code %d", res);
+    }
+    return res;
 }

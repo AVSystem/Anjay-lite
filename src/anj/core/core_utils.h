@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_SRC_CORE_CORE_UTILS_H
 #    define ANJ_SRC_CORE_CORE_UTILS_H
@@ -37,13 +37,9 @@
 #    define SECURITY_OBJ_SERVER_PUBLIC_KEY_RID 4
 #    define SECURITY_OBJ_SECRET_KEY_RID 5
 #    define SECURITY_OBJ_CLIENT_HOLD_OFF_TIME_RID 11
+#    define SECURITY_OBJ_OSCORE_RID 17
 
 #    define log(...) anj_log(server, __VA_ARGS__)
-
-#    define ANJ_CORE_LOG_COAP_ERROR(Error)                                \
-        log(L_ERROR,                                                      \
-            "CoAP decoding/encoding error: %d, check coap.h for details", \
-            Error)
 
 typedef struct {
     anj_net_binding_type_t binding_type;

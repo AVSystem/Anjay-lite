@@ -364,6 +364,7 @@ static inline bool anj_time_duration_geq(const anj_time_duration_t lhs,
     return lhs.us >= rhs.us;
 }
 
+/** @cond */
 /**
  * @brief Internal helper that renders a duration to a string buffer.
  *
@@ -387,9 +388,10 @@ static inline bool anj_time_duration_geq(const anj_time_duration_t lhs,
  * @see ANJ_TIME_REAL_AS_STRING
  */
 const char *_anj_time_duration_as_string_impl(
-        anj_time_duration_t duration,
-        anj_time_unit_t unit,
+        const anj_time_duration_t duration,
+        const anj_time_unit_t unit,
         char (*buffer)[ANJ_TIME_DURATION_AS_STRING_MAX_LEN]);
+/** @endcond */
 
 /**
  * @brief Formats a duration as a string in the given unit.

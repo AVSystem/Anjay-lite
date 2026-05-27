@@ -240,26 +240,26 @@ typedef struct _anj_cbor_ll_decoder_struct _anj_cbor_ll_decoder_t;
 /** @anj_internal_api_do_not_use */
 typedef enum {
     /* decoder is operational */
-    ANJ_CBOR_LL_DECODER_STATE_OK,
+    _ANJ_CBOR_LL_DECODER_STATE_OK,
     /* decoder reached end of stream */
-    ANJ_CBOR_LL_DECODER_STATE_FINISHED,
+    _ANJ_CBOR_LL_DECODER_STATE_FINISHED,
     /* decoder could not make sense out of some part of the stream */
-    ANJ_CBOR_LL_DECODER_STATE_ERROR
+    _ANJ_CBOR_LL_DECODER_STATE_ERROR
 } _anj_cbor_ll_decoder_state_t;
 
 /** @anj_internal_api_do_not_use */
 typedef enum {
-    ANJ_CBOR_LL_VALUE_NULL,
-    ANJ_CBOR_LL_VALUE_UINT,
-    ANJ_CBOR_LL_VALUE_NEGATIVE_INT,
-    ANJ_CBOR_LL_VALUE_BYTE_STRING,
-    ANJ_CBOR_LL_VALUE_TEXT_STRING,
-    ANJ_CBOR_LL_VALUE_ARRAY,
-    ANJ_CBOR_LL_VALUE_MAP,
-    ANJ_CBOR_LL_VALUE_FLOAT,
-    ANJ_CBOR_LL_VALUE_DOUBLE,
-    ANJ_CBOR_LL_VALUE_BOOL,
-    ANJ_CBOR_LL_VALUE_TIMESTAMP
+    _ANJ_CBOR_LL_VALUE_NULL,
+    _ANJ_CBOR_LL_VALUE_UINT,
+    _ANJ_CBOR_LL_VALUE_NEGATIVE_INT,
+    _ANJ_CBOR_LL_VALUE_BYTE_STRING,
+    _ANJ_CBOR_LL_VALUE_TEXT_STRING,
+    _ANJ_CBOR_LL_VALUE_ARRAY,
+    _ANJ_CBOR_LL_VALUE_MAP,
+    _ANJ_CBOR_LL_VALUE_FLOAT,
+    _ANJ_CBOR_LL_VALUE_DOUBLE,
+    _ANJ_CBOR_LL_VALUE_BOOL,
+    _ANJ_CBOR_LL_VALUE_TIMESTAMP
 } _anj_cbor_ll_value_type_t;
 
 /** @anj_internal_api_do_not_use */
@@ -293,23 +293,23 @@ typedef struct {
 
 /** @anj_internal_api_do_not_use */
 typedef enum {
-    ANJ_CBOR_LL_SUBPARSER_NONE,
-    ANJ_CBOR_LL_SUBPARSER_STRING,
-    ANJ_CBOR_LL_SUBPARSER_BYTES,
-    ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME,
+    _ANJ_CBOR_LL_SUBPARSER_NONE,
+    _ANJ_CBOR_LL_SUBPARSER_STRING,
+    _ANJ_CBOR_LL_SUBPARSER_BYTES,
+    _ANJ_CBOR_LL_SUBPARSER_EPOCH_BASED_TIME,
 #    ifdef ANJ_WITH_CBOR_DECODE_STRING_TIME
-    ANJ_CBOR_LL_SUBPARSER_STRING_TIME,
+    _ANJ_CBOR_LL_SUBPARSER_STRING_TIME,
 #    endif // ANJ_WITH_CBOR_DECODE_STRING_TIME
 #    ifdef ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
-    ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION,
+    _ANJ_CBOR_LL_SUBPARSER_DECIMAL_FRACTION,
 #    endif // ANJ_WITH_CBOR_DECODE_DECIMAL_FRACTIONS
 } _anj_cbor_ll_subparser_type_t;
 
 /** @anj_internal_api_do_not_use */
 typedef struct {
-    /* Type of the nested structure (ANJ_CBOR_LL_VALUE_BYTE_STRING,
-     * ANJ_CBOR_LL_VALUE_TEXT_STRING, ANJ_CBOR_LL_VALUE_ARRAY or
-     * ANJ_CBOR_LL_VALUE_MAP). */
+    /* Type of the nested structure (_ANJ_CBOR_LL_VALUE_BYTE_STRING,
+     * _ANJ_CBOR_LL_VALUE_TEXT_STRING, _ANJ_CBOR_LL_VALUE_ARRAY or
+     * _ANJ_CBOR_LL_VALUE_MAP). */
     _anj_cbor_ll_value_type_t type;
     union {
         /* Number of items of the entry that were parsed */

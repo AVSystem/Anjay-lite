@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef ANJ_IO_H
 #    define ANJ_IO_H
@@ -84,15 +84,14 @@ extern "C" {
  * @param operation_type Type of operation for which payload is being prepared.
  *                       Only the following operations are supported and will
  *                       result in successful initialization:
- *                       - @ref ANJ_OP_DM_READ
- *                       - @ref ANJ_OP_DM_READ_COMP
- *                       - @ref ANJ_OP_INF_OBSERVE
- *                       - @ref ANJ_OP_INF_OBSERVE_COMP
- *                       - @ref ANJ_OP_INF_CANCEL_OBSERVE
- *                       - @ref ANJ_OP_INF_CANCEL_OBSERVE_COMP
- *                       - @ref ANJ_OP_INF_NON_CON_NOTIFY
- *                       - @ref ANJ_OP_INF_CON_SEND
- *                       - @ref ANJ_OP_INF_NON_CON_SEND
+ *                       - @ref _ANJ_OP_DM_READ
+ *                       - @ref _ANJ_OP_DM_READ_COMP
+ *                       - @ref _ANJ_OP_INF_OBSERVE
+ *                       - @ref _ANJ_OP_INF_OBSERVE_COMP
+ *                       - @ref _ANJ_OP_INF_CANCEL_OBSERVE
+ *                       - @ref _ANJ_OP_INF_CANCEL_OBSERVE_COMP
+ *                       - @ref _ANJ_OP_INF_NON_CON_NOTIFY
+ *                       - @ref _ANJ_OP_INF_CON_SEND
  * @param base_path      Pointer to path.
  * @param items_count    Number of resources or resource instanes that will be
  *                       in the message.
@@ -148,7 +147,7 @@ int _anj_io_out_ctx_new_entry(_anj_io_out_ctx_t *ctx,
  * _anj_io_out_ctx_t ctx;
  *
  * // Initializes ctx for READ operation response on single resource
- * _anj_io_out_ctx_init(&ctx, ANJ_OP_DM_READ, NULL, 1, _ANJ_COAP_FORMAT_CBOR);
+ * _anj_io_out_ctx_init(&ctx, _ANJ_OP_DM_READ, NULL, 1, _ANJ_COAP_FORMAT_CBOR);
  *
  * // Prepares resource record of int types
  * anj_io_out_entry_t entry;
@@ -213,12 +212,12 @@ void _anj_io_out_ctx_close_external_data_cb(const anj_io_out_entry_t *entry);
  * @param operation_type Type of operation for which payload is being parsed.
  *                       Only the following operations are supported and will
  *                       result in successful initialization:
- *                       - @ref ANJ_OP_DM_READ_COMP
- *                       - @ref ANJ_OP_DM_WRITE_REPLACE
- *                       - @ref ANJ_OP_DM_WRITE_PARTIAL_UPDATE
- *                       - @ref ANJ_OP_DM_WRITE_COMP
- *                       - @ref ANJ_OP_DM_CREATE
- *                       - @ref ANJ_OP_INF_OBSERVE_COMP
+ *                       - @ref _ANJ_OP_DM_READ_COMP
+ *                       - @ref _ANJ_OP_DM_WRITE_REPLACE
+ *                       - @ref _ANJ_OP_DM_WRITE_PARTIAL_UPDATE
+ *                       - @ref _ANJ_OP_DM_WRITE_COMP
+ *                       - @ref _ANJ_OP_DM_CREATE
+ *                       - @ref _ANJ_OP_INF_OBSERVE_COMP
  * @param base_path      URI path that has been specified in the operation
  *                       parameters (i.e., CoAP options); may be <c>NULL</c> in
  *                       case of the Composite operations.
@@ -326,7 +325,7 @@ int _anj_io_in_ctx_feed_payload(_anj_io_in_ctx_t *ctx,
  *
  * @code
  * _anj_io_in_ctx_t ctx;
- * int result = _anj_io_in_ctx_init(&ctx, ANJ_OP_DM_WRITE_COMP, NULL,
+ * int result = _anj_io_in_ctx_init(&ctx, _ANJ_OP_DM_WRITE_COMP, NULL,
  *                                  _ANJ_COAP_FORMAT_SENML_CBOR);
  * if (result) {
  *     abort();

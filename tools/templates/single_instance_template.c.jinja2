@@ -120,7 +120,7 @@ const anj_dm_obj_t *{{ obj.name_snake }}_object_create(void) {
 
 {% if obj.has_any_multiple_resources and dynamic_resources_instances %}
     memset({{ res.name_snake }}_res_insts_ids,
-           ANJ_ID_INVALID,
+           255, // Fill with ANJ_ID_INVALID
            sizeof({{ res.name_snake }}_res_insts_ids));
 
     // Initialize resource instances

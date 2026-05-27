@@ -7,7 +7,7 @@
  * See the attached LICENSE file for details.
  */
 
-#include <anj/init.h>
+#include "../init_internal.h"
 
 #ifndef SRC_ANJ_OBSERVE_H
 #    define SRC_ANJ_OBSERVE_H
@@ -20,9 +20,6 @@
 #    include <anj/time.h>
 
 #    ifdef ANJ_WITH_OBSERVE
-
-/** A constant that may be used to address all servers. */
-#        define ANJ_OBSERVE_ANY_SERVER UINT16_MAX
 
 /**
  * Contains information about the type of changes of the data model.
@@ -77,7 +74,7 @@ typedef enum {
  *   // that message has been sent.
  *   if (_anj_exchange_process(&exchange_ctx,
  *                             ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
- *                             &inout_msg) == ANJ_EXCHANGE_STATE_FINISHED) {
+ *                             &inout_msg) == _ANJ_EXCHANGE_STATE_FINISHED) {
  *     break;
  *   }
  *
@@ -101,8 +98,8 @@ typedef enum {
  * };
  *
  * _anj_observe_process(&anj, &out_handlers, &srv, &inout_msg);
- * if (inout_msg->operation == ANJ_OP_INF_CON_NOTIFY || inout_msg->operation ==
- *       ANJ_OP_INF_NON_CON_NOTIFY) {
+ * if (inout_msg->operation == _ANJ_OP_INF_CON_NOTIFY || inout_msg->operation ==
+ *       _ANJ_OP_INF_NON_CON_NOTIFY) {
  *   _anj_exchange_new_server_request(&exchange_ctx, response_code, &inout_msg,
  *                             &out_handlers, out_buff, out_buff_len);
  *   while(1) {
@@ -111,7 +108,7 @@ typedef enum {
  *     // that message has been sent.
  *     if (_anj_exchange_process(&exchange_ctx,
  *                               ANJ_EXCHANGE_EVENT_SEND_CONFIRMATION,
- *                               &inout_msg) == ANJ_EXCHANGE_STATE_FINISHED) {
+ *                               &inout_msg) == _ANJ_EXCHANGE_STATE_FINISHED) {
  *       break;
  *     }
  *
@@ -129,11 +126,11 @@ void _anj_observe_init(anj_t *anj);
 /**
  * This function should be called after receiving a request from the LwM2M
  * server related to information reporting interface:
- *      - ANJ_OP_DM_WRITE_ATTR,
- *      - ANJ_OP_INF_OBSERVE,
- *      - ANJ_OP_INF_OBSERVE_COMP,
- *      - ANJ_OP_INF_CANCEL_OBSERVE,
- *      - ANJ_OP_INF_CANCEL_OBSERVE_COMP.
+ *      - _ANJ_OP_DM_WRITE_ATTR,
+ *      - _ANJ_OP_INF_OBSERVE,
+ *      - _ANJ_OP_INF_OBSERVE_COMP,
+ *      - _ANJ_OP_INF_CANCEL_OBSERVE,
+ *      - _ANJ_OP_INF_CANCEL_OBSERVE_COMP.
  *
  * After calling this function, the user should use exchange API to prepare the
  * response and handle potential block transfer. Callbacks that should be used
@@ -143,7 +140,7 @@ void _anj_observe_init(anj_t *anj);
  * operations for each server can be handled simultaneously. However, if a new
  * request begins to be processed then user cannot call this or @ref
  * _anj_observe_process function until @ref _anj_exchange_process returns
- * ANJ_EXCHANGE_STATE_FINISHED.
+ * _ANJ_EXCHANGE_STATE_FINISHED.
  *
  * NOTE: @ref _anj_observe_process and @ref _anj_observe_new_request cannot be
  * call if ongoing block transfer is preformed.
@@ -168,9 +165,9 @@ int _anj_observe_new_request(anj_t *anj,
 /**
  * This function checks if any notification should be sent. Function should be
  * called periodically in order to properly handle the notifications. If
- * <c>operation</c> field in @p out_msg is set to @ref ANJ_OP_INF_CON_NOTIFY,
+ * <c>operation</c> field in @p out_msg is set to @ref _ANJ_OP_INF_CON_NOTIFY,
  * then Confirmable Notification needs to be sent. For @ref
- * ANJ_OP_INF_NON_CON_NOTIFY value Non-Confirmable Notification need to be
+ * _ANJ_OP_INF_NON_CON_NOTIFY value Non-Confirmable Notification need to be
  * sent. Otherwise, no message is ready to be sent.
  *
  * If <c>operation</c> field in @p out_msg indicates that there is a
@@ -182,7 +179,7 @@ int _anj_observe_new_request(anj_t *anj,
  * notifications for each server can be handled simultaneously. However, if a
  * new notification begins to be processed then user cannot call this or @ref
  * _anj_observe_process function until @ref _anj_exchange_process returns
- * ANJ_EXCHANGE_STATE_FINISHED.
+ * _ANJ_EXCHANGE_STATE_FINISHED.
  *
  * NOTE: All parameters related to time (pmin, pmax, epmin, epmax) are specified
  * in seconds. For optimal performance, notification processing, carried out by
@@ -205,27 +202,21 @@ int _anj_observe_process(anj_t *anj,
                          _anj_coap_msg_t *out_msg);
 
 /**
- * Removes all observations for given server. Should be called when the
- * connection to a specific LwM2M server is finished.
+ * Removes all observations. Should be called when the
+ * connection to a LwM2M server is finished.
  *
  * @param     anj    Anjay object to operate on.
- * @param[in] ssid   ID of the server for which all observations should be
- *                   removed. Use @ref ANJ_OBSERVE_ANY_SERVER to remove all
- *                   observations.
  */
-void _anj_observe_remove_all_observations(anj_t *anj, uint16_t ssid);
+void _anj_observe_remove_all_observations(anj_t *anj);
 
 /**
- * Removes all attribute storage records for given server. Might be called when
- * the connection to a specific LwM2M server is finished. Specification allows
+ * Removes all attribute storage records. Might be called when
+ * the connection to a LwM2M server is finished. Specification allows
  * the preservation of attributes between connection sessions.
  *
  * @param     anj    Anjay object to operate on.
- * @param[in] ssid   ID of the server for which all attributes should be
- *                   removed. Use @ref ANJ_OBSERVE_ANY_SERVER to remove all
- *                   records.
  */
-void _anj_observe_remove_all_attr_storage(anj_t *anj, uint16_t ssid);
+void _anj_observe_remove_all_attr_storage(anj_t *anj);
 
 #        ifdef ANJ_WITH_DISCOVER_ATTR
 /**
