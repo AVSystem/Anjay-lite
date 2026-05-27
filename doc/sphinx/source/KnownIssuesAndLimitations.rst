@@ -94,11 +94,11 @@ OSCORE limitations
 ------------------
 
 Anjay Lite has some limitations related to OSCORE support:
-- When using OSCORE Appendix B2, Context ID negotiation may collide with an
-  ongoing block-wise transfer. If the server attempts to start B2 in the
-  middle of such a transfer, Anjay Lite rejects the B2 procedure and
-  terminates the current exchange. For client-initiated exchanges, this may
-  result in fallback to re-registration, potentially followed by a new B2
-  negotiation during Register. B2 is still allowed when it starts on the
-  first block of the transfer, as this is required to support block-wise
-  registration and other first-block exchanges.
+ - When using OSCORE Appendix B2, Context ID negotiation may collide with an
+   ongoing block-wise transfer. If the server attempts to start B2 in the
+   middle of such a transfer, Anjay Lite rejects the B2 procedure and
+   terminates the current exchange. For client-initiated exchanges, this may
+   result in fallback to re-registration, potentially followed by a new B2
+   negotiation during Register. B2 is still allowed when it starts on the
+   first block of the transfer, as this is required to support block-wise
+   registration and other first-block exchanges.
