@@ -22,10 +22,7 @@ venv/
 # make
 CMakeFiles/
 CMakeDoxyfile.in
-*.cmake
-!cmake/*.cmake
-!tests/anj/standard_tests/standard_tests_base_config.cmake
-!tests/init_header_check/run_check.cmake
+cmake_install.cmake
 CMakeCache.txt
 Makefile
 __pycache__/

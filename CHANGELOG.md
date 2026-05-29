@@ -1,5 +1,10 @@
 # Changelog
 
+## Anjay Lite 2.1.1 (May 29th, 2026)
+
+### Bugfixes
+- Added files necessary for installing pymbedtls (needed for integration tests)
+
 ## Anjay Lite 2.1.0 (May 27th, 2026)
 
 ### Features
