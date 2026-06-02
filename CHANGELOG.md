@@ -1,5 +1,10 @@
 # Changelog
 
+## Anjay Lite 2.1.2 (June 2nd, 2026)
+
+### Improvements
+- Updated documentation links in README.md.
+
 ## Anjay Lite 2.1.1 (May 29th, 2026)
 
 ### Bugfixes

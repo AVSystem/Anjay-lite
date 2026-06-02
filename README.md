@@ -1,5 +1,5 @@
 <a id="readme-top"></a>
-# Anjay Lite LwM2M Client SDK [<img align="right" height="50px" src="https://avsystem.github.io/Anjay-doc/_images/avsystem_logo.png">][avsystem-url]
+# Anjay Lite LwM2M Client SDK [<img align="right" height="50px" src="https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/_images/avsystem_logo.png">][avsystem-url]
 
 <!-- PROJECT BADGES -->
 <!--[![Build Status](https://github.com/AVSystem/Anjay-lite/actions/workflows/anjay-lite-tests.yml/badge.svg?branch=master)](https://github.com/AVSystem/Anjay-lite/actions)-->
@@ -250,10 +250,10 @@ Contributions are welcome! See our [contributing guide](CONTRIBUTING.rst).
 <!-- Badges -->
 [dual-license-badge]: https://img.shields.io/badge/license-Dual-blue
 
-[anjay-lite-full-documentation]: https://AVSystem.github.io/Anjay-lite
-[anjay-lite-integrations]: https://avsystem.github.io/Anjay-lite/Integrations.html
-[anjay-lite-introduction]: https://AVSystem.github.io/Anjay-lite/Introduction.html
-[anjay-lite-compilation]: https://avsystem.github.io/Anjay-lite/Compile_client_applications.html
-[anjay-lite-tutorials]: https://AVSystem.github.io/Anjay-lite/BasicClient.html
-[anjay-lite-api-docs]: https://AVSystem.github.io/Anjay-lite/api
+[anjay-lite-full-documentation]: https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/index.html
+[anjay-lite-integrations]: https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/Integrations.html
+[anjay-lite-introduction]: https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/Introduction.html
+[anjay-lite-compilation]: https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/Compile_client_applications.html
+[anjay-lite-tutorials]: https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/BasicClient.html
+[anjay-lite-api-docs]: https://docs.avsystem.com/hubfs/Anjay_Lite_Docs/api/index.html
 [anjay-lite-registration]: https://go.avsystem.com/anjay-lite-registration

@@ -21,7 +21,7 @@ include(ExternalProject)
 set(anjay_lite_DIR "cmake")
 find_package(anjay_lite REQUIRED)
 
-set(ANJAY_LITE_VERSION "2.1.1" CACHE STRING "Anjay library version")
+set(ANJAY_LITE_VERSION "2.1.2" CACHE STRING "Anjay library version")
 
 # Although we have cmake/anjay_lite-config.cmake which calls
 # anjay_lite_mbedtls.cmake internally, we couldn't use this
