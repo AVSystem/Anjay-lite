@@ -17,13 +17,16 @@ authors = [
 [build-system]
 requires = [
   "py-build-cmake~=0.5.0",
-  "pybind11==2.10.1"
+  "pybind11==2.10.1",
+  "filelock",
+  "GitPython"
 ]
 build-backend = "py_build_cmake.build"
 
 [tool.py-build-cmake.sdist]
 include = [
   "CMakeLists.txt",
+  "mbedtls_cache.py",
   "cmake/*.cmake",
   "src/*.cpp",
   "src/*.hpp",

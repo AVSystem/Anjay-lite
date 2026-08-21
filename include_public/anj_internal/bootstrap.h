@@ -49,10 +49,13 @@ extern "C" {
 /** A non-timeout communication error. */
 #define _ANJ_BOOTSTRAP_ERR_NETWORK (-3)
 /**
- * Data model validation failed. There is no correct instance of Server
- * and Security object in the data model.
+ * There are 2 possible reasons for this error:
+ * 1) Data model validation failed. There is no correct instance of Server
+ *    and Security object in the data model.
+ * 2) Offloading keys and certs to external storage failed. This can only happen
+ *    if external crypto storage is enabled.
  */
-#define _ANJ_BOOTSTRAP_ERR_DATA_MODEL_VALIDATION (-4)
+#define _ANJ_BOOTSTRAP_ERR_DATA_MODEL (-4)
 // clang-format on
 
 /** @anj_internal_api_do_not_use */

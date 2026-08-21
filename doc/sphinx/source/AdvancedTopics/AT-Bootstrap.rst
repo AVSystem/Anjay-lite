@@ -127,6 +127,17 @@ the procedure is considered failed.
     Bootstrap procedure. It may be overwritten or removed by the Bootstrap Server
     during Bootstrap Write/Delete operations.
 
+.. important::
+
+   The whole Bootstrap procedure is handled as a single Data Model
+   transaction. Changes made by Bootstrap Write/Delete operations are not
+   committed individually. They are committed only after a successful
+   Bootstrap Finish.
+
+   If Bootstrap Finish fails, Bootstrap times out, or the Bootstrap procedure
+   is otherwise aborted, all changes made during that Bootstrap attempt are
+   rolled back.
+
 **Configure the timeout and retries**
 
 You can configure the timeout using the ``bootstrap_timeout`` field in the ``anj_configuration_t`` structure passed to ``anj_core_init()``.

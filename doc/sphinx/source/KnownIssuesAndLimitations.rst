@@ -14,6 +14,27 @@ have not yet been addressed. In addition, some features were deliberately not im
 their limited usefulness in the LwM2M context and the priority placed on keeping Anjay Lite's
 footprint small.
 
+Mbed TLS integration with asynchronous network backends
+--------------------------------------------------------
+
+The default Mbed TLS DTLS integration is not compatible with network backends
+where ``anj_net_recv()`` may return ``ANJ_NET_EINPROGRESS`` after starting a
+receive operation that remains active across multiple calls.
+
+The Anjay Lite network API requires an operation that returns
+``ANJ_NET_EINPROGRESS`` to be retried with the same parameters before another
+network operation is performed. Mbed TLS exposes non-blocking BIO callbacks
+through ``MBEDTLS_ERR_SSL_WANT_READ`` and ``MBEDTLS_ERR_SSL_WANT_WRITE``, but its
+public API does not currently guarantee that an in-progress network operation
+will be resumed before another network operation is attempted.
+
+In particular, during a DTLS handshake, expiry of the retransmission timer may
+cause Mbed TLS to attempt to send a retransmission while a receive operation is
+still in progress.
+
+See :doc:`/AdvancedTopics/AT-MbedTLSBestPractices` for additional details and configuration
+considerations.
+
 Multi-Instance Bootstrap Write is not allowed
 ---------------------------------------------
 
@@ -88,6 +109,20 @@ Anjay Lite does not support:
    Server cannot force Anjay Lite to start sending the response from a non-zero block offset or resume a
    block-wise response from the middle of the transfer.
 
+Non valid hostname may appear in SNI extension
+----------------------------------------------
+
+The DTLS Server Name Indication (SNI) extension is designed to communicate
+the expected server hostname during a DTLS handshake, particularly when
+it differs from the connection URI. According to `RFC6066`, the SNI extension
+must contain a valid hostname, not an IP address.
+
+In Anjay Lite, if the LwM2M Server URI (``/0/x/0``) is configured with a raw IP
+address and the dedicated SNI field in the LwM2M Server Object (``/0/x/14``)
+is left unset, the default MbedTLS integration layer falls back to the URI host
+when populating SNI. As a result, the IP address may be sent in the SNI
+extension, which is non-compliant with RFC6066.
+
 .. _oscore_limitations:
 
 OSCORE limitations
@@ -102,3 +137,19 @@ Anjay Lite has some limitations related to OSCORE support:
    negotiation during Register. B2 is still allowed when it starts on the
    first block of the transfer, as this is required to support block-wise
    registration and other first-block exchanges.
+ - On the first use of an OSCORE security context, the LwM2M specification
+   requires using the Echo option and performing the procedure described in
+   Appendix B.2. Performing this procedure derives a new security context, so
+   using the Echo option after completing Appendix B.2 procedure seems
+   redundant. Accordingly, Echo is not implemented in Anjay Lite.
+
+Firmware Update cleanup after failed or timed-out Write
+-------------------------------------------------------
+
+The Firmware Update process is not properly terminated and cleaned up when a
+FOTA Push transfer times out while a Write operation is in progress. A similar
+issue occurs when a Write operation fails in either Push or Pull mode.
+
+In these cases, the Firmware Update cleanup procedure is not executed
+correctly, which may leave resources associated with the ongoing update
+allocated and the Firmware Update process in an inconsistent state.

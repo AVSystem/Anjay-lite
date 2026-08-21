@@ -23,6 +23,7 @@ else
     python3 -m pip install -r requirements.txt
 fi
 
+
 # since these are based on sources from the repo, install these always, even if
 # venv is setup before
 python3 -m pip install -e tools/test-framework-tools/tools

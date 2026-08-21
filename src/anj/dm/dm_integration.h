@@ -58,6 +58,7 @@ void _anj_dm_process_request(anj_t *anj,
 void _anj_dm_process_register_update_payload(
         anj_t *anj, _anj_exchange_handlers_t *out_handlers);
 
+#    ifdef ANJ_WITH_OBSERVE
 /**
  * Checks if there is at least one readable Resource under the @p path.
  *
@@ -171,11 +172,16 @@ int _anj_dm_observe_build_msg(anj_t *anj,
  * @param result       Result of the operation.
  */
 void _anj_dm_observe_finalize_operation(anj_t *anj, int result);
+#    endif // ANJ_WITH_OBSERVE
 
+#    ifdef ANJ_WITH_BOOTSTRAP
 /**
  * Called by the bootstrap API during Bootstrap-Finish handling, checks if there
  * is at least one instance of the Server object and one non-bootstrap instance
  * of the Security object in the data model.
+ *
+ * Additionally calls the @ref anj_dm_handlers_struct::transaction_validate
+ * handler for all objects modified during the bootstrap process.
  *
  * IMPORTANT: The instance contents are checked during the Write/Create
  * operations.
@@ -185,6 +191,18 @@ void _anj_dm_observe_finalize_operation(anj_t *anj, int result);
  * @returns 0 if the data model is valid, a non-zero value otherwise.
  */
 int _anj_dm_bootstrap_validation(anj_t *anj);
+
+/**
+ * Called by the bootstrap API after handling Bootstrap procedure, informs the
+ * data model that the bootstrap operation has been finished and whether it was
+ * successful or not. Data model should end the operation on its side.
+ *
+ * @param anj      Anjay object to operate on.
+ * @param result   Result of the bootstrap procedure.
+ */
+void _anj_dm_bootstrap_finalize(anj_t *anj, anj_dm_transaction_result_t result);
+
+#    endif // ANJ_WITH_BOOTSTRAP
 
 /**
  * Finds existing Server Object Instance and returns its SSID and IID. @p

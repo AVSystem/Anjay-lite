@@ -17,6 +17,12 @@ set(ANJ_WITH_TIME_POSIX_COMPAT OFF)
 
 set(ANJ_WITH_PERSISTENCE ON)
 
+# Note: Although it is not recommended for production use,
+# DTLS is disabled in this example to simplify the setup.
+set(ANJ_NET_WITH_DTLS OFF)
+set(ANJ_WITH_SECURITY OFF)
+set(ANJ_WITH_MBEDTLS OFF)
+
 if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     set(anjay_lite_DIR "../../../cmake")
     find_package(anjay_lite REQUIRED)

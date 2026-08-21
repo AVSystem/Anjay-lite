@@ -357,7 +357,7 @@ class Server(object):
 class TlsServer(Server):
     def __init__(self, psk_identity=None, psk_key=None, ca_path=None, ca_file=None, crt_file=None,
                  key_file=None, listen_port=0, debug=False, use_ipv6=False, reuse_port=False,
-                 connection_id='', ciphersuites=None, transport=Transport.TCP):
+                 server_support_cid=True, connection_id='', ciphersuites=None, transport=Transport.TCP):
         use_psk = (psk_identity and psk_key)
         use_certs = any((ca_path, ca_file, crt_file, key_file))
         if use_psk and use_certs:
@@ -380,7 +380,7 @@ class TlsServer(Server):
         if ciphersuites is not None:
             security.set_ciphersuites(ciphersuites)
 
-        self._pymbedtls_context = Context(security, debug, connection_id)
+        self._pymbedtls_context = Context(security, debug, connection_id, server_support_cid)
         self._security_mode = security.name()
 
         super().__init__(listen_port, use_ipv6, reuse_port=reuse_port, transport=transport)

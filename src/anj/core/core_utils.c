@@ -19,9 +19,12 @@
 #include <anj/core.h>
 #include <anj/defs.h>
 #include <anj/dm/core.h>
-#include <anj/dm/security_object.h>
 #include <anj/log.h>
 #include <anj/utils.h>
+
+#ifdef ANJ_WITH_SECURITY
+#    include <anj/security.h>
+#endif // ANJ_WITH_SECURITY
 
 #include "../dm/dm_io.h"
 #include "core_utils.h"
@@ -132,17 +135,23 @@ int _anj_core_utils_server_get_resolved_server_uri(anj_t *anj) {
 int _anj_core_utils_get_security_info(
         anj_t *anj,
         bool bootstrap_credentials,
-        anj_net_security_info_t *out_security_info) {
-    // TODO: only PSK is supported for now
+        anj_net_security_info_t *out_security_info,
+        _anj_core_utils_security_mode_t security_mode) {
+    if (security_mode == _ANJ_CORE_UTILS_SECURITY_MODE_PSK) {
+        out_security_info->mode = ANJ_NET_SECURITY_PSK;
+        return anj_security_get_psk_info(anj, bootstrap_credentials,
+                                         &out_security_info->data.psk);
+    }
 #    ifdef ANJ_WITH_CERTIFICATES
-#        error "Certificates support is not implemented yet"
-#    else  // ANJ_WITH_CERTIFICATES
-    out_security_info->mode = ANJ_NET_SECURITY_PSK;
-    return anj_dm_security_obj_get_psk(anj,
-                                       bootstrap_credentials,
-                                       &out_security_info->data.psk.identity,
-                                       &out_security_info->data.psk.key);
+    else if (security_mode == _ANJ_CORE_UTILS_SECURITY_MODE_CERTIFICATE) {
+        out_security_info->mode = ANJ_NET_SECURITY_CERTIFICATE;
+        return anj_security_get_cert_info(anj, bootstrap_credentials,
+                                          &out_security_info->data.cert);
+    }
 #    endif // ANJ_WITH_CERTIFICATES
+    // because of validation in the security object shoudn't be possible
+    log(L_ERROR, "Invalid security mode");
+    return -1;
 }
 #endif // ANJ_WITH_SECURITY
 

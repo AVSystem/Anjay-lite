@@ -42,6 +42,12 @@
 #        include <anj/lwm2m_send.h>
 #    endif // ANJ_WITH_LWM2M_SEND
 
+#    ifdef ANJ_WITH_SECURITY
+#        include <anj/security.h>
+#    endif // ANJ_WITH_SECURITY
+
+#    include <anj/crypto.h>
+
 #    ifdef __cplusplus
 extern "C" {
 #    endif
@@ -259,6 +265,29 @@ typedef struct anj_configuration_struct {
      */
     anj_time_duration_t bootstrap_timeout;
 #    endif // ANJ_WITH_BOOTSTRAP
+#    ifdef ANJ_WITH_CERTIFICATES
+    /**
+     * Trust store used to verify the LwM2M Server certificate during the (D)TLS
+     * handshake. It is used only when certificate usage (resource /0/x/15) is
+     * set to 0 (CA constraint) or 1 (service certificate constraint).
+     *
+     * If provided, the contents of the pointed-to @ref anj_net_trust_store_t
+     * structure are copied into the internal configuration. However, the
+     * @ref anj_net_trust_store_t::ca_certs array itself, as well as any data
+     * referenced by the @ref anj_crypto_security_info_t entries it contains,
+     * are NOT copied - only the pointers are stored.
+     *
+     * @warning The user MUST ensure that the @c ca_certs array and all buffers
+     *          referenced by its entries remain valid for the entire lifetime
+     *          of the @ref anj_t object (typically, for the entire lifetime of
+     *          the application).
+     *
+     * If @c NULL, no trust store is configured and server certificate
+     * verification will rely solely on other means provided by the
+     * implementation (e.g., credentials supplied via the Security Object).
+     */
+    const anj_net_trust_store_t *trust_store;
+#    endif // ANJ_WITH_CERTIFICATES
 } anj_configuration_t;
 
 /**

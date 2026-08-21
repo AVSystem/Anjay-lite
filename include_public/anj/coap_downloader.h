@@ -54,7 +54,7 @@ extern "C" {
 
 /**
  * Error code returned by @ref anj_coap_downloader_start when a download
- * operation is already in progress.
+ * operation is already in progress or suspended.
  *
  * To start a new download, you must first terminate the ongoing one using
  * @ref anj_coap_downloader_terminate, or wait until the current download
@@ -112,6 +112,13 @@ extern "C" {
  */
 #        define ANJ_COAP_DOWNLOADER_ERR_ETAG_MISMATCH -9
 
+/**
+ * Error code returned by @ref anj_coap_downloader_suspend or
+ * @ref anj_coap_downloader_resume when the requested operation is not allowed
+ * in the current downloader state.
+ */
+#        define ANJ_COAP_DOWNLOADER_ERR_INVALID_STATE -10
+
 /**@}*/
 
 /**
@@ -138,8 +145,10 @@ typedef enum {
     ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING,
 
     /**
-     * Last packet has been received or error occurred. Connection is being
-     * closed.
+     * The current download attempt is being cleaned up and its connection is
+     * being closed. This status is reported through the event callback only
+     * when the whole download operation is being finalized or terminated.
+     * Suspension and retry use this state internally without reporting it.
      */
     ANJ_COAP_DOWNLOADER_STATUS_FINISHING,
 
@@ -150,6 +159,27 @@ typedef enum {
     ANJ_COAP_DOWNLOADER_STATUS_FINISHED,
 
     /**
+     * The download process is being restarted after a failure,
+     * according to the configured retry policy. The download
+     * after retry will start from the last successfully received block.
+     */
+    ANJ_COAP_DOWNLOADER_STATUS_RETRYING,
+
+    /**
+     * The download process is waiting for a retry attempt after a failure,
+     * according to the configured retry policy.
+     */
+    ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY,
+
+    /**
+     * The download process is being resumed after being suspended.
+     *
+     * This status indicates that the downloader is attempting to resume the
+     * download operation from the point it was suspended.
+     */
+    ANJ_COAP_DOWNLOADER_STATUS_RESUMING,
+
+    /**
      * The download process has finished due to an error.
      *
      * The failure may be caused by a network issue, invalid server response,
@@ -157,6 +187,12 @@ typedef enum {
      * to retrieve error details.
      */
     ANJ_COAP_DOWNLOADER_STATUS_FAILED,
+
+    /**
+     * The download is suspended. Its progress is retained in this downloader
+     * instance and can be continued using @ref anj_coap_downloader_resume.
+     */
+    ANJ_COAP_DOWNLOADER_STATUS_SUSPENDED,
 } anj_coap_downloader_status_t;
 
 /**
@@ -207,6 +243,19 @@ typedef struct anj_coap_downloader_configuration_struct {
      * default values will be used.
      */
     const anj_exchange_udp_tx_params_t *udp_tx_params;
+
+    /**
+     * Delay between download retries if @ref retry_count is set to more
+     * than 0.
+     */
+    anj_time_duration_t retry_delay;
+
+    /**
+     * The number of attempts that will be performed before
+     * download is considered failed. Each successful block
+     * resets the internal counter.
+     */
+    uint8_t retry_count;
 } anj_coap_downloader_configuration_t;
 
 /**
@@ -240,6 +289,9 @@ void anj_coap_downloader_step(anj_coap_downloader_t *coap_downloader);
 /**
  * Starts a new download operation.
  *
+ * This function can only be called when no other download is ongoing or
+ * suspended in the same downloader instance.
+ *
  * @warning The URI is not copied or stored internally by the CoAP downloader,
  *          so the pointer must remain valid throughout the entire download
  *          process.
@@ -255,8 +307,8 @@ void anj_coap_downloader_step(anj_coap_downloader_t *coap_downloader);
  * @return 0 on success,
  *         @ref ANJ_COAP_DOWNLOADER_ERR_INVALID_URI if the provided URI is
  *         invalid or unsupported.
- *         @ref ANJ_COAP_DOWNLOADER_ERR_IN_PROGRESS if a download is already
- *         in progress.
+ *         @ref ANJ_COAP_DOWNLOADER_ERR_IN_PROGRESS if another download is
+ *         ongoing or suspended.
  *         @ref ANJ_COAP_DOWNLOADER_ERR_INVALID_CONFIGURATION if provided
  *         @p net_config is @c NULL while @p uri indicates secure CoAP.
  */
@@ -269,12 +321,13 @@ int anj_coap_downloader_start(anj_coap_downloader_t *coap_downloader,
  *
  * This function should be called when the download is no longer needed
  * or when an error condition requires aborting the transfer.
- * It has effect only when the downloader is in the
- * @ref ANJ_COAP_DOWNLOADER_STATUS_STARTING or
- * @ref ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING state.
- * If called in any other state, the function has no effect.
+ * Only a download that has already been started and is not being finalized can
+ * be terminated. This also applies when the download is suspended or
+ * temporarily waiting to continue. If no download has been started, or the
+ * download is already being finalized or has ended, the function has no
+ * effect.
  *
- * After calling this function, the downloader's status will be set to
+ * When termination is initiated, the downloader's status will be set to
  * @ref ANJ_COAP_DOWNLOADER_STATUS_FINISHING, and
  * @ref anj_coap_downloader_get_error will return
  * @ref ANJ_COAP_DOWNLOADER_ERR_TERMINATED.
@@ -302,6 +355,36 @@ void anj_coap_downloader_terminate(anj_coap_downloader_t *coap_downloader);
  *         values, see @ref anj_coap_downloader_errors
  */
 int anj_coap_downloader_get_error(anj_coap_downloader_t *coap_downloader);
+
+/**
+ * Suspends the download operation and retains its progress in the current
+ * downloader instance. The operation can later be continued using
+ * @ref anj_coap_downloader_resume.
+ *
+ * Only a download that has already been started and is not being finalized can
+ * be suspended. This includes the time before data transfer begins and periods
+ * spent waiting for another attempt, as well as active data transfer. It cannot
+ * be used after the download has ended.
+ * @ref anj_coap_downloader_step must be called after this function to complete
+ * exchange and connection cleanup.
+ *
+ * @param coap_downloader CoAP downloader state.
+ *
+ * @return 0 on success, or @ref ANJ_COAP_DOWNLOADER_ERR_INVALID_STATE if the
+ *         operation cannot be suspended in its current state.
+ */
+int anj_coap_downloader_suspend(anj_coap_downloader_t *coap_downloader);
+
+/**
+ * Resumes a download operation previously suspended using
+ * @ref anj_coap_downloader_suspend in the same downloader instance.
+ *
+ * @param coap_downloader CoAP downloader state.
+ *
+ * @return 0 on success, or @ref ANJ_COAP_DOWNLOADER_ERR_INVALID_STATE if there
+ *         is no suspended operation that can be resumed.
+ */
+int anj_coap_downloader_resume(anj_coap_downloader_t *coap_downloader);
 
 /** @cond */
 #        define ANJ_INTERNAL_INCLUDE_COAP_DOWNLOADER

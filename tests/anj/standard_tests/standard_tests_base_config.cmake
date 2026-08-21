@@ -22,6 +22,8 @@ set(ANJ_DM_MAX_OBJECTS_NUMBER 18)
 
 # FOTA object configuration
 set(ANJ_FOTA_WITH_COAP_TCP ON)
+set(ANJ_FOTA_WITH_COAP ON)
+set(ANJ_FOTA_WITH_COAPS OFF)
 
 # CoAP downloader configuration
 set(ANJ_WITH_COAP_DOWNLOADER ON)
@@ -41,10 +43,16 @@ set(ANJ_LWM2M_SEND_QUEUE_SIZE 3)
 set(ANJ_WITH_TIME_POSIX_COMPAT OFF)
 set(ANJ_WITH_RNG_POSIX_COMPAT OFF)
 set(ANJ_WITH_SOCKET_POSIX_COMPAT OFF)
+set(ANJ_NET_WITH_DTLS OFF)
+
+# Mbedtls is on by default, but we only need it for OSCORE,
+# so we turn it off here and turn it on in the OSCORE section below.
+set(ANJ_WITH_MBEDTLS OFF)
 
 # security configuration
 set(ANJ_WITH_SECURITY ON)
 set(ANJ_WITH_EXTERNAL_CRYPTO_STORAGE ON)
+set(ANJ_WITH_CERTIFICATES ON)
 
 # data formats configuration
 set(ANJ_WITH_EXTERNAL_DATA ON)

@@ -193,13 +193,18 @@ extern "C" {
 #    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 #endif     // !defined(ANJ_WITH_SECURITY)
 
+#if defined(ANJ_WITH_EXTERNAL_SIGNING)
+#    if !defined(ANJ_WITH_EXTERNAL_CRYPTO_STORAGE)
+#        error "ANJ_WITH_EXTERNAL_SIGNING requires ANJ_WITH_EXTERNAL_CRYPTO_STORAGE feature"
+#    endif // !defined(ANJ_WITH_EXTERNAL_CRYPTO_STORAGE)
+#    if defined(ANJ_WITH_CRYPTO_STORAGE_DEFAULT)
+#        error "ANJ_WITH_CRYPTO_STORAGE_DEFAULT doesn't support signing operations performed externally"
+#    endif // !defined(ANJ_WITH_CRYPTO_STORAGE_DEFAULT)
+#endif     // defined(ANJ_WITH_EXTERNAL_SIGNING)
+
 #ifdef ANJ_WITH_MBEDTLS
 
 #    define ANJ_UINT32_MAX 4294967295U
-
-#    if ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN < 0
-#        error "Wrong max length for psk identity"
-#    endif
 
 #    if ANJ_MBEDTLS_HS_INITIAL_TIMEOUT_VALUE_MS < 0                     \
             || ANJ_MBEDTLS_HS_INITIAL_TIMEOUT_VALUE_MS > ANJ_UINT32_MAX \

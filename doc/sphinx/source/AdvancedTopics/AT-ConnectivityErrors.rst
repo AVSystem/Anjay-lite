@@ -94,13 +94,12 @@ failure, the client waits 10 minutes before making another attempt. If that atte
 fails, the client waits 24 hours before starting the second retry sequence, which again
 consists of two attempts.
 
-.. important::
+.. note::
 
    For secure connections using the default MbedTLS integration, the DTLS
-   session is not closed within a single retry sequence. This approach requires an
-   active Connection ID. If Connection ID cannot be used, it is best to set
-   ``retry_count`` to ``1`` and rely on subsequent retry sequences instead. In that
-   case, the DTLS handshake is repeated before each retry attempt.
+   session is not closed within a single retry sequence. Only the UDP socket
+   is closed. Additionaly, if Connection ID is not supported, the library will
+   perform a new handshake, since the socket port will most likely change.
 
 Notice that ``bootstrap_on_registration_failure`` is explicitly set to
 ``false``. If all registration-related retries are exhausted, the client enters

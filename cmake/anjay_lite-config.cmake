@@ -52,6 +52,7 @@ define_overridable_option(ANJ_WITH_DEFAULT_SECURITY_OBJ BOOL ON "Enable default 
 define_overridable_option(ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE STRING 255 "Max Public Key or Identity Resource size")
 define_overridable_option(ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE STRING 255 "Max Server Public Key Resource size")
 define_overridable_option(ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE STRING 255 "Max Secret Key Resource size")
+define_overridable_option(ANJ_SEC_OBJ_MAX_SNI_SIZE STRING 50 "SNI Resource size")
 
 # server object configuration
 define_overridable_option(ANJ_WITH_DEFAULT_SERVER_OBJ BOOL ON "Enable default implementation of Server Object")
@@ -60,8 +61,8 @@ define_overridable_option(ANJ_WITH_DEFAULT_SERVER_OBJ BOOL ON "Enable default im
 define_overridable_option(ANJ_WITH_DEFAULT_FOTA_OBJ BOOL ON "Enable default implementation of FW Update Object")
 define_overridable_option(ANJ_FOTA_WITH_PULL_METHOD BOOL ON "Enable PULL method as FW delivery")
 define_overridable_option(ANJ_FOTA_WITH_PUSH_METHOD BOOL ON "Enable PUSH method as FW delivery")
-define_overridable_option(ANJ_FOTA_WITH_COAP BOOL ON "Enable CoAP support in FW Update Object")
-define_overridable_option(ANJ_FOTA_WITH_COAPS BOOL OFF "Enable CoAPs support in FW Update Object")
+define_overridable_option(ANJ_FOTA_WITH_COAP BOOL OFF "Enable CoAP support in FW Update Object")
+define_overridable_option(ANJ_FOTA_WITH_COAPS BOOL ON "Enable CoAPs support in FW Update Object")
 define_overridable_option(ANJ_FOTA_WITH_HTTP BOOL OFF "Enable HTTP support in FW Update Object")
 define_overridable_option(ANJ_FOTA_WITH_HTTPS BOOL OFF "Enable HTTPS support in FW Update Object")
 define_overridable_option(ANJ_FOTA_WITH_COAP_TCP BOOL OFF "Enable TCP support in FW Update Object")
@@ -103,21 +104,24 @@ define_overridable_option(ANJ_WITH_SOCKET_POSIX_COMPAT BOOL ON "Enable POSIX-com
 define_overridable_option(ANJ_NET_WITH_IPV4 BOOL ON "Enable communication over IPv4")
 define_overridable_option(ANJ_NET_WITH_IPV6 BOOL OFF "Enable communication over IPv6")
 define_overridable_option(ANJ_NET_WITH_UDP BOOL ON "Enable communication over UDP")
-define_overridable_option(ANJ_NET_WITH_DTLS BOOL OFF "Enable communication over DTLS")
+define_overridable_option(ANJ_NET_WITH_DTLS BOOL ON "Enable communication over DTLS")
 define_overridable_option(ANJ_WITH_CRYPTO_STORAGE_DEFAULT BOOL OFF "Enable default implementation of crypto storage API")
-define_overridable_option(ANJ_WITH_MBEDTLS BOOL OFF "Enable MbedTLS support")
+define_overridable_option(ANJ_WITH_MBEDTLS BOOL ON "Enable MbedTLS support")
 define_overridable_option(ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN STRING 128 "Max PSK Identity length")
-define_overridable_option(ANJ_MBEDTLS_TLS_VERSION STRING "MBEDTLS_SSL_VERSION_TLS1_2" "(D)TLS version supported by client, supported values are 
-                                                                                       MBEDTLS_SSL_VERSION_TLS1_2 and MBEDTLS_SSL_VERSION_TLS1_3")
-define_overridable_option(ANJ_MBEDTLS_ALLOWED_CIPHERSUITES STRING "MBEDTLS_TLS_PSK_WITH_AES_128_CCM_8,MBEDTLS_TLS_PSK_WITH_AES_256_CCM_8"
-                                                                                     "List of allowed ciphersuites for MbedTLS")
+define_overridable_option(ANJ_MBEDTLS_ALLOWED_PSK_CIPHERSUITES STRING "MBEDTLS_TLS_PSK_WITH_AES_128_CCM_8,MBEDTLS_TLS_PSK_WITH_AES_256_CCM_8"
+        "List of allowed ciphersuites for PSK mode in MbedTLS")
+define_overridable_option(ANJ_MBEDTLS_ALLOWED_CERT_CIPHERSUITES STRING "MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8"
+        "List of allowed ciphersuites for certificates mode in MbedTLS")
 define_overridable_option(ANJ_MBEDTLS_HS_INITIAL_TIMEOUT_VALUE_MS STRING 1000 "Initial handshake timeout value in milliseconds")
 define_overridable_option(ANJ_MBEDTLS_HS_MAXIMUM_TIMEOUT_VALUE_MS STRING 60000 "Maximum handshake timeout value in milliseconds")
+define_overridable_option(ANJ_MBEDTLS_MAX_TRUST_STORE_CERTIFICATE_SIZE STRING 255 "Max size of single certificate (or chain) from trust store")
 
 # security configuration
-define_overridable_option(ANJ_WITH_SECURITY BOOL OFF "Enable security support")
+define_overridable_option(ANJ_WITH_SECURITY BOOL ON "Enable security support")
 define_overridable_option(ANJ_WITH_CERTIFICATES BOOL OFF "Enable certificates support")
+define_overridable_option(ANJ_ALLOW_INSECURE_SERVER_CERTIFICATE_SKIP BOOL OFF "Allow certificate-based DTLS connections without a configured server certificate")
 define_overridable_option(ANJ_WITH_EXTERNAL_CRYPTO_STORAGE BOOL OFF "Enable external crypto storage API")
+define_overridable_option(ANJ_WITH_EXTERNAL_SIGNING BOOL OFF "Enable support for externally performed signing operations")
 
 # data formats configuration
 define_overridable_option(ANJ_WITH_CBOR BOOL ON "Enable CBOR format support")

@@ -242,8 +242,8 @@ ANJ_UNIT_TEST(dm_server_object, write_replace) {
                 .path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SERVER, 0,
                                                RID_DEFAULT_NOTIFICATION_MODE)
             }));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     RESOURCE_CHECK_INT(0, RID_SSID, 4);
     RESOURCE_CHECK_INT(0, RID_LIFETIME, 77);
@@ -295,8 +295,8 @@ ANJ_UNIT_TEST(dm_server_object, server_create_instance_minimal) {
                                     .path = ANJ_MAKE_RESOURCE_PATH(
                                             ANJ_OBJ_ID_SERVER, 20, RID_BINDING)
                                 }));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     RESOURCE_CHECK_INT(20, RID_SSID, 7);
     RESOURCE_CHECK_INT(20, RID_LIFETIME, 8);
@@ -399,8 +399,8 @@ ANJ_UNIT_TEST(dm_server_object, server_create_instance) {
                         ANJ_OBJ_ID_SERVER, 22,
                         RID_BOOTSTRAP_ON_REGISTRATION_FAILURE)
             }));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     RESOURCE_CHECK_INT(22, RID_SSID, 17);
     RESOURCE_CHECK_INT(22, RID_LIFETIME, 18);
@@ -422,8 +422,8 @@ ANJ_UNIT_TEST(dm_server_object, server_create_error) {
             _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, true,
                                     &ANJ_MAKE_OBJECT_PATH(ANJ_OBJ_ID_SERVER)));
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_create_object_instance(&anj, 20));
-    ANJ_UNIT_ASSERT_FAILED(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
+    ANJ_UNIT_ASSERT_FAILED(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(server_object.obj.insts[0].iid, ANJ_ID_INVALID);
 }
 

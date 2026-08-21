@@ -24,8 +24,9 @@ namespace ssl {
 
 Context::Context(std::shared_ptr<SecurityInfo> security,
                  bool debug,
-                 std::string connection_id)
-        : security_(security), debug_(debug), connection_id_(connection_id) {
+                 std::string connection_id,
+                 bool server_support_cid)
+        : security_(security), debug_(debug), connection_id_(connection_id), server_support_cid_(server_support_cid) {
 #if defined(MBEDTLS_USE_PSA_CRYPTO) || defined(MBEDTLS_PSA_CRYPTO_C)
     if (psa_crypto_init() != PSA_SUCCESS) {
         throw runtime_error("psa_crypto_init() failed");

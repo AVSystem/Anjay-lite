@@ -53,10 +53,11 @@ PYBIND11_MODULE(pymbedtls, m) {
                  py::arg("key_file"));
 
     py::class_<Context, shared_ptr<Context>>(m, "Context")
-            .def(py::init<shared_ptr<SecurityInfo>, bool, std::string>(),
+            .def(py::init<shared_ptr<SecurityInfo>, bool, std::string, bool>(),
                  py::arg("security"),
                  py::arg("debug") = false,
-                 py::arg("connection_id") = "")
+                 py::arg("connection_id") = "",
+                 py::arg("server_support_cid") = true)
             .def_static("supports_connection_id",
                         []() -> bool {
 #if defined(MBEDTLS_SSL_DTLS_CONNECTION_ID)

@@ -31,13 +31,12 @@
 #    define data_loader_log(...) anj_log(crypto_data_loader, __VA_ARGS__)
 
 #    define FILE_NAME "crypto_record_%d.dat"
-#    define MAX_FILE_NAME_SIZE 25
+#    define MAX_FILE_NAME_SIZE 100
 // 3 resources per instance, 2 instances in Security Object
 #    define MAX_RECORDS 6
 
 typedef struct {
     char file_name[MAX_RECORDS][MAX_FILE_NAME_SIZE];
-    FILE *fp;
     int occupied_slots;
 } anj_default_crypto_storage_t;
 
@@ -58,31 +57,38 @@ void anj_crypto_storage_deinit(void *out_crypto_ctx) {
     assert(out_crypto_ctx);
     anj_default_crypto_storage_t *ctx =
             (anj_default_crypto_storage_t *) out_crypto_ctx;
-    if (ctx->fp) {
-        fclose(ctx->fp);
-    }
     free(ctx);
     ctx = NULL;
 }
 
-int anj_crypto_storage_create_new_record(void *crypto_ctx,
-                                         anj_crypto_security_info_t *out_info) {
+int anj_crypto_storage_create_record(void *crypto_ctx,
+                                     anj_crypto_security_info_t *out_info,
+                                     const void *data,
+                                     size_t data_size) {
     assert(crypto_ctx && out_info);
-    assert(out_info->source == ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+
+    if (!data || !data_size) {
+        data_loader_log(L_WARNING, "No data provided");
+        return -1;
+    }
+
     anj_default_crypto_storage_t *ctx =
             (anj_default_crypto_storage_t *) crypto_ctx;
     if (ctx->occupied_slots >= MAX_RECORDS) {
         data_loader_log(L_ERROR, "No more available records");
         return -1;
     }
-    // find space for new record
+
     anj_crypto_security_info_external_t *external_info =
             &out_info->info.external;
+
+    int idx = -1;
     for (int i = 0; i < MAX_RECORDS; ++i) {
         if (ctx->file_name[i][0] == '\0') { // empty slot
             snprintf(ctx->file_name[i], MAX_FILE_NAME_SIZE, FILE_NAME, i);
             external_info->identity = ctx->file_name[i];
             ctx->occupied_slots++;
+            idx = i; // keep the idx for ease of cleaning in case of error
             // file exist but we don't track it - so we need to delete it
             if (access(external_info->identity, F_OK) == 0) {
                 data_loader_log(L_WARNING,
@@ -90,63 +96,56 @@ int anj_crypto_storage_create_new_record(void *crypto_ctx,
                                 external_info->identity);
                 if (remove(external_info->identity) == 0) {
                     data_loader_log(L_INFO, "File deleted successfully");
+                } else {
+                    data_loader_log(L_ERROR, "Failed to delete file");
+                    return -1;
                 }
             }
-            return 0;
+            break;
         }
     }
-    data_loader_log(L_ERROR, "Internal error: no empty slots found");
-    return -1;
-}
 
-int anj_crypto_storage_store_data(void *crypto_ctx,
-                                  const anj_crypto_security_info_t *info,
-                                  const void *data,
-                                  size_t data_size,
-                                  bool last_chunk) {
-    assert(crypto_ctx && info);
-    assert(info->source == ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
-
-    anj_default_crypto_storage_t *ctx =
-            (anj_default_crypto_storage_t *) crypto_ctx;
-    const anj_crypto_security_info_external_t *external_info =
-            &info->info.external;
-
-    // If file is not open yet, open it for appending in binary mode
-    if (!ctx->fp) {
-        ctx->fp = fopen(external_info->identity, "ab");
-        if (!ctx->fp) {
-            data_loader_log(L_ERROR, "Failed to open file '%s': %s",
-                            external_info->identity, strerror(errno));
-            return -1;
-        }
-        data_loader_log(L_INFO, "Opened file '%s' for writing data",
-                        external_info->identity);
+    assert(idx != -1);
+    FILE *fp = fopen(external_info->identity, "ab");
+    size_t written = 0;
+    if (!fp) {
+        data_loader_log(L_ERROR, "Failed to open file '%s': %s",
+                        external_info->identity, strerror(errno));
+        goto cleanup;
     }
-    // Write data
-    if (data_size > 0) {
-        size_t written = fwrite(data, 1, data_size, ctx->fp);
-        if (written != data_size) {
-            fclose(ctx->fp);
-            ctx->fp = NULL;
-            data_loader_log(L_ERROR, "Failed to write data to file '%s': %s",
-                            external_info->identity, strerror(errno));
-            return -1;
-        }
+    data_loader_log(L_INFO, "Opened file '%s' for writing data",
+                    external_info->identity);
+    written = fwrite(data, 1, data_size, fp);
+    if (written != data_size) {
+        fclose(fp);
+        data_loader_log(L_ERROR, "Failed to write data to file '%s': %s",
+                        external_info->identity, strerror(errno));
+        goto cleanup;
     }
-    // If this is the last chunk, close file permanently
-    if (last_chunk) {
-        if (fclose(ctx->fp) != 0) {
-            data_loader_log(L_ERROR, "Failed to close file '%s': %s",
-                            external_info->identity, strerror(errno));
-            ctx->fp = NULL;
-            return -1;
-        }
-        ctx->fp = NULL;
-        data_loader_log(L_INFO, "Finished writing to file '%s'",
-                        external_info->identity);
+    if (fclose(fp) != 0) {
+        data_loader_log(L_ERROR, "Failed to close file '%s': %s",
+                        external_info->identity, strerror(errno));
+        goto cleanup;
     }
     return 0;
+
+cleanup:
+    if (fp && !fclose(fp)) {
+        if (remove(external_info->identity) != 0) {
+            data_loader_log(L_ERROR, "Failed to delete file '%s': %s",
+                            external_info->identity, strerror(errno));
+            // If file deletion failed, we still want to remove it from the
+            // table
+        }
+    }
+
+    // Remove entry from local structure
+    assert(ctx->occupied_slots > 0);
+    ctx->occupied_slots--;
+    data_loader_log(L_INFO, "Deleted security record '%s'",
+                    external_info->identity);
+    ctx->file_name[idx][0] = '\0'; // mark as empty
+    return -1;
 }
 
 int anj_crypto_storage_delete_record(void *crypto_ctx,
@@ -171,11 +170,6 @@ int anj_crypto_storage_delete_record(void *crypto_ctx,
             idx = i;
             break;
         }
-    }
-    // If file is open — close it
-    if (ctx->fp) {
-        fclose(ctx->fp);
-        ctx->fp = NULL;
     }
     // Remove file from disk
     if (remove(external_info->identity) != 0) {
@@ -286,11 +280,12 @@ int anj_crypto_storage_resolve_persistence_info(
 
 int anj_crypto_storage_resolve_security_info(
         void *crypto_ctx,
-        anj_crypto_security_info_external_t *info,
+        const anj_crypto_security_info_external_t *info,
         char *out_buffer,
         size_t out_buffer_size,
         size_t *out_record_size) {
     assert(crypto_ctx && info && out_record_size && out_buffer);
+    (void) crypto_ctx; // Unused here
 
     data_loader_log(L_INFO, "Resolving security info %s", info->identity);
     // read from file and store it in out_buffer

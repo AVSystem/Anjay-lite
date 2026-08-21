@@ -825,3 +825,23 @@ const char *_anj_debug_coap_operation_to_string(_anj_op_t operation) {
         return "";
     }
 }
+
+int anj_hexlify(char *out_buff,
+                size_t out_buff_size,
+                const void *data,
+                size_t data_len) {
+    assert(out_buff && data);
+    static const char HEX[] = "0123456789ABCDEF";
+    const uint8_t *bytes = (const uint8_t *) data;
+
+    if (out_buff_size < 2 * data_len + 1) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < data_len; ++i) {
+        out_buff[2 * i] = HEX[bytes[i] >> 4];
+        out_buff[2 * i + 1] = HEX[bytes[i] & 0x0F];
+    }
+    out_buff[2 * data_len] = '\0';
+    return 0;
+}

@@ -105,12 +105,24 @@ static int register_op_read_data_model(anj_t *anj) {
         anj->server_instance.bootstrap_on_registration_failure = true;
     }
 
+#ifdef ANJ_WITH_SECURITY
+    path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY,
+                                  anj->security_instance.iid,
+                                  SECURITY_OBJ_SERVER_SECURITY_MODE_RID);
+    if (anj_dm_res_read(anj, &path, &res_val)) {
+        return -1;
+    }
+    _anj_core_utils_security_mode_t security_mode =
+            (_anj_core_utils_security_mode_t) res_val.int_value;
+#endif // ANJ_WITH_SECURITY
+
     if (_anj_core_utils_server_get_resolved_server_uri(anj)
 #ifdef ANJ_WITH_SECURITY
             || (anj->security_instance.type == ANJ_NET_BINDING_DTLS
                 && _anj_core_utils_get_security_info(
                            anj, false,
-                           &anj->net_socket_cfg.secure_socket_config.security))
+                           &anj->net_socket_cfg.secure_socket_config.security,
+                           security_mode))
 #endif // ANJ_WITH_SECURITY
     ) {
         return -1;
@@ -185,9 +197,10 @@ static void calculate_communication_retry_timeout(anj_t *anj) {
         anj->server_state.details.registration.retry_timeout =
                 anj_time_monotonic_add(anj_time_monotonic_now(), delay);
         log(L_INFO,
-            "Registration retry no. %" PRIu16 " will start with %s"
+            "Registration retry no. %" PRIu16 "/%" PRIu16 " will start with %s"
             "s delay",
             anj->server_state.details.registration.retry_count,
+            anj->server_instance.retry_res.retry_count - 1,
             ANJ_TIME_DURATION_AS_STRING(delay, ANJ_TIME_UNIT_S));
         // disconnect and reconnect
         anj->server_state.details.registration.registration_state =
@@ -212,9 +225,10 @@ static void calculate_communication_retry_timeout(anj_t *anj) {
                             ANJ_TIME_UNIT_S));
     anj->server_state.details.registration.retry_count = 0;
     log(L_INFO,
-        "Registration retry sequence no. %" PRIu16 " will start with %" PRIu32
-        "s delay",
+        "Registration retry sequence no. %" PRIu16 "/%" PRIu16
+        " will start with %" PRIu32 "s delay",
         anj->server_state.details.registration.retry_seq_count,
+        anj->server_instance.retry_res.seq_retry_count - 1,
         anj->server_instance.retry_res.seq_delay_timer);
     // disconnect with network context cleanup and reconnect
     anj->server_state.details.registration.registration_state =

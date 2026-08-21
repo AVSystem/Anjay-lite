@@ -71,12 +71,6 @@ def ensure_build_dir(session: pytest.Session) -> Path:
     return session.config.cache.mkdir("build")
 
 
-def ensure_mbedtls_build_dir(session: pytest.Session) -> Path:
-    # mbedtls is built as part of the app build, but it has a separate build dir
-    # to allow sharing the same mbedtls build between multiple app configs.
-    return ensure_build_dir(session) / "mbedtls"
-
-
 def ensure_app_build_dir(session: pytest.Session, cfg: AppConfig) -> Path:
     build_dir = ensure_build_dir(session)
     cfg_hash = hash_config(cfg)
@@ -155,21 +149,6 @@ def build_app(cfg: AppConfig, build_dir: Path):
         "--parallel"
     ], check=True)
 
-
-def build_mbedtls(build_dir: Path):
-    subprocess.run([
-        "cmake",
-        "-S", "mbedtls",
-        "-B", build_dir
-    ], check=True)
-
-    subprocess.run([
-        "cmake",
-        "--build", build_dir,
-        "--parallel"
-    ], check=True)
-
-
 def ensure_all_configs_prebuilt(session: pytest.Session):
     cfgs = collect_all_app_cfgs(session)
 
@@ -196,18 +175,11 @@ def ensure_all_configs_prebuilt(session: pytest.Session):
                 return
             if error_path.exists():
                 raise RuntimeError("Prebuild failed in another worker")
-
-            mbedtls_build_dir = ensure_mbedtls_build_dir(session)
-            build_mbedtls(mbedtls_build_dir)
-            mbedtls_install_dir = mbedtls_build_dir / "_deps" / "mbedtls-install"
-
             for cfg in cfgs:
                 build_dir = ensure_app_build_dir(session, cfg)
                 build_dir.mkdir(exist_ok=True, parents=True)
 
-                cfg_with_default_mbedtls = {
-                    "MBEDTLS_ROOT_DIR": str(mbedtls_install_dir), **cfg}
-                build_app(cfg_with_default_mbedtls, build_dir)
+                build_app(cfg, build_dir)
 
             success_path.touch()
         except Exception as e:

@@ -216,13 +216,12 @@ typedef struct anj_dm_obj_struct {
  *
  * For values of type @ref ANJ_DATA_TYPE_EXTERNAL_BYTES and @ref
  * ANJ_DATA_TYPE_EXTERNAL_STRING, you must set @ref
- * anj_res_value_t::get_external_data callback.
- * @ref anj_res_value_t::open_external_data and @ref
- * anj_res_value_t::close_external_data callbacks are optional. If the external
- * data source needs initialization, it should be performed in the @ref
- * anj_res_value_t::open_external_data callback. This handler should do nothing
- * more than assign the relevant addresses to the pointers in the @ref
- * anj_res_value_t::external_data structure.
+ * anj_res_value_t::external_data callbacks. @c get_external_data is
+ * a mandatory callback, and @c open_external_data and @c close_external_data
+ * callbacks are optional. If the external data source needs initialization, it
+ * should be performed in the @c open_external_data callback. This handler
+ * should do nothing more than assign the relevant addresses to the pointers in
+ * the @ref anj_res_value_t::external_data structure.
  *
  * @param      anj       Anjay object.
  * @param      obj       Object definition pointer.
@@ -324,11 +323,16 @@ typedef int anj_dm_res_execute_t(anj_t *anj,
  * A handler called to create a new Resource Instance within a Multiple-Instance
  * Resource.
  *
- * This function is called when a LwM2M Write operation requires creating a new
- * Resource Instance. The handler is responsible for initializing the new
- * instance with the specified @p riid and inserting its ID into the @ref
- * anj_dm_res_t::insts array. The array must remain sorted in ascending order of
- * Resource Instance IDs.
+ * This function is called when a LwM2M Write or LwM2M Create operation requires
+ * creating a new Resource Instance. The handler is responsible for initializing
+ * the new instance with the specified @p riid and inserting its ID into the
+ * @ref anj_dm_res_t::insts array. The array must remain sorted in ascending
+ * order of Resource Instance IDs.
+ *
+ * Before calling this callback, Anjay checks whether there is enough space for
+ * a new resource instance and whether an instance with the RIID provided by the
+ * Create or Write operation already exists. Therefore, these checks do not need
+ * to be repeated in this handler.
  *
  * @warning If the operation fails at a later stage (i.e., @ref
  *          anj_dm_transaction_end_t is called with a failure result), the user
@@ -363,6 +367,10 @@ typedef int anj_dm_res_inst_create_t(anj_t *anj,
  * the array must remain in ascending order, and all unused slots must be set to
  * @ref ANJ_ID_INVALID.
  *
+ * Before calling this callback, Anjay checks whether an instance with the RIID
+ * provided by the Delete operation already exists. Therefore, this check does
+ * not need to be repeated in this handler.
+ *
  * @warning If the operation fails at a later stage (i.e., @ref
  *          anj_dm_transaction_end_t is called with a failure result), the user
  *          is responsible for removing the newly added instance and restoring
@@ -396,6 +404,11 @@ typedef int anj_dm_res_inst_delete_t(anj_t *anj,
  * anj_dm_obj_t::insts array. The array must remain sorted in ascending order of
  * Object Instance IDs.
  *
+ * Before calling this callback, Anjay checks whether there is enough space for
+ * a new object instance and whether an instance with the IID provided by the
+ * Create operation already exists. Therefore, these checks do not need to be
+ * repeated in this handler.
+ *
  * @warning If the operation fails at a later stage (i.e., @ref
  *          anj_dm_transaction_end_t is called with a failure result), the user
  *          is responsible for removing the newly added instance and restoring
@@ -427,6 +440,10 @@ anj_dm_inst_create_t(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid);
  * If the operation fails later (i.e., @ref anj_dm_transaction_end_t is called
  * with a failure result), the user is responsible for restoring the deleted
  * instance and reinserting it into the Instances array at the correct position.
+ *
+ * Before calling this callback, Anjay checks whether an instance with the IID
+ * provided by the Delete operation already exists. Therefore, this check does
+ * not need to be repeated in this handler.
  *
  * @param anj Anjay object.
  * @param obj Pointer to the object definition.
@@ -478,6 +495,9 @@ anj_dm_inst_reset_t(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid);
  * (i.e., @ref anj_dm_transaction_end_t is called with a failure result), they
  * can restore the Object to its previous state.
  *
+ * During Bootstrap, this handler is called for a given Object before the first
+ * Bootstrap operation that may modify that Object.
+ *
  * @param anj Anjay object.
  * @param obj Object definition pointer.
  *
@@ -504,6 +524,10 @@ typedef int anj_dm_transaction_begin_t(anj_t *anj, const anj_dm_obj_t *obj);
  *          operation (e.g. during Write-Composite), this function may never be
  *          called.
  *
+ * During Bootstrap, this handler is called once for each Object modified during
+ * the Bootstrap transaction, after all Bootstrap operations have been performed
+ * and before the transaction is finalized.
+ *
  * @param anj   Anjay object.
  * @param obj   Object definition pointer.
  *
@@ -522,6 +546,11 @@ typedef int anj_dm_transaction_validate_t(anj_t *anj, const anj_dm_obj_t *obj);
  * This function is invoked after handling a Create, Write, or Delete request
  * from the LwM2M server. If @p result is @ref ANJ_DM_TRANSACTION_FAILURE, the
  * user is responsible for restoring the Object to its previous state.
+ *
+ * During Bootstrap, this handler is called once for each Object modified during
+ * the Bootstrap transaction. It is called after all Bootstrap operations have
+ * been performed, with a result indicating whether the transaction was
+ * successful or not.
  *
  * @param anj     Anjay object.
  * @param obj     Object definition pointer.

@@ -196,6 +196,7 @@ int main(int argc, char *argv[]) {
             if (anj_send_new_request(&anj, &send_req, &send_id)) {
                 log(L_ERROR, "Failed to request new send");
                 data.send_in_progress = false;
+                data.record_idx = 0;
             }
         }
     }

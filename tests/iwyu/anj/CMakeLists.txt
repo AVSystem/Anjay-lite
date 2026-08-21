@@ -74,6 +74,7 @@ set(ANJ_WITH_MBEDTLS OFF)
 
 # security configuration
 set(ANJ_WITH_SECURITY ON)
+set(ANJ_WITH_CERTIFICATES ON)
 
 # data formats configuration
 set(ANJ_WITH_CBOR ON)

@@ -28,7 +28,9 @@ To avoid dependency issues, install all required packages with:
 
 The following tools are not required for building Anjay Lite project itself, but
 they may be needed for auxiliary tasks such as testing, documentation generation
-or memory analysis.
+or memory analysis. Python3 and Python dependencies are also required if you use
+the automatic mbedTLS fetch-and-build flow enabled by ``ANJ_WITH_MBEDTLS``
+without providing ``MBEDTLS_ROOT_DIR``.
 
 .. code-block:: bash
 

@@ -76,10 +76,16 @@ and register a callback that processes download progress.
     anj_coap_downloader_configuration_t coap_downloader_config = {
         .event_cb = coap_downloader_callback,
         .event_cb_arg = &firmware_update,
+        .retry_count = config->retry_count,
+        .retry_delay = config->retry_delay,
     };
     if (anj_coap_downloader_init(&coap_downloader, &coap_downloader_config)) {
         return -1;
     }
+
+.. note::
+    The ``retry_count`` and ``retry_delay`` parameters control the behavior of the Retry Mechanism in the CoAP Downloader.
+    Check the :ref:`Retry Mechanism <retry-fota-pull-with-coap>` section for more details.
 
 Pull mode requires a different set of handlers than Push mode. Use the following structure to register the necessary callbacks:
 
@@ -233,6 +239,12 @@ The callback receives one of the following status values (``anj_coap_downloader_
             fu->offset = 0;
             break;
         }
+        case ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY:
+            log(L_INFO, "Firmware download waiting for retry");
+            break;
+        case ANJ_COAP_DOWNLOADER_STATUS_RETRYING:
+            log(L_INFO, "Firmware download retrying");
+            break;
         case ANJ_COAP_DOWNLOADER_STATUS_FINISHED:
             log(L_INFO, "Firmware download finished successfully");
             anj_dm_fw_update_object_set_download_result(
@@ -288,3 +300,29 @@ The remaining firmware update handlers support triggering the update, resetting 
         firmware_update_t *fu = (firmware_update_t *) user_ptr;
         return fu->firmware_version;
     }
+
+.. _retry-fota-pull-with-coap:
+Retry Mechanism
+^^^^^^^^^^^^^^^
+
+The CoAP Downloader can automatically retry failed downloads according to the configured retry policy.
+The number of attempts is controlled by ``retry_count``, and the delay between attempts is configured with ``retry_delay``.
+While waiting before the next attempt, the downloader reports ``ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY``;
+if all attempts fail or the download is terminated, it finishes with an error.
+
+.. note::
+    The download will resume from the last successfully received chunk.
+
+.. code-block:: c
+  :emphasize-lines: 2,3
+
+  anj_coap_downloader_configuration_t coap_downloader_config = {
+      .retry_count = 3,
+      .retry_delay = anj_time_duration_new(10, ANJ_TIME_UNIT_S),
+  };
+  if (anj_coap_downloader_init(&coap_downloader, &coap_downloader_config)) {
+      return -1;
+  }
+
+The above configuration will perform 3 download attempts with a 10-second delay between each attempt.
+If all attempts fail, the downloader will report an error, and the firmware update process will be marked as failed.

@@ -26,6 +26,18 @@ extern "C" {
 
 /**
  * @anj_internal_api_do_not_use
+ * Internal cleanup states of CoAP downloader
+ */
+typedef enum {
+    _ANJ_COAP_DOWNLOADER_CLEANUP_NONE,
+    _ANJ_COAP_DOWNLOADER_CLEANUP_FINALIZE,
+    _ANJ_COAP_DOWNLOADER_CLEANUP_RETRY,
+    _ANJ_COAP_DOWNLOADER_CLEANUP_SUSPEND,
+    _ANJ_COAP_DOWNLOADER_CLEANUP_TERMINATE
+} _anj_coap_downloader_cleanup_action_t;
+
+/**
+ * @anj_internal_api_do_not_use
  * CoAP downloader context structure.
  */
 typedef struct _anj_coap_downloader_struct {
@@ -42,6 +54,7 @@ typedef struct _anj_coap_downloader_struct {
     int error_code;
     anj_coap_downloader_status_t status;
     anj_coap_downloader_status_t last_reported_status;
+    _anj_coap_downloader_cleanup_action_t cleanup_action;
 
     const char *uri;
     const char *host;
@@ -50,6 +63,14 @@ typedef struct _anj_coap_downloader_struct {
     uint8_t port_len;
     anj_net_binding_type_t binding;
     _anj_etag_t etag;
+
+    uint8_t retry_count;
+    anj_time_duration_t retry_delay;
+    uint8_t current_retry_attempts;
+    anj_time_monotonic_t scheduled_retry_time;
+
+    uint32_t next_block2_number;
+    uint16_t server_block2_size;
 } _anj_coap_downloader_t;
 
 #endif // ANJ_WITH_COAP_DOWNLOADER

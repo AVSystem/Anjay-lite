@@ -850,7 +850,7 @@ ANJ_UNIT_TEST(dm_write_replace, write_with_create_error) {
     anj_uri_path_t path = ANJ_MAKE_INSTANCE_PATH(1, 1);
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_operation_begin(
                                   &anj, _ANJ_OP_DM_WRITE_REPLACE, true, &path),
-                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+                          _ANJ_DM_ERR_MEMORY);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     Obj_Bootstrap.max_inst_count = 2;
 }

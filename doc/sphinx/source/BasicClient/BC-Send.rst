@@ -62,6 +62,12 @@ in `CMakeLists.txt`:
     set(ANJ_WITH_LWM2M_SEND ON)
     set(ANJ_LWM2M_SEND_QUEUE_SIZE 1)
 
+    # Note: Although it is not recommended for production use,
+    # DTLS is disabled in this example to simplify the setup.
+    set(ANJ_NET_WITH_DTLS OFF)
+    set(ANJ_WITH_SECURITY OFF)
+    set(ANJ_WITH_MBEDTLS OFF)
+
 This setting determines how many Send messages Anjay Lite can queue at the  
 same time.
 
@@ -135,6 +141,7 @@ Next, we make a few modifications to the loop in which we call
             if (anj_send_new_request(&anj, &send_req, &send_id)) {
                 log(L_ERROR, "Failed to request new send");
                 data.send_in_progress = false;
+                data.record_idx = 0;
             }
         }
     }

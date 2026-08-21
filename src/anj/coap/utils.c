@@ -37,10 +37,7 @@ int _anj_coap_token_generate(_anj_coap_token_t *token) {
                    : ((void) memcpy(token->bytes, &random, sizeof(random)), 0);
 }
 
-// Attribute ((unused)) is set becasue for disabled L_DEBUG level logs, the
-// function is not called at all - it still will be removed by the compiler,
-// but this way we avoid "defined but not used" warning.
-static const char *__attribute__((unused))
+static const char *
 _anj_debug_content_format_to_string(uint16_t content_format) {
     switch (content_format) {
     case _ANJ_COAP_FORMAT_PLAINTEXT:
@@ -64,6 +61,9 @@ _anj_debug_content_format_to_string(uint16_t content_format) {
 }
 
 void _anj_log_msg_info(const _anj_coap_msg_t *msg, bool received) {
+    // Refer to the helper so that compilers do not warn when all
+    // L_DEBUG uses are compiled out.
+    (void) _anj_debug_content_format_to_string;
 
     char payload_info[] = ", payload: 65535B";
     if (msg->payload_size > 0 && msg->payload_size < UINT16_MAX) {

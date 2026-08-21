@@ -46,6 +46,12 @@ layer, apply the following changes in `CMakeLists.txt`:
     set(ANJ_WITH_SOCKET_POSIX_COMPAT OFF)
     set(ANJ_NET_WITH_UDP ON)
 
+    # Note: Although it is not recommended for production use,
+    # DTLS is disabled in this example to simplify the setup.
+    set(ANJ_NET_WITH_DTLS OFF)
+    set(ANJ_WITH_SECURITY OFF)
+    set(ANJ_WITH_MBEDTLS OFF)
+
     if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
         set(anjay_lite_DIR "../../../cmake")
         find_package(anjay_lite REQUIRED)
@@ -114,6 +120,9 @@ The example below shows a basic implementation:
 
 The ``anj_udp_create_ctx`` function initializes the network context by allocating
 memory for the ``net_ctx_posix_impl_t`` structure and initialize its values.
+On successful return (``ANJ_NET_OK``), the function must set ``*ctx_`` to a valid,
+non-NULL network context. Anjay Lite assumes that the context is available
+immediately after successful creation.
 
 .. note::
    If dynamic memory allocation is not allowed in the project, this function

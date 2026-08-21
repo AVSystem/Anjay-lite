@@ -40,7 +40,6 @@ static anj_iid_t find_free_iid(const anj_dm_obj_t *obj) {
 int _anj_dm_begin_create_op(anj_t *anj, const anj_uri_path_t *base_path) {
     assert(base_path && anj_uri_path_is(base_path, ANJ_ID_OID));
     _anj_dm_data_model_t *dm = &anj->dm;
-    dm->is_transactional = true;
     dm->op_ctx.write_ctx.path = *base_path;
     dm->op_ctx.write_ctx.instance_creation_attempted = false;
 
@@ -60,7 +59,7 @@ int _anj_dm_create_object_instance(anj_t *anj, anj_iid_t iid) {
         dm_log(L_ERROR,
                "Maximum number of instances reached for object /%" PRIu16,
                obj->oid);
-        return ANJ_DM_ERR_METHOD_NOT_ALLOWED;
+        return _ANJ_DM_ERR_MEMORY;
     }
     if (iid == ANJ_ID_INVALID) {
         iid = find_free_iid(obj);

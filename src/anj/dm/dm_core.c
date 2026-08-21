@@ -127,8 +127,11 @@ int _anj_dm_get_obj_ptr_ensure_transaction_begin(anj_t *anj,
         if (dm->objs[idx]->oid == oid) {
             *out_obj = dm->objs[idx];
             if (!dm->in_transaction[idx]) {
+                int res = _anj_dm_call_transaction_begin(anj, *out_obj);
+                if (res) {
+                    return res;
+                }
                 dm->in_transaction[idx] = true;
-                return _anj_dm_call_transaction_begin(anj, *out_obj);
             }
             return 0;
         } else if (dm->objs[idx]->oid > oid) {
@@ -207,13 +210,12 @@ int _anj_dm_operation_begin(anj_t *anj,
                             _anj_op_t operation,
                             bool is_bootstrap_request,
                             const anj_uri_path_t *path) {
-    assert(anj);
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(!dm->op_in_progress);
+    // for bootstrap procedure op_in_progress is not unset beetween operations
+    assert(!dm->op_in_progress || is_bootstrap_request);
 
     dm->operation = operation;
     dm->bootstrap_operation = is_bootstrap_request;
-    dm->is_transactional = false;
     dm->op_in_progress = true;
 
     if (!is_bootstrap_request) {
@@ -229,7 +231,6 @@ int _anj_dm_operation_begin(anj_t *anj,
         dm->comp_read_current_object = 0;
         return 0;
     case _ANJ_OP_DM_WRITE_COMP:
-        dm->is_transactional = true;
         dm->op_ctx.write_ctx.path.uri_len = 0;
         return 0;
 #endif // ANJ_WITH_COMPOSITE_OPERATIONS
@@ -266,11 +267,8 @@ int _anj_dm_operation_begin(anj_t *anj,
     return _ANJ_DM_ERR_INPUT_ARG;
 }
 
-int _anj_dm_operation_validate(anj_t *anj) {
-    assert(anj);
+static int operation_validate(anj_t *anj) {
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress);
-    assert(dm->is_transactional);
     int res = 0;
     for (uint16_t idx = 0; idx < dm->objs_count && !res; idx++) {
         const anj_dm_obj_t *obj = dm->objs[idx];
@@ -287,24 +285,52 @@ int _anj_dm_operation_validate(anj_t *anj) {
     return res;
 }
 
-void _anj_dm_operation_end(anj_t *anj, anj_dm_transaction_result_t result) {
-    assert(anj);
+static void operation_end(anj_t *anj, anj_dm_transaction_result_t result) {
     _anj_dm_data_model_t *dm = &anj->dm;
-    assert(dm->op_in_progress);
-    if (dm->is_transactional) {
-        for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
-            const anj_dm_obj_t *obj = dm->objs[idx];
-            if (dm->in_transaction[idx] && obj->handlers->transaction_end) {
-                obj->handlers->transaction_end(anj, obj, result);
-            }
-            dm->in_transaction[idx] = false;
+    for (uint16_t idx = 0; idx < dm->objs_count; idx++) {
+        const anj_dm_obj_t *obj = dm->objs[idx];
+        if (dm->in_transaction[idx] && obj->handlers->transaction_end) {
+            obj->handlers->transaction_end(anj, obj, result);
         }
+        dm->in_transaction[idx] = false;
     }
     dm->op_in_progress = false;
 }
 
+void _anj_dm_operation_end(anj_t *anj, anj_dm_transaction_result_t result) {
+    assert(anj->dm.op_in_progress);
+    // skip calling transaction_end for bootstrap operations, as the bootstrap
+    // procedure may involve multiple operations and the transaction_end should
+    // be called after all operations are completed.
+    if (anj->dm.bootstrap_operation) {
+        return;
+    }
+    operation_end(anj, result);
+}
+
+int _anj_dm_operation_validate(anj_t *anj) {
+    assert(anj->dm.op_in_progress);
+    // skip validation for bootstrap operations, as the bootstrap procedure may
+    // involve multiple operations and the transaction_validate should be called
+    // after all operations are completed.
+    if (anj->dm.bootstrap_operation) {
+        return 0;
+    }
+    return operation_validate(anj);
+}
+
+#ifdef ANJ_WITH_BOOTSTRAP
+void _anj_dm_bootstrap_operation_end(anj_t *anj,
+                                     anj_dm_transaction_result_t result) {
+    operation_end(anj, result);
+}
+
+int _anj_dm_bootstrap_operation_validate(anj_t *anj) {
+    return operation_validate(anj);
+}
+#endif // ANJ_WITH_BOOTSTRAP
+
 void _anj_dm_initialize(anj_t *anj) {
-    assert(anj);
     memset(&anj->dm, 0, sizeof(anj->dm));
 }
 

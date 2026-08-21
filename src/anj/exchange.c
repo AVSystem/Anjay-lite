@@ -313,6 +313,13 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
         return;
     }
 
+    if (in_out_msg->block.block_type == _ANJ_OPTION_BLOCK_2
+            && ctx->base_msg.block.block_type == _ANJ_OPTION_BLOCK_2
+            && in_out_msg->block.size != ctx->base_msg.block.size) {
+        finalize_exchange(ctx, NULL, _ANJ_EXCHANGE_ERROR_PROTOCOL);
+        return;
+    }
+
     // HACK: The server must reset the more_flag for the last BLOCK1 ACK message
     //       to prevent sending the next block. To avoid errors, we check the
     //       block_transfer flag (controlled internally) instead of the
@@ -326,17 +333,34 @@ static void handle_server_response(_anj_exchange_ctx_t *ctx,
     ctx->base_msg.payload_size = 0;
     // BootstrapPack-Request and Downloader GET are the only LwM2M Client
     // request that contains payload in response
+
+    // RFC 7959 requires non-final descriptive Block2 payload to match SZX.
+    if (in_out_msg->block.block_type == _ANJ_OPTION_BLOCK_2
+            && in_out_msg->block.more_flag
+            && in_out_msg->payload_size != in_out_msg->block.size) {
+        exchange_log(L_WARNING,
+                     "Non-final Block2 payload size does not match SZX");
+        finalize_exchange(ctx, NULL, _ANJ_EXCHANGE_ERROR_PROTOCOL);
+        return;
+    }
+
     if (in_out_msg->payload_size) {
         uint8_t result = ctx->handlers.write_payload(ctx->handlers.arg,
                                                      in_out_msg->payload,
                                                      in_out_msg->payload_size,
                                                      !ctx->block_transfer);
-        ctx->base_msg.block = (_anj_block_t) {
-            .more_flag = false,
-            .number = ++ctx->block_number,
-            .block_type = _ANJ_OPTION_BLOCK_2,
-            .size = in_out_msg->block.size // get block size from the message
-        };
+
+        if (!result && in_out_msg->block.block_type == _ANJ_OPTION_BLOCK_2
+                && in_out_msg->block.size > 0) {
+            ctx->block_number = in_out_msg->block.number + 1;
+            ctx->base_msg.block = (_anj_block_t) {
+                .more_flag = false,
+                .number = ctx->block_number,
+                .block_type = _ANJ_OPTION_BLOCK_2,
+                .size = in_out_msg->block.size
+            };
+        }
+
         if (result) {
             exchange_log(L_ERROR,
                          "Error while writing payload: %s"
@@ -784,6 +808,25 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
     ctx->state = _ANJ_EXCHANGE_STATE_WAITING_SEND_CONFIRMATION;
     ctx->base_msg = *in_out_msg;
     return _ANJ_EXCHANGE_STATE_MSG_TO_SEND;
+}
+
+void _anj_exchange_set_next_block2_number(_anj_exchange_ctx_t *ctx,
+                                          _anj_coap_msg_t *in_out_msg,
+                                          const uint32_t next_block2_number,
+                                          uint16_t block2_size) {
+    assert(ctx && in_out_msg && block2_size);
+
+    ctx->base_msg.block = (_anj_block_t) {
+        .block_type = _ANJ_OPTION_BLOCK_2,
+        .number = next_block2_number,
+        .size = block2_size
+    };
+    ctx->block_number = next_block2_number;
+    in_out_msg->block = (_anj_block_t) {
+        .block_type = _ANJ_OPTION_BLOCK_2,
+        .number = next_block2_number,
+        .size = block2_size
+    };
 }
 
 _anj_exchange_state_t _anj_exchange_process(_anj_exchange_ctx_t *ctx,

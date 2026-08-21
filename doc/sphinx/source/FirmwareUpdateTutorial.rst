@@ -17,3 +17,5 @@ Firmware Update Tutorial
    FirmwareUpdateTutorial/FU-PushBasicImplementation
    FirmwareUpdateTutorial/FU-PullBasicImplementation
    FirmwareUpdateTutorial/FU-PullWithCoapsImplementation
+   FirmwareUpdateTutorial/FU-PullWithCoapsCertImplementation
+   FirmwareUpdateTutorial/FU-PullSuspendResume

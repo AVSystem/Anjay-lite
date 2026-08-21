@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <string.h>
 
+#include <anj/compat/crypto/zeroize.h>
 #include <anj/compat/net/anj_net_api.h>
 #include <anj/compat/time.h>
 #include <anj/core.h>
@@ -58,12 +59,23 @@ static int bootstrap_op_read_data_model(anj_t *anj) {
     }
     anj->security_instance.client_hold_off_time =
             anj_time_duration_new(res_val.int_value, ANJ_TIME_UNIT_S);
+
+#    ifdef ANJ_WITH_SECURITY
+    path.ids[ANJ_ID_RID] = SECURITY_OBJ_SERVER_SECURITY_MODE_RID;
+    if (anj_dm_res_read(anj, &path, &res_val)) {
+        return -1;
+    }
+    _anj_core_utils_security_mode_t security_mode =
+            (_anj_core_utils_security_mode_t) res_val.int_value;
+#    endif // ANJ_WITH_SECURITY
+
     if (_anj_core_utils_server_get_resolved_server_uri(anj)
 #    ifdef ANJ_WITH_SECURITY
             || (anj->security_instance.type == ANJ_NET_BINDING_DTLS
                 && _anj_core_utils_get_security_info(
                            anj, true,
-                           &anj->net_socket_cfg.secure_socket_config.security))
+                           &anj->net_socket_cfg.secure_socket_config.security,
+                           security_mode))
 #    endif // ANJ_WITH_SECURITY
     ) {
         return -1;
@@ -204,6 +216,10 @@ static _anj_core_next_action_t handle_bootstrap_process(anj_t *anj) {
     case _ANJ_BOOTSTRAP_FINISHED: {
         anj->server_state.details.bootstrap.bootstrap_state =
                 _ANJ_SRV_BOOTSTRAP_STATE_FINISHED;
+#    ifdef ANJ_WITH_SECURITY
+        /* Clear any senitive information that could be sent by the BS Server */
+        anj_crypto_zeroize(anj->in_buffer, ANJ_IN_MSG_BUFFER_SIZE);
+#    endif // ANJ_WITH_SECURITY
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }
     default:
@@ -281,9 +297,7 @@ _anj_core_next_action_t _anj_server_bootstrap_process_bootstrap_operation(
         if (anj_net_is_inprogress(result)) {
             return _ANJ_CORE_NEXT_ACTION_LEAVE;
         }
-        if (result) {
-            return _ANJ_CORE_NEXT_ACTION_CONTINUE;
-        }
+        // ignore errors on close, bootstrap process is finished anyway
         *out_status = ANJ_CONN_STATUS_BOOTSTRAPPED;
         return _ANJ_CORE_NEXT_ACTION_CONTINUE;
     }

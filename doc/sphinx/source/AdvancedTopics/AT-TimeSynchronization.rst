@@ -36,6 +36,12 @@ compatibility layer:
     set(ANJ_WITH_NTP ON)
     set(ANJ_WITH_TIME_POSIX_COMPAT OFF)
 
+    # Note: Although it is not recommended for production use,
+    # DTLS is disabled in this example to simplify the setup.
+    set(ANJ_NET_WITH_DTLS OFF)
+    set(ANJ_WITH_SECURITY OFF)
+    set(ANJ_WITH_MBEDTLS OFF)
+
 .. note::
     With ``ANJ_WITH_TIME_POSIX_COMPAT`` disabled, the application must provide its
     own implementations of ``anj_time_monotonic_now`` and ``anj_time_real_now``.

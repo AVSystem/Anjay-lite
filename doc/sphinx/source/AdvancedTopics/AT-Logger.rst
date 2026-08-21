@@ -170,6 +170,12 @@ define ``ANJ_LOG_MICRO`` and disable other logger types.
     set(ANJ_LOG_FULL OFF)
     set(ANJ_LOG_MICRO ON)
 
+    # Note: Although it is not recommended for production use,
+    # DTLS is disabled in this example to simplify the setup.
+    set(ANJ_NET_WITH_DTLS OFF)
+    set(ANJ_WITH_SECURITY OFF)
+    set(ANJ_WITH_MBEDTLS OFF)
+
 In this configuration, the in-memory representation of log messages is very compact and
 uses a *source file ID* instead of a full file name. The file ID can later be resolved
 offline by the conversion script.

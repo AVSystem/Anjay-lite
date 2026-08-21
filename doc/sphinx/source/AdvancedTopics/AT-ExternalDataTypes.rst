@@ -76,6 +76,12 @@ To use ``ANJ_DATA_TYPE_EXTERNAL_BYTES``, enable external data types in your
     set(ANJ_WITH_EXTRA_WARNINGS ON)
     set(ANJ_WITH_EXTERNAL_DATA ON)
 
+    # Note: Although it is not recommended for production use,
+    # DTLS is disabled in this example to simplify the setup.
+    set(ANJ_NET_WITH_DTLS OFF)
+    set(ANJ_WITH_SECURITY OFF)
+    set(ANJ_WITH_MBEDTLS OFF)
+
 Set up external data callbacks
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

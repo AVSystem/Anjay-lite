@@ -122,8 +122,12 @@ a validation handler:
 
 Atomicity Across Multiple Objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Write-Composite and Bootstrap Pack Request(not supported yet) operations can modify multiple
-objects atomically. Anjay Lite guarantees:
+
+Write-Composite operations and the Bootstrap procedure may modify multiple
+objects atomically. During Bootstrap, the transaction spans the whole Bootstrap
+procedure: it starts before applying Bootstrap Write/Delete operations and is
+finished only after Bootstrap Finish succeeds or the procedure fails.
+Anjay Lite guarantees:
 
 - ``transaction_begin()`` called on an affected object before
   operations on **this** object happen
@@ -137,6 +141,12 @@ objects atomically. Anjay Lite guarantees:
 
 This ensures system-wide consistency. Each object should validate
 independently without assuming other objects' states.
+
+.. note::
+   During Bootstrap, `transaction_validate()` is called when Bootstrap Finish
+   is processed. If validation fails, or if Bootstrap times out before
+   Bootstrap Finish is received, `transaction_end()` is called with failure and
+   the affected objects are expected to restore their previous state.
 
 Flow Diagram
 ^^^^^^^^^^^^
@@ -394,4 +404,3 @@ Create/Delete support) so we do not need to cache it.
     requires tracking which resources were modified and selectively
     restoring them on failure. This will only work in case of objects
     without Create/Delete support.
-

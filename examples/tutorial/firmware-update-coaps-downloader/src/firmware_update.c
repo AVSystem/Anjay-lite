@@ -20,8 +20,8 @@
 #include <anj/coap_downloader.h>
 #include <anj/defs.h>
 #include <anj/dm/fw_update.h>
-#include <anj/dm/security_object.h>
 #include <anj/log.h>
+#include <anj/security.h>
 
 #include "firmware_update.h"
 
@@ -85,11 +85,10 @@ static anj_dm_fw_update_result_t fu_uri_write(void *user_ptr,
     anj_net_config_t net_cfg;
     memset(&net_cfg, 0x00, sizeof(net_cfg));
     net_cfg.secure_socket_config.security.mode = ANJ_NET_SECURITY_PSK;
-    if (anj_dm_security_obj_get_psk(
+    if (anj_security_get_psk_info(
                 fu->anj,
                 false,
-                &net_cfg.secure_socket_config.security.data.psk.identity,
-                &net_cfg.secure_socket_config.security.data.psk.key)) {
+                &net_cfg.secure_socket_config.security.data.psk)) {
         log(L_ERROR, "Failed to get PSK credentials from Security Object");
         return ANJ_DM_FW_UPDATE_RESULT_FAILED;
     }
@@ -184,6 +183,12 @@ static void coap_downloader_callback(void *arg,
         fu->offset = 0;
         break;
     }
+    case ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY:
+        log(L_INFO, "Firmware download waiting for retry");
+        break;
+    case ANJ_COAP_DOWNLOADER_STATUS_RETRYING:
+        log(L_INFO, "Firmware download retrying");
+        break;
     case ANJ_COAP_DOWNLOADER_STATUS_FINISHED:
         log(L_INFO, "Firmware download finished successfully");
         anj_dm_fw_update_object_set_download_result(
@@ -203,10 +208,9 @@ static void coap_downloader_callback(void *arg,
 
 // Installs the Firmware Update Object on the LwM2M client instance
 int fw_update_object_install(anj_t *anj,
-                             const char *firmware_version,
-                             const char *endpoint_name) {
-    firmware_update.firmware_version = firmware_version;
-    firmware_update.endpoint_name = endpoint_name;
+                             const firmware_update_config_t *config) {
+    firmware_update.firmware_version = config->firmware_version;
+    firmware_update.endpoint_name = config->endpoint_name;
     firmware_update.waiting_for_reboot = false;
     firmware_update.anj = anj;
 
@@ -225,6 +229,8 @@ int fw_update_object_install(anj_t *anj,
     anj_coap_downloader_configuration_t coap_downloader_config = {
         .event_cb = coap_downloader_callback,
         .event_cb_arg = &firmware_update,
+        .retry_count = config->retry_count,
+        .retry_delay = config->retry_delay,
     };
     if (anj_coap_downloader_init(&coap_downloader, &coap_downloader_config)) {
         return -1;

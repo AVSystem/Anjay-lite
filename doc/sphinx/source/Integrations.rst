@@ -16,6 +16,8 @@ This section provides example integrations of Anjay Lite with different platform
 These examples are intended as reference implementations to help you get started with integrating Anjay Lite into your own projects.
 While not exhaustive or production-ready, they demonstrate key concepts and typical integration steps.
 
+.. _bare-metal-client-integration:
+
 Bare Metal Client integration
 -----------------------------
 

@@ -143,6 +143,25 @@ _anj_exchange_new_client_request(_anj_exchange_ctx_t *ctx,
                                  size_t buff_len);
 
 /**
+ * Sets the next Block2 response block expected by a client-side exchange.
+ *
+ * This function is intended for resuming a client-side response block transfer
+ * after a retry. The request stored in @p in_out_msg and the request stored in
+ * @p ctx are updated to include a Block2 option that asks for
+ * @p next_block2_number using the already negotiated @p block2_size.
+ *
+ * @param        ctx Exchange context.
+ * @param[inout] in_out_msg Request message that will be updated with Block2.
+ * @param        next_block2_number Number of the next response block to
+ *                                  request.
+ * @param        block2_size Block2 size negotiated for this transfer.
+ */
+void _anj_exchange_set_next_block2_number(_anj_exchange_ctx_t *ctx,
+                                          _anj_coap_msg_t *in_out_msg,
+                                          uint32_t next_block2_number,
+                                          uint16_t block2_size);
+
+/**
  * Processes the exchange. The function should be called after @ref
  * _anj_exchange_new_server_request or @ref _anj_exchange_new_client_request in
  * a loop until the exchange is finished (@ref _ANJ_EXCHANGE_STATE_FINISHED is

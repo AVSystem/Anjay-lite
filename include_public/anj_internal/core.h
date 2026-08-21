@@ -61,7 +61,15 @@ typedef struct anj_struct {
     _anj_server_connection_ctx_t connection_ctx;
 #ifdef ANJ_WITH_SECURITY
     void *crypto_ctx;
-#endif // ANJ_WITH_SECURITY
+    const anj_security_credential_handlers_t *security_credential_handlers;
+#    ifdef ANJ_WITH_CERTIFICATES
+    /**
+     * Trust store containing a set of trusted CA certificates used to verify
+     * the peer certificate.
+     */
+    anj_net_trust_store_t trust_store;
+#    endif // ANJ_WITH_CERTIFICATES
+#endif     // ANJ_WITH_SECURITY
 
     anj_net_config_t net_socket_cfg;
     const char *endpoint_name;

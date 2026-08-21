@@ -18,6 +18,7 @@
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
+#include <anj/dm/defs.h>
 #include <anj/log.h>
 #include <anj/time.h>
 
@@ -34,12 +35,12 @@ static void bootstrap_finish_completion_callback(
     (void) response;
     _anj_bootstrap_ctx_t *ctx = (_anj_bootstrap_ctx_t *) arg_ptr;
     if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
-        if (ctx->error_code != _ANJ_BOOTSTRAP_ERR_DATA_MODEL_VALIDATION) {
+        if (ctx->error_code != _ANJ_BOOTSTRAP_ERR_DATA_MODEL) {
             ctx->error_code = _ANJ_BOOTSTRAP_ERR_EXCHANGE_ERROR;
         }
         ctx->bootstrap_finish_handled = true;
-        bootstrap_log(
-                L_ERROR, "Bootstrap-Finish failed with result %d", result);
+        bootstrap_log(L_ERROR, "Bootstrap-Finish failed with result %d",
+                      result);
         return;
     }
     ctx->bootstrap_finish_handled = true;
@@ -53,8 +54,8 @@ static void bootstrap_request_completion_callback(
 
     if (result != _ANJ_EXCHANGE_RESULT_SUCCESS) {
         ctx->error_code = _ANJ_BOOTSTRAP_ERR_EXCHANGE_ERROR;
-        bootstrap_log(
-                L_ERROR, "Bootstrap-Request failed with result %d", result);
+        bootstrap_log(L_ERROR, "Bootstrap-Request failed with result %d",
+                      result);
     }
     bootstrap_log(L_INFO, "Bootstrap-Request sent");
 }
@@ -97,20 +98,34 @@ int _anj_bootstrap_process(anj_t *anj,
         return _ANJ_BOOTSTRAP_NEW_REQUEST_TO_SEND;
     } // return validation error after bootstrap-finish handling
     else if ((ctx->bootstrap_finish_handled
-              && ctx->error_code == _ANJ_BOOTSTRAP_ERR_DATA_MODEL_VALIDATION)
+              && ctx->error_code == _ANJ_BOOTSTRAP_ERR_DATA_MODEL)
              || ctx->error_code == _ANJ_BOOTSTRAP_ERR_EXCHANGE_ERROR
              || ctx->error_code == _ANJ_BOOTSTRAP_ERR_NETWORK) {
         ctx->in_progress = false;
+        _anj_dm_bootstrap_finalize(anj, ANJ_DM_TRANSACTION_FAILURE);
         return ctx->error_code;
     } else if (ctx->bootstrap_finish_handled) {
         ctx->in_progress = false;
         bootstrap_log(L_INFO, "Bootstrap finished successfully");
+        _anj_dm_bootstrap_finalize(anj, ANJ_DM_TRANSACTION_SUCCESS);
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+        if (anj->security_credential_handlers
+                && anj->security_credential_handlers->offload_keys_and_certs) {
+            if (anj->security_credential_handlers->offload_keys_and_certs(
+                        anj)) {
+                bootstrap_log(L_ERROR, "Offloading keys failed");
+            }
+        } else {
+            bootstrap_log(L_WARNING, "Callback for offloading keys is not set");
+        }
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
         return _ANJ_BOOTSTRAP_FINISHED;
     } else if (anj_time_monotonic_gt(anj_time_monotonic_now(),
                                      ctx->bootstrap_finish_timeout)) {
         ctx->in_progress = false;
         ctx->error_code = _ANJ_BOOTSTRAP_ERR_BOOTSTRAP_TIMEOUT;
         bootstrap_log(L_ERROR, "Bootstrap timeout");
+        _anj_dm_bootstrap_finalize(anj, ANJ_DM_TRANSACTION_FAILURE);
         return ctx->error_code;
     }
     return _ANJ_BOOTSTRAP_IN_PROGRESS;
@@ -128,17 +143,18 @@ void _anj_bootstrap_finish_request(anj_t *anj,
         return;
     }
 
-    int res = 0;
-    if (!ctx->error_code) {
-        res = _anj_dm_bootstrap_validation(anj);
+    if (ctx->error_code == _ANJ_BOOTSTRAP_IN_PROGRESS) {
+        if (_anj_dm_bootstrap_validation(anj)) {
+            bootstrap_log(L_ERROR, "Bootstrap data model validation failed");
+            ctx->error_code = _ANJ_BOOTSTRAP_ERR_DATA_MODEL;
+            *out_response_code = ANJ_COAP_CODE_NOT_ACCEPTABLE;
+        }
     }
-    if (res) {
-        bootstrap_log(L_ERROR, "Bootstrap data model validation failed");
-        ctx->error_code = _ANJ_BOOTSTRAP_ERR_DATA_MODEL_VALIDATION;
-        *out_response_code = ANJ_COAP_CODE_NOT_ACCEPTABLE;
-    } else {
+
+    if (!ctx->error_code) {
         *out_response_code = ANJ_COAP_CODE_CHANGED;
     }
+
     *out_handlers = (_anj_exchange_handlers_t) {
         .completion = bootstrap_finish_completion_callback,
         .arg = ctx

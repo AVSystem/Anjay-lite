@@ -183,8 +183,6 @@ int _anj_dm_process_delete_op(anj_t *anj, const anj_uri_path_t *base_path) {
         return ANJ_DM_ERR_BAD_REQUEST;
     }
 
-    dm->is_transactional = true;
-
     if (dm->bootstrap_operation) {
 #ifdef ANJ_WITH_BOOTSTRAP
         result = process_bootstrap_delete_op(anj, base_path);

@@ -5,10 +5,7 @@
 # Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
 # See the attached LICENSE file for details.
 
-import re
 import time
-import pytest
-from enum import IntEnum
 
 from framework_tools.lwm2m.server import Lwm2mServer, coap
 from framework_tools.lwm2m.coap.transport import Transport
@@ -18,29 +15,10 @@ import framework_tools.lwm2m.messages as msgs
 
 import utils
 
-
-class ConnStatus(IntEnum):
-    INITIAL = 0
-    INVALID = 1
-    FAILURE = 2
-    BOOTSTRAPPING = 3
-    BOOTSTRAPPED = 4
-    REGISTERING = 5
-    REGISTERED = 6
-    SUSPENDED = 7
-    ENTERING_QUEUE_MODE = 8
-    QUEUE_MODE = 9
-
-
 PSK_IDENTITY = "test-identity"
 PSK_KEY = "test-key"
 ENDPOINT = "test-endpoint"
 LIFETIME = 100
-
-# Error codes returned by mbedTLS, taken from mbedtls/ssl.h
-MBEDTLS_ERR_SSL_INVALID_MAC = '-0x7180'
-MBEDTLS_ERR_SSL_UNKNOWN_IDENTITY = '-0x6c80'
-MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY = '-0x7880'
 
 
 def _make_psk_server(psk_identity=PSK_IDENTITY,
@@ -102,25 +80,6 @@ def _handle_register(server, endpoint=ENDPOINT, lifetime=LIFETIME,
     return pkt
 
 
-# extracts the error code from a RuntimeError raised by the test server for example:
-# "RuntimeError: mbedtls_ssl_handshake failed: SSL - Verification of the message MAC failed (-0x7180)"
-def _error_code_from_runtime_error(error):
-    match = re.search(r'\((-0x[0-9a-fA-F]+)\)$', str(error))
-    assert match is not None
-    return match.group(1).lower()
-
-
-def _expect_dtls_handshake_rejected(server, expected_error_code):
-    # server.recv() first needs to complete the DTLS handshake. With invalid
-    # PSK credentials, the handshake is rejected before any LwM2M message is
-    # received.
-    with pytest.raises(RuntimeError) as exc_info:
-        server.recv()
-
-    assert (_error_code_from_runtime_error(exc_info.value)
-            == expected_error_code.lower())
-
-
 # Registration accepted with valid DTLS PSK credentials.
 # The simplest test to verify that the client can successfully complete
 # the DTLS handshake.
@@ -138,10 +97,11 @@ def test_registration_rejected_with_wrong_psk_key(app_spawner):
 
     with app_spawner.spawn_app() as app:
         _init_app_with_psk_server(app, server, psk_key="wrong-test-key")
-        _expect_dtls_handshake_rejected(server, MBEDTLS_ERR_SSL_INVALID_MAC)
+        utils.expect_dtls_handshake_rejected(server,
+                                             utils.MBEDTLS_ERR_SSL_INVALID_MAC)
         # for default configuration, the client should still be in registering
         # state
-        assert app.rpc.call("get_conn_status") == ConnStatus.REGISTERING
+        assert app.rpc.call("get_conn_status") == utils.ConnStatus.REGISTERING
 
     # for second attempt the client should go to the failed state, because we
     # don't allow any retries
@@ -156,8 +116,9 @@ def test_registration_rejected_with_wrong_psk_key(app_spawner):
                 "seq_delay_timer_s": 1,
                 "seq_retry_count": 1
             })
-        _expect_dtls_handshake_rejected(server, MBEDTLS_ERR_SSL_INVALID_MAC)
-        assert app.rpc.call("get_conn_status") == ConnStatus.FAILURE
+        utils.expect_dtls_handshake_rejected(server,
+                                             utils.MBEDTLS_ERR_SSL_INVALID_MAC)
+        assert app.rpc.call("get_conn_status") == utils.ConnStatus.FAILURE
 
 
 # Registration rejected with unknown PSK identity.
@@ -167,33 +128,11 @@ def test_registration_rejected_with_unknown_psk_identity(app_spawner):
     with app_spawner.spawn_app() as app:
         _init_app_with_psk_server(app, server,
                                   psk_identity="wrong-test-identity")
-        _expect_dtls_handshake_rejected(
-            server, MBEDTLS_ERR_SSL_UNKNOWN_IDENTITY)
+        utils.expect_dtls_handshake_rejected(
+            server, utils.MBEDTLS_ERR_SSL_UNKNOWN_IDENTITY)
         # for default configuration, the client should still be in registering
         # state
-        assert app.rpc.call("get_conn_status") == ConnStatus.REGISTERING
-
-
-def _assert_dtls_client_hello(datagram):
-    DTLS_CONTENT_TYPE_HANDSHAKE = 22
-    DTLS_RECORD_HEADER_LENGTH = 13
-    DTLS_HANDSHAKE_TYPE_CLIENT_HELLO = 1
-    # DTLS record header is 13 bytes long. The first byte identifies the
-    # record content type, and the first byte after the record header is the
-    # handshake message type.
-    assert len(datagram) > DTLS_RECORD_HEADER_LENGTH
-    assert datagram[0] == DTLS_CONTENT_TYPE_HANDSHAKE
-    assert (datagram[DTLS_RECORD_HEADER_LENGTH]
-            == DTLS_HANDSHAKE_TYPE_CLIENT_HELLO)
-
-
-def _expect_and_drop_dtls_client_hello(server):
-    # Read from the raw UDP socket instead of going through TlsServer.recv().
-    # This consumes the datagram before the test DTLS server can process it,
-    # which simulates packet loss during the DTLS handshake.
-    datagram = server._raw_udp_socket.recv(4096)
-    _assert_dtls_client_hello(datagram)
-
+        assert app.rpc.call("get_conn_status") == utils.ConnStatus.REGISTERING
 
 # Registration retried after DTLS handshake timeout. Check if Anjay Lite and
 # Mbedtls properly handle DTLS handshake retransmissions.
@@ -206,10 +145,10 @@ def test_registration_retried_after_dtls_handshake_timeout(app_spawner):
         # Catch the first ClientHello and drop it to cause the handshake
         # to timeout. With default handshake timeouts, the client should
         # retry the handshake.
-        _expect_and_drop_dtls_client_hello(server)
+        utils.expect_and_drop_dtls_client_hello(server)
         # Catch also the second ClientHello, for default configuration the
         # client should retry the handshake several times before giving up.
-        _expect_and_drop_dtls_client_hello(server)
+        utils.expect_and_drop_dtls_client_hello(server)
         # Let the next DTLS handshake retransmission reach the TlsServer.
         # Client should complete the handshake and register successfully.
         _handle_register(server)
@@ -219,14 +158,6 @@ def _prepare_server_for_next_dtls_connection(server):
     # After receiving close_notify, reset the test server to restore its
     # listening DTLS ServerSocket before accepting the next connection.
     server.reset()
-
-
-def _expect_dtls_close_notify(server):
-    with pytest.raises(RuntimeError) as exc_info:
-        server.recv()
-
-    assert (_error_code_from_runtime_error(exc_info.value)
-            == MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY)
 
 
 # Communication sequence retry starts new handshake for next sequence.
@@ -265,7 +196,7 @@ def test_communication_sequence_retry_starts_new_handshake_for_next_sequence(
         # After the Register exchange times out, Anjay Lite closes the current
         # DTLS connection. The next communication sequence shall start after
         # seq_delay_timer_s and perform a fresh DTLS handshake.
-        _expect_dtls_close_notify(server)
+        utils.expect_dtls_close_notify(server)
 
         sequence_2_delay_start = time.monotonic()
         _prepare_server_for_next_dtls_connection(server)
@@ -273,7 +204,7 @@ def test_communication_sequence_retry_starts_new_handshake_for_next_sequence(
         # Sequence 2 shall start after seq_delay_timer_s. Receiving the first
         # ClientHello is blocking, so measure the elapsed time immediately after
         # consuming it from the raw UDP socket.
-        _expect_and_drop_dtls_client_hello(server)
+        utils.expect_and_drop_dtls_client_hello(server)
         sequence_2_delay_s = time.monotonic() - sequence_2_delay_start
         assert 2.8 <= sequence_2_delay_s <= 3.2
 
@@ -282,8 +213,8 @@ def test_communication_sequence_retry_starts_new_handshake_for_next_sequence(
         #   t = 0.0s  ClientHello, wait 1.0s for response
         #   t = 1.0s  ClientHello, wait 2.0s for response
         #   t = 3.0s  ClientHello, wait 2.1s for response, then timeout
-        _expect_and_drop_dtls_client_hello(server)
-        _expect_and_drop_dtls_client_hello(server)
+        utils.expect_and_drop_dtls_client_hello(server)
+        utils.expect_and_drop_dtls_client_hello(server)
 
         # wait for the third handshake to timeout before starting the
         # next sequence (ANJ_MBEDTLS_HS_MAXIMUM_TIMEOUT_VALUE_MS)
@@ -324,7 +255,7 @@ def _provision_regular_psk_server_via_bootstrap(bootstrap_server,
     security_payload = CBOR.serialize([
         {SenmlLabel.NAME: '/0/1/0',
          SenmlLabel.STRING: f'coaps://127.0.0.1:{regular_server.get_listen_port()}'},
-        {SenmlLabel.NAME: '/0/1/2', SenmlLabel.VALUE: 3},
+        {SenmlLabel.NAME: '/0/1/2', SenmlLabel.VALUE: 0},
         {SenmlLabel.NAME: '/0/1/3', SenmlLabel.OPAQUE: PSK_IDENTITY.encode()},
         {SenmlLabel.NAME: '/0/1/5', SenmlLabel.OPAQUE: PSK_KEY.encode()},
         {SenmlLabel.NAME: '/0/1/10', SenmlLabel.VALUE: new_instance_ssid}
@@ -350,7 +281,7 @@ def _finish_bootstrap_and_expect_close(server):
 
     # After Bootstrap Finish the bootstrap transport shall be closed before
     # connecting to the regular LwM2M Server.
-    _expect_dtls_close_notify(server)
+    utils.expect_dtls_close_notify(server)
 
 
 # Bootstrap accepted with valid DTLS PSK credentials and regular
@@ -415,7 +346,7 @@ def test_bootstrap_trigger_repeats_bootstrap_with_psk_and_registration(
         # Before switching back to the Bootstrap Server, the client de-registers
         # from the regular LwM2M Server and closes that DTLS connection.
         _handle_deregister(regular_server)
-        _expect_dtls_close_notify(regular_server)
+        utils.expect_dtls_close_notify(regular_server)
         _prepare_server_for_next_dtls_connection(regular_server)
 
         # Repeat the bootstrap procedure again with the same PSK credentials
@@ -452,7 +383,7 @@ def test_bootstrap_request_retried_after_no_response(app_spawner):
 
         # First bootstrap attempt: do not respond to the Bootstrap-Request
         _handle_bootstrap_request(bootstrap_server, send_response=False)
-        _expect_dtls_close_notify(bootstrap_server)
+        utils.expect_dtls_close_notify(bootstrap_server)
         _prepare_server_for_next_dtls_connection(bootstrap_server)
 
         retry_delay_start = time.monotonic()
@@ -465,7 +396,7 @@ def test_bootstrap_request_retried_after_no_response(app_spawner):
         retry_delay_s = time.monotonic() - retry_delay_start
         assert (BOOTSTRAP_RETRY_TIMEOUT_S - 0.5 <=
                 retry_delay_s <= BOOTSTRAP_RETRY_TIMEOUT_S + 0.5)
-        _expect_dtls_close_notify(bootstrap_server)
+        utils.expect_dtls_close_notify(bootstrap_server)
         _prepare_server_for_next_dtls_connection(bootstrap_server)
 
         retry_delay_start = time.monotonic()

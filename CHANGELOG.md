@@ -1,5 +1,42 @@
 # Changelog
 
+## Anjay Lite 3.0.0 (August 21st, 2026)
+
+### BREAKING CHANGES
+- Mark `anj_crypto_storage_*` API as experimental.
+- Flags `ANJ_FOTA_WITH_COAPS`, `ANJ_NET_WITH_DTLS`, `ANJ_WITH_SECURITY` and `ANJ_WITH_MBEDTLS` are
+  now enabled by default to comply with Secure by Default policy. Flag `ANJ_FOTA_WITH_COAP` is now
+  disabled by default.
+- Removed `ANJ_MBEDTLS_TLS_VERSION`. `ANJ_MBEDTLS_ALLOWED_CIPHERSUITES` has been replaced with separate
+  `ANJ_MBEDTLS_ALLOWED_CERT_CIPHERSUITES` and `ANJ_MBEDTLS_ALLOWED_PSK_CIPHERSUITES` options.
+- Modified `anj_crypto_storage_*` API, all records are now added in a single call.
+- Removed `anj_dm_security_obj_get_psk()` function.
+
+### Features
+- Added support for certificate-based security in Anjay Lite and the Mbed TLS integration layer.
+- Added Trust Store support for certificate-based security.
+- Added a retry mechanism in COAP Downloader configured by `anj_coap_downloader_configuration_t::retry_count`
+  and `anj_coap_downloader_configuration_t::retry_delay`.
+- Added `anj_coap_downloader_suspend()` and `anj_coap_downloader_resume()` API to CoAP Downloader.
+- New `security.h` API allows you to retrieve security configuration from the Security Object.
+- Add `anj_crypto_zeroize()` API for securely clearing sensitive data.
+
+### Improvements
+- Changed the Bootstrap transaction flow so that a single transaction now covers
+  the entire Bootstrap process. This allows changes made during Bootstrap to be
+  committed only after a successful Bootstrap Finish, instead of committing each
+  LwM2M operation independently.
+- Registration Retry attempts now log the total count of attempts.
+- `tools/mbedtls_cache.py` has been introduced to easily manage different versions
+   and configurations of MbedTLS builds.
+- Removed usages of __attribute__((unused)) from the codebase.
+- Refactored and streamlined the `anj_crypto_storage_*` usage flow.
+
+### Bugfixes
+- Fixed an issue in the Mbed TLS integration related to the close function.
+When the Connection ID extension was not supported, no new handshake was
+performed when reconnecting after calling the close function.
+
 ## Anjay Lite 2.1.2 (June 2nd, 2026)
 
 ### Improvements

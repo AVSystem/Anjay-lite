@@ -88,8 +88,8 @@ typedef struct {
     } op_ctx;
     _anj_dm_entity_ptrs_t entity_ptrs;
     bool bootstrap_operation;
-    bool is_transactional;
     size_t op_count;
+    // For bootstrap, this field is set until the end of the bootstrap procedure
     bool op_in_progress;
     _anj_op_t operation;
 

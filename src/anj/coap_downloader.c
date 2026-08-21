@@ -18,8 +18,10 @@
 
 #include <anj/coap_downloader.h>
 #include <anj/compat/net/anj_net_api.h>
+#include <anj/compat/time.h>
 #include <anj/defs.h>
 #include <anj/log.h>
+#include <anj/time.h>
 
 #include "coap/coap.h"
 #include "core/core_utils.h"
@@ -29,6 +31,54 @@
 #ifdef ANJ_WITH_COAP_DOWNLOADER
 
 #    define downloader_log(...) anj_log(coap_downloader, __VA_ARGS__)
+
+static bool can_start(const anj_coap_downloader_t *ctx) {
+    switch (ctx->status) {
+    case ANJ_COAP_DOWNLOADER_STATUS_INITIAL:
+    case ANJ_COAP_DOWNLOADER_STATUS_FINISHED:
+    case ANJ_COAP_DOWNLOADER_STATUS_FAILED:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool can_terminate(const anj_coap_downloader_t *ctx) {
+    switch (ctx->status) {
+    case ANJ_COAP_DOWNLOADER_STATUS_STARTING:
+    case ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING:
+    case ANJ_COAP_DOWNLOADER_STATUS_RETRYING:
+    case ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY:
+    case ANJ_COAP_DOWNLOADER_STATUS_RESUMING:
+    case ANJ_COAP_DOWNLOADER_STATUS_SUSPENDED:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool can_retry(anj_coap_downloader_t *ctx) {
+    return ctx->current_retry_attempts + 1 < ctx->retry_count
+           && ctx->error_code != ANJ_COAP_DOWNLOADER_ERR_TERMINATED
+           && ctx->error_code != ANJ_COAP_DOWNLOADER_ERR_ETAG_MISMATCH;
+}
+
+static bool can_suspend(const anj_coap_downloader_t *ctx) {
+    switch (ctx->status) {
+    case ANJ_COAP_DOWNLOADER_STATUS_STARTING:
+    case ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING:
+    case ANJ_COAP_DOWNLOADER_STATUS_RETRYING:
+    case ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY:
+    case ANJ_COAP_DOWNLOADER_STATUS_RESUMING:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool can_resume(const anj_coap_downloader_t *ctx) {
+    return ctx->status == ANJ_COAP_DOWNLOADER_STATUS_SUSPENDED;
+}
 
 static int connect_with_server(anj_coap_downloader_t *ctx) {
     char hostname[ANJ_SERVER_URI_MAX_SIZE] = { 0 };
@@ -49,7 +99,6 @@ static void exchange_completion(void *arg_ptr,
     anj_coap_downloader_t *ctx = (anj_coap_downloader_t *) arg_ptr;
 
     if (result == _ANJ_EXCHANGE_RESULT_SUCCESS) {
-        ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHED;
         downloader_log(L_DEBUG, "Download finished successfully");
         return;
     }
@@ -74,11 +123,38 @@ static uint8_t exchange_write_payload(void *arg_ptr,
                                       uint8_t *payload,
                                       size_t payload_len,
                                       bool last_block) {
-    (void) last_block;
     anj_coap_downloader_t *ctx = (anj_coap_downloader_t *) arg_ptr;
     ctx->event_cb(ctx->event_cb_arg, ctx,
                   ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING, payload, payload_len);
+
+    // there is no point in calling suspend after receiving the last block
+    // so we can ignore it (restore correct state, and finish the download
+    // successfully) suspend will set cleanup_action and status so we must reset
+    // it
+    if (last_block
+            && ctx->cleanup_action == _ANJ_COAP_DOWNLOADER_CLEANUP_SUSPEND) {
+        downloader_log(
+                L_WARNING,
+                "Ignoring suspend request after receiving the last block");
+        ctx->cleanup_action = _ANJ_COAP_DOWNLOADER_CLEANUP_NONE;
+        ctx->status = ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING;
+    }
+    if (payload_len > 0) {
+        ctx->current_retry_attempts = 0;
+    }
     return 0;
+}
+
+static void store_block2_progress(anj_coap_downloader_t *ctx,
+                                  const _anj_block_t *block,
+                                  _anj_exchange_state_t exchange_state) {
+    if (block->block_type == _ANJ_OPTION_BLOCK_2 && block->size
+            && block->more_flag
+            && exchange_state != _ANJ_EXCHANGE_STATE_WAITING_MSG
+            && ctx->error_code == 0) {
+        ctx->server_block2_size = block->size;
+        ctx->next_block2_number = block->number + 1;
+    }
 }
 
 static int get_paths_from_uri(const char *uri, _anj_attr_downloader_t *attr) {
@@ -151,6 +227,15 @@ static int start_new_exchange(anj_coap_downloader_t *ctx) {
     _anj_exchange_new_client_request(&ctx->exchange_ctx, &request, &handlers,
                                      ctx->msg_buffer,
                                      ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE);
+
+    if (ctx->next_block2_number > 0) {
+        if (!ctx->server_block2_size) {
+            return ANJ_COAP_DOWNLOADER_ERR_INTERNAL;
+        }
+        _anj_exchange_set_next_block2_number(&ctx->exchange_ctx, &request,
+                                             ctx->next_block2_number,
+                                             ctx->server_block2_size);
+    }
 
     res = _anj_coap_encode_udp(&request, ctx->msg_buffer,
                                ANJ_COAP_DOWNLOADER_MAX_MSG_SIZE,
@@ -261,10 +346,21 @@ static int handle_request(anj_coap_downloader_t *ctx) {
                         downloader_log(L_ERROR, "ETag mismatch");
                         return ANJ_COAP_DOWNLOADER_ERR_ETAG_MISMATCH;
                     }
+                    // _anj_exchange_process() may overwrite msg with the next
+                    // outbound request, so keep the received Block2 metadata.
+                    _anj_block_t response_block = msg.block;
                     exchange_state =
                             _anj_exchange_process(&ctx->exchange_ctx,
                                                   ANJ_EXCHANGE_EVENT_NEW_MSG,
                                                   &msg);
+                    store_block2_progress(ctx, &response_block, exchange_state);
+
+                    // if we called suspend or terminate
+                    // during callback, we should exit the while loop here
+                    if (ctx->cleanup_action
+                            != _ANJ_COAP_DOWNLOADER_CLEANUP_NONE) {
+                        return 0;
+                    }
                 }
             }
         }
@@ -284,25 +380,131 @@ static void handle_event_cb(anj_coap_downloader_t *ctx,
     }
 }
 
+static void
+request_cleanup(anj_coap_downloader_t *ctx,
+                _anj_coap_downloader_cleanup_action_t cleanup_action) {
+    // guard for ourselves to not request cleanup with a meaningless state
+    assert(cleanup_action != _ANJ_COAP_DOWNLOADER_CLEANUP_NONE);
+    ctx->cleanup_action = cleanup_action;
+    ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHING;
+}
+
+static int get_exchange_termination_reason(const anj_coap_downloader_t *ctx) {
+    if (ctx->cleanup_action == _ANJ_COAP_DOWNLOADER_CLEANUP_SUSPEND
+            || ctx->cleanup_action == _ANJ_COAP_DOWNLOADER_CLEANUP_TERMINATE) {
+        return _ANJ_EXCHANGE_ERROR_TERMINATED;
+    }
+    return ctx->error_code == ANJ_COAP_DOWNLOADER_ERR_NETWORK
+                   ? _ANJ_EXCHANGE_ERROR_NETWORK
+                   : _ANJ_EXCHANGE_ERROR_PROTOCOL;
+}
+
+static void schedule_retry(anj_coap_downloader_t *ctx) {
+    downloader_log(L_WARNING,
+                   "Download attempt %" PRIu8 "/%" PRIu8
+                   " failed. Next attempt scheduled in %ss",
+                   ctx->current_retry_attempts + 1,
+                   ctx->retry_count,
+                   ANJ_TIME_DURATION_AS_STRING(ctx->retry_delay,
+                                               ANJ_TIME_UNIT_S));
+    ctx->status = ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY;
+    ctx->current_retry_attempts++;
+    ctx->scheduled_retry_time =
+            anj_time_monotonic_add(anj_time_monotonic_now(), ctx->retry_delay);
+
+    // clean error code the has caused the retry
+    ctx->error_code = 0;
+}
+
+static void step_finishing(anj_coap_downloader_t *ctx) {
+    assert(ctx->cleanup_action != _ANJ_COAP_DOWNLOADER_CLEANUP_NONE);
+
+    if (_anj_exchange_ongoing_exchange(&ctx->exchange_ctx)) {
+        _anj_exchange_terminate(&ctx->exchange_ctx,
+                                get_exchange_termination_reason(ctx));
+    }
+
+    int result = _anj_srv_conn_close(&ctx->connection_ctx, true);
+    if (anj_net_is_inprogress(result)) {
+        return;
+    }
+
+    if (result && !ctx->error_code) {
+        ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_NETWORK;
+    }
+
+    _anj_coap_downloader_cleanup_action_t action = ctx->cleanup_action;
+    ctx->cleanup_action = _ANJ_COAP_DOWNLOADER_CLEANUP_NONE;
+
+    if (action == _ANJ_COAP_DOWNLOADER_CLEANUP_FINALIZE
+            || action == _ANJ_COAP_DOWNLOADER_CLEANUP_TERMINATE) {
+        handle_event_cb(ctx, ANJ_COAP_DOWNLOADER_STATUS_FINISHING);
+    }
+
+    switch (action) {
+    case _ANJ_COAP_DOWNLOADER_CLEANUP_SUSPEND:
+        ctx->status = ANJ_COAP_DOWNLOADER_STATUS_SUSPENDED;
+        break;
+
+    case _ANJ_COAP_DOWNLOADER_CLEANUP_TERMINATE:
+        ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_TERMINATED;
+        ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FAILED;
+        downloader_log(L_INFO, "Download terminated by user");
+        break;
+
+    case _ANJ_COAP_DOWNLOADER_CLEANUP_RETRY:
+        schedule_retry(ctx);
+        break;
+
+    case _ANJ_COAP_DOWNLOADER_CLEANUP_FINALIZE:
+        ctx->status = ctx->error_code ? ANJ_COAP_DOWNLOADER_STATUS_FAILED
+                                      : ANJ_COAP_DOWNLOADER_STATUS_FINISHED;
+        if (ctx->error_code) {
+            downloader_log(L_ERROR, "Download finished with error: %d",
+                           ctx->error_code);
+        } else {
+            downloader_log(L_INFO, "Download finished successfully");
+        }
+        break;
+
+    default:
+        assert(0);
+    }
+}
+
 void anj_coap_downloader_step(anj_coap_downloader_t *ctx) {
     assert(ctx);
 
     switch (ctx->status) {
-    case ANJ_COAP_DOWNLOADER_STATUS_STARTING: {
-        handle_event_cb(ctx, ANJ_COAP_DOWNLOADER_STATUS_STARTING);
+    case ANJ_COAP_DOWNLOADER_STATUS_STARTING:
+    case ANJ_COAP_DOWNLOADER_STATUS_RETRYING:
+    case ANJ_COAP_DOWNLOADER_STATUS_RESUMING: {
+        handle_event_cb(ctx, ctx->status);
+        // A callback invoked above may have requested suspension or
+        // termination. Handle cleanup before continuing the download.
+        if (ctx->cleanup_action != _ANJ_COAP_DOWNLOADER_CLEANUP_NONE) {
+            request_cleanup(ctx, ctx->cleanup_action);
+            break;
+        }
         int result = connect_with_server(ctx);
         if (anj_net_is_inprogress(result)) {
             break;
         }
         if (!anj_net_is_ok(result)) {
-            ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHING;
             ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_NETWORK;
+            request_cleanup(ctx,
+                            can_retry(ctx)
+                                    ? _ANJ_COAP_DOWNLOADER_CLEANUP_RETRY
+                                    : _ANJ_COAP_DOWNLOADER_CLEANUP_FINALIZE);
             break;
         }
         result = start_new_exchange(ctx);
         if (result) {
-            ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHING;
             ctx->error_code = result;
+            request_cleanup(ctx,
+                            can_retry(ctx)
+                                    ? _ANJ_COAP_DOWNLOADER_CLEANUP_RETRY
+                                    : _ANJ_COAP_DOWNLOADER_CLEANUP_FINALIZE);
             break;
         }
         ctx->status = ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING;
@@ -310,36 +512,39 @@ void anj_coap_downloader_step(anj_coap_downloader_t *ctx) {
     }
     case ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING: {
         int result = handle_request(ctx);
+        if (ctx->cleanup_action != _ANJ_COAP_DOWNLOADER_CLEANUP_NONE) {
+            request_cleanup(ctx, ctx->cleanup_action);
+            break;
+        }
         if (anj_net_is_again(result) || anj_net_is_inprogress(result)) {
             break;
         }
         if (result) {
             ctx->error_code = result;
             downloader_log(L_ERROR, "Download failed with error: %d", result);
-            int reason = (result == ANJ_COAP_DOWNLOADER_ERR_NETWORK)
-                                 ? _ANJ_EXCHANGE_ERROR_NETWORK
-                                 : _ANJ_EXCHANGE_ERROR_PROTOCOL;
-            _anj_exchange_terminate(&ctx->exchange_ctx, reason);
+            request_cleanup(ctx,
+                            can_retry(ctx)
+                                    ? _ANJ_COAP_DOWNLOADER_CLEANUP_RETRY
+                                    : _ANJ_COAP_DOWNLOADER_CLEANUP_FINALIZE);
+        } else {
+            request_cleanup(ctx, _ANJ_COAP_DOWNLOADER_CLEANUP_FINALIZE);
         }
-        ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHING;
+        break;
+    }
+    case ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY: {
+        handle_event_cb(ctx, ANJ_COAP_DOWNLOADER_STATUS_WAITING_FOR_RETRY);
+        if (ctx->cleanup_action != _ANJ_COAP_DOWNLOADER_CLEANUP_NONE) {
+            request_cleanup(ctx, ctx->cleanup_action);
+            break;
+        }
+        if (anj_time_monotonic_geq(anj_time_monotonic_now(),
+                                   ctx->scheduled_retry_time)) {
+            ctx->status = ANJ_COAP_DOWNLOADER_STATUS_RETRYING;
+        }
         break;
     }
     case ANJ_COAP_DOWNLOADER_STATUS_FINISHING: {
-        handle_event_cb(ctx, ANJ_COAP_DOWNLOADER_STATUS_FINISHING);
-        int result = _anj_srv_conn_close(&ctx->connection_ctx, true);
-        if (anj_net_is_inprogress(result)) {
-            break;
-        }
-        // set ctx->error_code if it is not set yet
-        if (result && ctx->error_code == 0) {
-            ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_NETWORK;
-        }
-        if (ctx->error_code) {
-            ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FAILED;
-        } else {
-            ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHED;
-            downloader_log(L_INFO, "Download finished successfully");
-        }
+        step_finishing(ctx);
         break;
     }
     default:
@@ -361,6 +566,12 @@ int anj_coap_downloader_init(
 
     ctx->event_cb = config->event_cb;
     ctx->event_cb_arg = config->event_cb_arg;
+    ctx->retry_count = config->retry_count;
+    ctx->retry_delay = config->retry_delay;
+    ctx->current_retry_attempts = 0;
+    ctx->next_block2_number = 0;
+    ctx->server_block2_size = 0;
+    ctx->cleanup_action = _ANJ_COAP_DOWNLOADER_CLEANUP_NONE;
 
     if (_anj_exchange_init(&ctx->exchange_ctx)) {
         return ANJ_COAP_DOWNLOADER_ERR_INTERNAL;
@@ -380,18 +591,9 @@ int anj_coap_downloader_get_error(anj_coap_downloader_t *ctx) {
     return ctx->error_code;
 }
 
-int anj_coap_downloader_start(anj_coap_downloader_t *ctx,
-                              const char *uri,
-                              const anj_net_config_t *net_config) {
-    assert(ctx);
-    assert(uri);
-    if (ctx->status == ANJ_COAP_DOWNLOADER_STATUS_STARTING
-            || ctx->status == ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING
-            || ctx->status == ANJ_COAP_DOWNLOADER_STATUS_FINISHING) {
-        downloader_log(L_ERROR, "Download already in progress");
-        return ANJ_COAP_DOWNLOADER_ERR_IN_PROGRESS;
-    }
-
+static int start_download(anj_coap_downloader_t *ctx,
+                          const char *uri,
+                          const anj_net_config_t *net_config) {
     downloader_log(L_INFO, "Starting CoAP download from %s", uri);
 
     _anj_core_utils_uri_components_t uri_components;
@@ -405,6 +607,8 @@ int anj_coap_downloader_start(anj_coap_downloader_t *ctx,
     ctx->port = uri_components.port;
     ctx->port_len = uri_components.port_len;
 
+    ctx->current_retry_attempts = 0;
+
     if (!net_config && uri_components.binding_type == ANJ_NET_BINDING_DTLS) {
         downloader_log(L_ERROR, "No network configuration for secure CoAP");
         return ANJ_COAP_DOWNLOADER_ERR_INVALID_CONFIGURATION;
@@ -416,23 +620,84 @@ int anj_coap_downloader_start(anj_coap_downloader_t *ctx,
 
     ctx->uri = uri;
     ctx->error_code = 0;
-    ctx->status = ANJ_COAP_DOWNLOADER_STATUS_STARTING;
+
+    return 0;
+}
+
+int anj_coap_downloader_start(anj_coap_downloader_t *ctx,
+                              const char *uri,
+                              const anj_net_config_t *net_config) {
+    assert(ctx);
+    assert(uri);
+
+    if (!can_start(ctx)) {
+        downloader_log(L_ERROR, "Invalid state to start the download");
+        return ANJ_COAP_DOWNLOADER_ERR_IN_PROGRESS;
+    }
+
+    const int result = start_download(ctx, uri, net_config);
+    if (result) {
+        return result;
+    }
+
+    ctx->next_block2_number = 0;
+    ctx->server_block2_size = 0;
     ctx->etag.size = 0;
+    ctx->cleanup_action = _ANJ_COAP_DOWNLOADER_CLEANUP_NONE;
+
+    ctx->status = ANJ_COAP_DOWNLOADER_STATUS_STARTING;
+
     return 0;
 }
 
 void anj_coap_downloader_terminate(anj_coap_downloader_t *ctx) {
     assert(ctx);
 
-    if (ctx->status != ANJ_COAP_DOWNLOADER_STATUS_STARTING
-            && ctx->status != ANJ_COAP_DOWNLOADER_STATUS_DOWNLOADING) {
+    if (!can_terminate(ctx)) {
         downloader_log(L_DEBUG, "No download in progress");
         return;
     }
     downloader_log(L_DEBUG, "Terminating CoAP download");
     ctx->error_code = ANJ_COAP_DOWNLOADER_ERR_TERMINATED;
-    ctx->status = ANJ_COAP_DOWNLOADER_STATUS_FINISHING;
-    _anj_exchange_terminate(&ctx->exchange_ctx, _ANJ_EXCHANGE_ERROR_TERMINATED);
+    request_cleanup(ctx, _ANJ_COAP_DOWNLOADER_CLEANUP_TERMINATE);
+}
+
+int anj_coap_downloader_suspend(anj_coap_downloader_t *ctx) {
+    assert(ctx);
+
+    if (ctx->status == ANJ_COAP_DOWNLOADER_STATUS_SUSPENDED
+            || ctx->cleanup_action == _ANJ_COAP_DOWNLOADER_CLEANUP_SUSPEND) {
+        downloader_log(L_DEBUG, "Download already suspended");
+        return 0;
+    }
+
+    if (!can_suspend(ctx)) {
+        downloader_log(L_DEBUG, "No download in progress");
+        return ANJ_COAP_DOWNLOADER_ERR_INVALID_STATE;
+    }
+    downloader_log(L_DEBUG, "Suspending CoAP download");
+
+    request_cleanup(ctx, _ANJ_COAP_DOWNLOADER_CLEANUP_SUSPEND);
+
+    return 0;
+}
+
+int anj_coap_downloader_resume(anj_coap_downloader_t *ctx) {
+    assert(ctx);
+
+    if (!can_resume(ctx)) {
+        downloader_log(L_ERROR, "Download is not suspended");
+        return ANJ_COAP_DOWNLOADER_ERR_INVALID_STATE;
+    }
+
+    const int result = start_download(ctx, ctx->uri, &ctx->net_socket_cfg);
+    if (result) {
+        return result;
+    }
+
+    ctx->status = ANJ_COAP_DOWNLOADER_STATUS_RESUMING;
+
+    return 0;
 }
 
 #endif // ANJ_WITH_COAP_DOWNLOADER

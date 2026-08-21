@@ -21,6 +21,7 @@
 #include <anj/compat/time.h>
 #include <anj/core.h>
 #include <anj/defs.h>
+#include <anj/dm/defs.h>
 #include <anj/log.h>
 #include <anj/time.h>
 #include <anj/utils.h>
@@ -41,6 +42,7 @@
 #    include <anj/compat/crypto/storage.h>
 #endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
+#include "../dm/dm_integration.h"
 #include "../dm/dm_io.h"
 #include "../exchange.h"
 #include "core.h"
@@ -114,6 +116,13 @@ int anj_core_init(anj_t *anj, const anj_configuration_t *config) {
     if (config->net_socket_cfg) {
         anj->net_socket_cfg.raw_socket_config = *config->net_socket_cfg;
     }
+#ifdef ANJ_WITH_CERTIFICATES
+    if (config->trust_store) {
+        assert(!!(config->trust_store->ca_certs)
+               == !!(config->trust_store->ca_certs_count));
+        anj->trust_store = *config->trust_store;
+    }
+#endif // ANJ_WITH_CERTIFICATES
 #ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
     anj->net_socket_cfg.secure_socket_config.crypto_ctx = anj->crypto_ctx;
 #endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
@@ -365,6 +374,14 @@ void anj_core_step(anj_t *anj) {
         // This is handled internally by _anj_reg_session_process_registered().
         if (!_anj_core_client_registered(anj)
                 && _anj_core_state_transition_forced(anj)) {
+            // Cancel ongoing bootstrap process.
+#ifdef ANJ_WITH_BOOTSTRAP
+            if (anj->server_state.conn_status
+                    == ANJ_CONN_STATUS_BOOTSTRAPPING) {
+                _anj_dm_bootstrap_finalize(anj, ANJ_DM_TRANSACTION_FAILURE);
+            }
+#endif // ANJ_WITH_BOOTSTRAP
+
             // Any ongoing exchange has already been cancelled in the respective
             // trigger functions, so the only remaining task here is to close
             // the connection before changing the state. We always perform

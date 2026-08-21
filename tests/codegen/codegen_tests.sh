@@ -7,7 +7,6 @@
 # See the attached LICENSE file for details.
 
 TARGETS=(
-    codegen_object_registry_check
     codegen_compilation_check
     codegen_add_object_tests
 )

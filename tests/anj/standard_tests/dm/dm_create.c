@@ -349,7 +349,7 @@ ANJ_UNIT_TEST(dm_create, error_no_space) {
     ANJ_UNIT_ASSERT_SUCCESS(
             _anj_dm_operation_begin(&anj, _ANJ_OP_DM_CREATE, false, &path));
     ANJ_UNIT_ASSERT_EQUAL(_anj_dm_create_object_instance(&anj, iid),
-                          ANJ_DM_ERR_METHOD_NOT_ALLOWED);
+                          _ANJ_DM_ERR_MEMORY);
     _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_begin, 2);
     ANJ_UNIT_ASSERT_EQUAL(call_counter_end, 2);

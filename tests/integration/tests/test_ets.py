@@ -115,6 +115,12 @@ def _expect_send_lifetime(server, lifetime=86400):
     return pkt
 
 
+def _send_lifetime(app):
+    return app.rpc.call("send", {
+        "content_format": "senml_cbor",
+        "resources": [{"path": "/1/0/1", "type": "uint"}]
+        })
+
 def _send_write_and_expect_changed(server, path, payload,
                                    format=ContentFormat.APPLICATION_LWM2M_SENML_CBOR):
     write = msgs.Lwm2mWrite(path, format=format, content=payload)
@@ -152,7 +158,7 @@ def test_int_0(app_spawner):
 
         payload = CBOR.serialize([
             {SenmlLabel.NAME: '/0/0/0', SenmlLabel.STRING: addr},
-            {SenmlLabel.NAME: '/0/0/2', SenmlLabel.VALUE: 3},
+            {SenmlLabel.NAME: '/0/0/2', SenmlLabel.VALUE: 0},
             {SenmlLabel.NAME: '/0/0/3', SenmlLabel.OPAQUE: PSK_IDENTITY.encode()},
             {SenmlLabel.NAME: '/0/0/5', SenmlLabel.OPAQUE: PSK_KEY.encode()},
             {SenmlLabel.NAME: '/0/0/10', SenmlLabel.VALUE: 67}
@@ -250,24 +256,25 @@ def test_int_306(app_spawner):
     with app_spawner.spawn_app() as app:
         _init_and_accept_register(app, server)
 
-        assert app.rpc.call("send_lifetime") == 0
+        assert _send_lifetime(app) == 0
         _expect_send_lifetime(server)
 
 
 @utils.app_config({'ANJ_WITH_LWM2M12': 'OFF', 'ANJ_WITH_LWM2M_CBOR': 'OFF'})
 def test_int_307(app_spawner):
+    ANJ_SEND_ERR_NOT_ALLOWED = -8
     server = _make_psk_server()
 
     with app_spawner.spawn_app() as app:
         _init_and_accept_register(app, server)
 
-        assert app.rpc.call("send_lifetime") == 0
+        assert _send_lifetime(app) == 0
         _expect_send_lifetime(server)
 
         _write_text_resource(server, '/1/0/23', b'1')
-        assert app.rpc.call("send_lifetime") == -8
+        assert _send_lifetime(app) == ANJ_SEND_ERR_NOT_ALLOWED
 
         _write_text_resource(server, '/1/0/23', b'0')
-        assert app.rpc.call("send_lifetime") == 0
+        assert _send_lifetime(app) == 0
 
         _expect_send_lifetime(server)

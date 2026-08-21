@@ -43,6 +43,12 @@ the root of your project directory with the following content:
     set(CMAKE_C_STANDARD 99)
     set(CMAKE_C_EXTENSIONS OFF)
 
+    # Note: Although it is not recommended for production use,
+    # DTLS is disabled in this example to simplify the setup.
+    set(ANJ_NET_WITH_DTLS OFF)
+    set(ANJ_WITH_SECURITY OFF)
+    set(ANJ_WITH_MBEDTLS OFF)
+
     if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
         set(anjay_lite_DIR "../../../cmake")
         find_package(anjay_lite REQUIRED)
@@ -59,6 +65,13 @@ the root of your project directory with the following content:
 
 This file configures the CMake build system to compile your client and link it
 with the Anjay Lite library.
+
+.. important::
+
+    Tutorial examples explicitly disable security to keep their setup focused on
+    the topic being presented. This is strongly discouraged for production
+    deployments; leave the secure defaults enabled and configure secure
+    communication as described in :doc:`BC-Security`.
 
 .. _anjay-lite-hello-world:
 

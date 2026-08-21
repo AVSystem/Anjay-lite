@@ -13,24 +13,16 @@ Anjay-Lite can be compiled with support for DTLS and linked with the mbedTLS
 library. When enabled, the DTLS session is configured from the Resources of the
 ``LwM2M Security`` Object (ID ``/0``).
 
-This article is based on the *BC-Security* example. The complete code is
-available in the `examples/tutorial/BC-Security` directory of the Anjay-Lite
-repository.
+.. note::
+   Code related to this tutorial can be found under `examples/tutorial/BC-Security`
+   in the Anjay Lite source directory.
 
 Prerequisites & build flags
 ---------------------------
 
-To enable secure communication, you need to configure the appropriate build
-flags. These can be set either in the CMake build system or in a custom
-anjay_config.h file. A minimal example demonstrating the required flags can be
-found in ``examples/tutorial/BC-Security/CMakeLists.txt`` and it looks like this:
-
-.. highlight:: cmake
-.. snippet-source:: examples/tutorial/BC-Security/CMakeLists.txt
-
-    set(ANJ_WITH_MBEDTLS ON)
-    set(ANJ_WITH_SECURITY ON)
-    set(ANJ_NET_WITH_DTLS ON)
+Secure communication is enabled by default. The default configuration enables
+the following flags; when using CMake, they may be overridden before calling
+``find_package``. In a custom ``anj_config.h`` file, define them explicitly.
 
 - ``ANJ_WITH_MBEDTLS`` — enable the bundled mbedTLS integration.
 - ``ANJ_WITH_SECURITY`` — compiles-in code handling security features within
@@ -38,7 +30,18 @@ found in ``examples/tutorial/BC-Security/CMakeLists.txt`` and it looks like this
 - ``ANJ_NET_WITH_DTLS`` — enable DTLS transport support.
 
 .. note::
-   For more information about these flags, see the ``anjay_config.h.in`` file.
+   ``ANJ_WITH_MBEDTLS``, ``ANJ_WITH_SECURITY``, and ``ANJ_NET_WITH_DTLS`` are
+   enabled by default. For more information about these flags, see the
+   ``anjay_config.h.in`` file.
+
+.. note::
+    The set of supported PSK mode ciphersuites depends on the underlying Mbed TLS configuration.
+
+    Allowed PSK mode ciphersuites may be adjusted using the
+    ``ANJ_MBEDTLS_ALLOWED_PSK_CIPHERSUITES`` CMake variable, which defines the list
+    of ciphersuites that Anjay Lite may use in PSK mode.
+
+    See ``anjay_config.h.in`` for more details.
 
 Anjay-Lite with Default mbedTLS Support
 ---------------------------------------
@@ -50,8 +53,10 @@ source files for both Anjay-Lite and mbedTLS, similarly to what is presented in
 
 By providing the ``ANJ_WITH_MBEDTLS`` flag, two things happen:
 
-- Anjay-Lite's CMake fetches the mbedTLS library and compiles it as part of the
-  build.
+- Anjay-Lite links with an mbedTLS CMake package. If ``MBEDTLS_ROOT_DIR`` is
+  not set, Anjay-Lite's CMake runs ``tools/test-framework-tools/pymbedtls/mbedtls_cache.py``
+  to fetch mbedTLS from GitHub, build it, install it into the local ``.mbedtls_cache``
+  directory, and use the generated package from there.
 - Anjay-Lite compiles with the bundled mbedTLS compatibility layer
   (``src/anj/compat/posix/anj_mbedtls_dtls_socket.c``).
 
@@ -65,8 +70,17 @@ need to implement your own UDP socket compatibility layer.
 
 .. note::
    When building for Linux with the CMake files shipped with Anjay-Lite,
-   you can set your own ``MBEDTLS_VERSION`` or ``MBEDTLS_ROOT_DIR``.
-   See ``cmake/anjay_lite_mbedtls.cmake`` for details.
+   you can set ``MBEDTLS_VERSION`` to select the mbedTLS version fetched by
+   ``tools/test-framework-tools/pymbedtls/mbedtls_cache.py``. This automatic
+   flow requires Python3 with the ``filelock`` and ``GitPython`` packages installed.
+
+   If you already have a built mbedTLS package, set ``MBEDTLS_ROOT_DIR`` to its
+   install prefix or to the directory containing the installed mbedTLS CMake
+   package files. When ``MBEDTLS_ROOT_DIR`` is set, CMake skips
+   ``tools/test-framework-tools/pymbedtls/mbedtls_cache.py`` entirely, so
+   Python is not required for mbedTLS setup.
+
+   ``MBEDTLS_VERSION`` and ``MBEDTLS_ROOT_DIR`` are mutually exclusive.
 
 Supported Security Modes
 ------------------------

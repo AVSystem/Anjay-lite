@@ -49,6 +49,14 @@ typedef struct {
     uint8_t port_len;
 } _anj_core_utils_uri_components_t;
 
+typedef enum {
+    _ANJ_CORE_UTILS_SECURITY_MODE_PSK = 0,
+    _ANJ_CORE_UTILS_SECURITY_MODE_RPK = 1,
+    _ANJ_CORE_UTILS_SECURITY_MODE_CERTIFICATE = 2,
+    _ANJ_CORE_UTILS_SECURITY_MODE_NOSEC = 3,
+    _ANJ_CORE_UTILS_SECURITY_MODE_EST = 4
+} _anj_core_utils_security_mode_t;
+
 /**
  * Possible URIs from CoAP specification: Appendix B. URI Examples
  * coap://example.net/
@@ -73,7 +81,8 @@ int _anj_core_utils_server_get_resolved_server_uri(anj_t *anj);
 int _anj_core_utils_get_security_info(
         anj_t *anj,
         bool bootstrap_credentials,
-        anj_net_security_info_t *out_security_info);
+        anj_net_security_info_t *out_security_info,
+        _anj_core_utils_security_mode_t security_mode);
 #    endif // ANJ_WITH_SECURITY
 #    ifndef NDEBUG
 int _anj_core_utils_validate_server_resource_types(anj_t *anj);

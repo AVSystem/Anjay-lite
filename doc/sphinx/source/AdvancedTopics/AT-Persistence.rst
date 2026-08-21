@@ -104,16 +104,15 @@ helpers. Then install the objects in ``anj`` using the install helpers.
     if (file) {
         anj_persistence_context_t ctx =
                 anj_persistence_restore_context_create(persistence_read, file);
-        res = restore_security_obj(&anj, &security_obj, &ctx);
-        if (!res) {
-            res = restore_server_obj(&server_obj, &ctx);
-        }
-        fclose(file);
-        // if any of the restores failed, we assume the persistence file is
-        // corrupted and should be removed
-        if (res) {
+        if (restore_security_obj(&anj, &security_obj, &ctx)
+                || restore_server_obj(&server_obj, &ctx)) {
+            // If either restore fails, discard the partially restored state and
+            // rebuild the default bootstrap account instead.
+            anj_dm_security_obj_init(&security_obj);
+            anj_dm_server_obj_init(&server_obj);
             remove(PERSISTENCE_OBJS_FILE);
         }
+        fclose(file);
     }
 
     if (install_device_obj(&anj, &device_obj)
@@ -161,7 +160,6 @@ call ``anj_dm_*_obj_install`` to register the objects in ``anj``.
                                     anj_dm_security_obj_t *security_obj,
                                     const bool need_default) {
         if (need_default) {
-            anj_dm_security_obj_init(security_obj);
             anj_dm_security_instance_init_t security_inst = {
                 .ssid = 1,
                 .bootstrap_server = true,

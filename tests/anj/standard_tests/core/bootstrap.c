@@ -212,7 +212,7 @@ ANJ_UNIT_TEST(bootstrap, bootstrap_data_model_validation_error) {
     PROCESS_BOOTSTRAP_REQUEST(0);
     g_ssid = 2;
     PROCESS_BOOTSTRAP_FINISH(0, ANJ_COAP_CODE_NOT_ACCEPTABLE,
-                             _ANJ_BOOTSTRAP_ERR_DATA_MODEL_VALIDATION);
+                             _ANJ_BOOTSTRAP_ERR_DATA_MODEL);
     g_ssid = 1;
 }
 

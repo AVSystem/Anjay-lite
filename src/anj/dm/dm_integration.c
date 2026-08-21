@@ -597,7 +597,7 @@ static uint8_t _dm_write_payload(void *arg_ptr,
     // Perform validation only for the final block of a transactional operation.
     // Validation is skipped if an error has already occurred, or if the
     // operation is non-transactional (e.g., a composite read).
-    if (last_block && ctx->is_transactional && !ret_val) {
+    if (last_block && !ret_val) {
         ret_val = _anj_dm_operation_validate(anj);
     }
     if (ret_val) {
@@ -638,7 +638,8 @@ void _anj_dm_process_request(anj_t *anj,
                              _anj_exchange_handlers_t *out_handlers) {
     assert(anj && request && out_response_code && out_handlers);
     _anj_dm_data_model_t *ctx = &anj->dm;
-    assert(!ctx->op_in_progress);
+    // op_in_progress is not unset until the end of the Bootstrap sequence
+    assert(!ctx->op_in_progress || ctx->bootstrap_operation);
 
     ctx->data_to_copy = false;
 
@@ -765,12 +766,12 @@ void _anj_dm_process_register_update_payload(
     _anj_io_register_ctx_init(&anj->anj_io.register_ctx);
 }
 
+#ifdef ANJ_WITH_OBSERVE
 void _anj_dm_observe_finalize_operation(anj_t *anj, int result) {
     assert(anj);
     _dm_process_finalization(anj, NULL, result);
 }
 
-#ifdef ANJ_WITH_OBSERVE
 int _anj_dm_observe_is_any_resource_readable(anj_t *anj,
                                              const anj_uri_path_t *path) {
     assert(anj && path);
@@ -907,6 +908,12 @@ int _anj_dm_observe_build_msg(anj_t *anj,
 #endif     // ANJ_WITH_OBSERVE
 
 #ifdef ANJ_WITH_BOOTSTRAP
+void _anj_dm_bootstrap_finalize(anj_t *anj,
+                                anj_dm_transaction_result_t result) {
+    assert(anj);
+    _anj_dm_bootstrap_operation_end(anj, result);
+}
+
 int _anj_dm_bootstrap_validation(anj_t *anj) {
     assert(anj);
     _anj_dm_data_model_t *dm = &anj->dm;
@@ -952,9 +959,10 @@ int _anj_dm_bootstrap_validation(anj_t *anj) {
                                          _ANJ_DM_OBJ_SECURITY_SSID_RID),
                                  &security_ssid)
                     && security_ssid.int_value == server_ssid.int_value) {
-                // there is at least one non-bootstrap server Security Object
-                // Instance that matches a Server Object Instance
-                return 0;
+                // There is at least one non-bootstrap server Security Object
+                // Instance that matches a Server Object Instance.
+                // Perform further validation for this bootstrap operation.
+                return _anj_dm_bootstrap_operation_validate(anj);
             }
         }
     }

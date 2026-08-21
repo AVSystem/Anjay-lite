@@ -15,9 +15,25 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(ANJ_LOG_LEVEL_DEFAULT L_TRACE)
+
 set(ANJ_WITH_MBEDTLS ON)
 set(ANJ_WITH_SECURITY ON)
 set(ANJ_NET_WITH_DTLS ON)
+set(ANJ_WITH_CERTIFICATES ON)
+set(ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE 1000)
+set(ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE 1000)
+set(ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE 1000)
+
+set(ANJ_WITH_TIME_POSIX_COMPAT OFF)
+# Enable both Pull-mode FOTA over CoAP and CoAPs (PSK), using the built-in
+# CoAP downloader, and Push-mode FOTA (direct writes to the Package
+# Resource), for the FOTA mock used by the integration tests.
+set(ANJ_FOTA_WITH_PULL_METHOD ON)
+set(ANJ_FOTA_WITH_PUSH_METHOD ON)
+set(ANJ_FOTA_WITH_COAP ON)
+set(ANJ_FOTA_WITH_COAPS ON)
+set(ANJ_WITH_COAP_DOWNLOADER ON)
 
 set(anjay_lite_DIR "../../../cmake")
 find_package(anjay_lite REQUIRED)

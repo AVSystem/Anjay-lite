@@ -19,6 +19,10 @@
 #include <anj/persistence.h>
 #include <anj/utils.h>
 
+#ifdef ANJ_WITH_CERTIFICATES
+#    include <anj/compat/net/anj_net_api.h>
+#endif // ANJ_WITH_CERTIFICATES
+
 #include "../../../../src/anj/dm/dm_io.h"
 #include "../../../../src/anj/io/io.h"
 
@@ -37,26 +41,27 @@ enum security_resources {
     RID_CLIENT_HOLD_OFF_TIME = 11,
 };
 
-#    define RESOURCE_CHECK_INT(Iid, SecInstElement, ExpectedValue) \
+#    define RESOURCE_CHECK_INT(SecInstElement, ExpectedValue) \
         ANJ_UNIT_ASSERT_EQUAL(SecInstElement, ExpectedValue);
 
-#    define RESOURCE_CHECK_BYTES(Iid, SecInstElement, ExpectedValue,     \
+#    define RESOURCE_CHECK_BYTES(SecInstElement, ExpectedValue,          \
                                  ExpectedValueLen)                       \
         ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(SecInstElement, ExpectedValue, \
                                           ExpectedValueLen);
 
-#    define RESOURCE_CHECK_STRING(Iid, SecInstElement, ExpectedValue) \
-        RESOURCE_CHECK_BYTES(Iid, SecInstElement, ExpectedValue,      \
+#    define RESOURCE_CHECK_STRING(SecInstElement, ExpectedValue) \
+        RESOURCE_CHECK_BYTES(SecInstElement, ExpectedValue,      \
                              sizeof(ExpectedValue) - 1)
 
-#    define RESOURCE_CHECK_BOOL(Iid, SecInstElement, ExpectedValue) \
-        RESOURCE_CHECK_INT(Iid, SecInstElement, ExpectedValue)
+#    define RESOURCE_CHECK_BOOL(SecInstElement, ExpectedValue) \
+        RESOURCE_CHECK_INT(SecInstElement, ExpectedValue)
 
-#    define INIT_ENV()                 \
-        anj_t anj = { 0 };             \
-        anj_dm_security_obj_t sec_obj; \
-        _anj_dm_initialize(&anj);      \
-        anj_dm_security_obj_init(&sec_obj);
+#    define INIT_ENV()                      \
+        anj_t anj = { 0 };                  \
+        anj_dm_security_obj_t sec_obj;      \
+        _anj_dm_initialize(&anj);           \
+        anj_dm_security_obj_init(&sec_obj); \
+        g_mock_identity_counter = 0;
 
 #    define PUBLIC_KEY_OR_IDENTITY_1 "public_key"
 #    define SERVER_PUBLIC_KEY_1 \
@@ -72,11 +77,12 @@ enum security_resources {
         "key"
 #    define SECRET_KEY_2 "\x99\x88\x77\x66\x55"
 
-static char g_mock_identity[3];
-static char g_mock_buffer[3][256];
-static size_t g_mock_buffer_len[3];
-#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 static int g_mock_identity_counter;
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+static char g_mock_identity[12];
+static char g_mock_buffer[12][256];
+static size_t g_mock_buffer_len[12];
+static int g_mock_create_fail_counter = -1;
 // ANJ_WITH_CRYPTO_STORAGE_DEFAULT is not set so we have to provide custom
 // integration layer
 
@@ -87,27 +93,21 @@ int anj_crypto_storage_init(void **out_crypto_ctx) {
 void anj_crypto_storage_deinit(void *out_crypto_ctx) {
     (void) out_crypto_ctx;
 }
-int anj_crypto_storage_create_new_record(void *crypto_ctx,
-                                         anj_crypto_security_info_t *out_info) {
+int anj_crypto_storage_create_record(void *crypto_ctx,
+                                     anj_crypto_security_info_t *out_info,
+                                     const void *data,
+                                     size_t data_size) {
     (void) crypto_ctx;
+    g_mock_buffer_len[g_mock_identity_counter] = data_size;
+    memcpy(g_mock_buffer[g_mock_identity_counter], data, data_size);
     out_info->info.external.identity =
             &g_mock_identity[g_mock_identity_counter++];
+    if (g_mock_create_fail_counter == g_mock_identity_counter) {
+        return -1;
+    }
     return 0;
 }
-int anj_crypto_storage_store_data(void *crypto_ctx,
-                                  const anj_crypto_security_info_t *info,
-                                  const void *data,
-                                  size_t data_size,
-                                  bool last_chunk) {
-    (void) crypto_ctx;
-    (void) info;
-    (void) data;
-    (void) data_size;
-    ANJ_UNIT_ASSERT_TRUE(last_chunk);
-    g_mock_buffer_len[g_mock_identity_counter - 1] = data_size;
-    memcpy(g_mock_buffer[g_mock_identity_counter - 1], data, data_size);
-    return 0;
-}
+
 int anj_crypto_storage_delete_record(void *crypto_ctx,
                                      const anj_crypto_security_info_t *info) {
     (void) crypto_ctx;
@@ -115,8 +115,13 @@ int anj_crypto_storage_delete_record(void *crypto_ctx,
     return 0;
 }
 
-static char identity_info[3][11] = { "1_identity", "2_identity", "3_identity" };
-static const char *identity_info_ptrs[3];
+static char identity_info[12][11] = { "1_identity",  "2_identity",
+                                      "3_identity",  "4_identity",
+                                      "5_identity",  "6_identity",
+                                      "7_identity",  "8_identity",
+                                      "9_identity",  "10_identity",
+                                      "11_identity", "12_identity" };
+static const char *identity_info_ptrs[12];
 static int given_identity_read_index;
 static int given_identity_write_index;
 int anj_crypto_storage_get_persistence_info(
@@ -158,10 +163,17 @@ int anj_crypto_storage_resolve_persistence_info(
 ANJ_UNIT_TEST(dm_security_object, check_resources_values) {
     INIT_ENV();
 
+#    ifdef ANJ_WITH_CERTIFICATES
+    anj_net_certificate_usage_t cert_usage = 1;
+#    endif // ANJ_WITH_CERTIFICATES
     anj_dm_security_instance_init_t inst_1 = {
         .server_uri = "coap://server.com:5683",
         .bootstrap_server = true,
-        .security_mode = 1,
+#    ifdef ANJ_WITH_CERTIFICATES
+        .server_name_indication = "qwerty",
+        .certificate_usage = &cert_usage,
+#    endif // ANJ_WITH_CERTIFICATES
+        .security_mode = 3,
         .public_key_or_identity = {
             .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
             .info.buffer.data = PUBLIC_KEY_OR_IDENTITY_1,
@@ -181,7 +193,7 @@ ANJ_UNIT_TEST(dm_security_object, check_resources_values) {
     anj_dm_security_instance_init_t inst_2 = {
         .server_uri = "coaps://server.com:5684",
         .bootstrap_server = false,
-        .security_mode = 2,
+        .security_mode = 0,
         .public_key_or_identity = {
             .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
             .info.buffer.data = PUBLIC_KEY_OR_IDENTITY_2,
@@ -205,13 +217,30 @@ ANJ_UNIT_TEST(dm_security_object, check_resources_values) {
             anj_dm_security_obj_add_instance(&sec_obj, &inst_2));
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_install(&anj, &sec_obj));
 
-    RESOURCE_CHECK_STRING(0, sec_obj.security_instances[0].server_uri,
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[0].server_uri,
                           "coap://server.com:5683");
-    RESOURCE_CHECK_BOOL(0, sec_obj.security_instances[0].bootstrap_server,
-                        true);
-    RESOURCE_CHECK_INT(0, sec_obj.security_instances[0].security_mode, 1);
+    RESOURCE_CHECK_BOOL(sec_obj.security_instances[0].bootstrap_server, true);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[0].security_mode, 3);
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[0].public_key_or_identity.source,
+            ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[0].server_public_key.source,
+            ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(sec_obj.security_instances[0].secret_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[0]
+                                 .public_key_or_identity.info.external.identity
+                         == &g_mock_identity[0]);
+    ANJ_UNIT_ASSERT_TRUE(
+            sec_obj.security_instances[0].secret_key.info.external.identity
+            == &g_mock_identity[1]);
+    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[0]
+                                 .server_public_key.info.external.identity
+                         == &g_mock_identity[2]);
+#    else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
     RESOURCE_CHECK_BYTES(
-            0,
             sec_obj.security_instances[0].public_key_or_identity_buff,
             PUBLIC_KEY_OR_IDENTITY_1,
             sizeof(PUBLIC_KEY_OR_IDENTITY_1) - 1);
@@ -225,28 +254,54 @@ ANJ_UNIT_TEST(dm_security_object, check_resources_values) {
             sec_obj.security_instances[0]
                     .public_key_or_identity.info.buffer.data
             == sec_obj.security_instances[0].public_key_or_identity_buff);
-    RESOURCE_CHECK_BYTES(0,
-                         sec_obj.security_instances[0].server_public_key_buff,
-                         SERVER_PUBLIC_KEY_1, sizeof(SERVER_PUBLIC_KEY_1) - 1);
-    RESOURCE_CHECK_BYTES(0, sec_obj.security_instances[0].secret_key_buff,
-                         SECRET_KEY_1, sizeof(SECRET_KEY_1) - 1);
-    RESOURCE_CHECK_INT(0, sec_obj.security_instances[0].ssid,
-                       _ANJ_SSID_BOOTSTRAP);
-    RESOURCE_CHECK_STRING(1, sec_obj.security_instances[1].server_uri,
+    RESOURCE_CHECK_BYTES(sec_obj.security_instances[0].server_public_key_buff,
+                         SERVER_PUBLIC_KEY_1,
+                         sizeof(SERVER_PUBLIC_KEY_1) - 1);
+    RESOURCE_CHECK_BYTES(sec_obj.security_instances[0].secret_key_buff,
+                         SECRET_KEY_1,
+                         sizeof(SECRET_KEY_1) - 1);
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
+    RESOURCE_CHECK_INT(sec_obj.security_instances[0].ssid, _ANJ_SSID_BOOTSTRAP);
+#    ifdef ANJ_WITH_CERTIFICATES
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[0].server_name_indication,
+                          "qwerty");
+    RESOURCE_CHECK_INT(sec_obj.security_instances[0].certificate_usage, 1);
+#    endif // ANJ_WITH_CERTIFICATES
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[1].server_uri,
                           "coaps://server.com:5684");
-    RESOURCE_CHECK_BOOL(1, sec_obj.security_instances[1].bootstrap_server,
-                        false);
-    RESOURCE_CHECK_INT(1, sec_obj.security_instances[1].security_mode, 2);
+    RESOURCE_CHECK_BOOL(sec_obj.security_instances[1].bootstrap_server, false);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].security_mode, 0);
+
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[1].public_key_or_identity.source,
+            ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[1].server_public_key.source,
+            ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(sec_obj.security_instances[1].secret_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[1]
+                                 .public_key_or_identity.info.external.identity
+                         == &g_mock_identity[3]);
+    ANJ_UNIT_ASSERT_TRUE(
+            sec_obj.security_instances[1].secret_key.info.external.identity
+            == &g_mock_identity[4]);
+    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[1]
+                                 .server_public_key.info.external.identity
+                         == &g_mock_identity[5]);
+#    else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
     RESOURCE_CHECK_BYTES(
-            1,
             sec_obj.security_instances[1].public_key_or_identity_buff,
             PUBLIC_KEY_OR_IDENTITY_2,
             sizeof(PUBLIC_KEY_OR_IDENTITY_2) - 1);
-    RESOURCE_CHECK_BYTES(1,
-                         sec_obj.security_instances[1].server_public_key_buff,
-                         SERVER_PUBLIC_KEY_2, sizeof(SERVER_PUBLIC_KEY_2) - 1);
-    RESOURCE_CHECK_BYTES(1, sec_obj.security_instances[1].secret_key_buff,
-                         SECRET_KEY_2, sizeof(SECRET_KEY_2) - 1);
+    RESOURCE_CHECK_BYTES(sec_obj.security_instances[1].server_public_key_buff,
+                         SERVER_PUBLIC_KEY_2,
+                         sizeof(SERVER_PUBLIC_KEY_2) - 1);
+    RESOURCE_CHECK_BYTES(sec_obj.security_instances[1].secret_key_buff,
+                         SECRET_KEY_2,
+                         sizeof(SECRET_KEY_2) - 1);
     ANJ_UNIT_ASSERT_EQUAL(
             sec_obj.security_instances[1].server_public_key.source,
             ANJ_CRYPTO_DATA_SOURCE_BUFFER);
@@ -256,7 +311,15 @@ ANJ_UNIT_TEST(dm_security_object, check_resources_values) {
     ANJ_UNIT_ASSERT_TRUE(
             sec_obj.security_instances[1].server_public_key.info.buffer.data
             == sec_obj.security_instances[1].server_public_key_buff);
-    RESOURCE_CHECK_INT(1, sec_obj.security_instances[1].ssid, 2);
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].ssid, 2);
+#    ifdef ANJ_WITH_CERTIFICATES
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[1].server_name_indication,
+                          "");
+    // default value should be set
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].certificate_usage, 3);
+#    endif // ANJ_WITH_CERTIFICATES
 }
 
 ANJ_UNIT_TEST(dm_security_object, create_instance_minimal) {
@@ -292,19 +355,19 @@ ANJ_UNIT_TEST(dm_security_object, create_instance_minimal) {
                                     .path = ANJ_MAKE_RESOURCE_PATH(
                                             ANJ_OBJ_ID_SECURITY, 20, RID_SSID)
                                 }));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
-    RESOURCE_CHECK_STRING(0, sec_obj.security_instances[0].server_uri,
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[0].server_uri,
                           "coap://server.com:5683");
-    RESOURCE_CHECK_INT(0, sec_obj.security_instances[0].ssid, 1);
-    RESOURCE_CHECK_STRING(20, sec_obj.security_instances[1].server_uri,
+    RESOURCE_CHECK_INT(sec_obj.security_instances[0].ssid, 1);
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[1].server_uri,
                           "coap://test.com:5684");
-    RESOURCE_CHECK_BOOL(20, sec_obj.security_instances[1].bootstrap_server,
-                        false);
-    RESOURCE_CHECK_INT(20, sec_obj.security_instances[1].security_mode, 0);
-    RESOURCE_CHECK_INT(20, sec_obj.security_instances[1].ssid, 7);
+    RESOURCE_CHECK_BOOL(sec_obj.security_instances[1].bootstrap_server, false);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].security_mode, 0);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].ssid, 7);
 }
+#    include <stdio.h>
 
 ANJ_UNIT_TEST(dm_security_object, create_instance) {
     INIT_ENV();
@@ -343,7 +406,7 @@ ANJ_UNIT_TEST(dm_security_object, create_instance) {
             &anj,
             &(anj_io_out_entry_t) {
                 .type = ANJ_DATA_TYPE_INT,
-                .value.int_value = 1,
+                .value.int_value = 3,
                 .path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY, 20,
                                                RID_SECURITY_MODE)
             }));
@@ -398,22 +461,33 @@ ANJ_UNIT_TEST(dm_security_object, create_instance) {
                 .path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY, 20,
                                                RID_CLIENT_HOLD_OFF_TIME)
             }));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
-    RESOURCE_CHECK_STRING(0, sec_obj.security_instances[0].server_uri,
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[0].server_uri,
                           "coap://server.com:5683");
-    RESOURCE_CHECK_INT(0, sec_obj.security_instances[0].ssid, 1);
-    RESOURCE_CHECK_STRING(20, sec_obj.security_instances[1].server_uri,
+    RESOURCE_CHECK_INT(sec_obj.security_instances[0].ssid, 1);
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[1].server_uri,
                           "coap://test.com:5683");
-    RESOURCE_CHECK_BOOL(20, sec_obj.security_instances[1].bootstrap_server,
-                        true);
-    RESOURCE_CHECK_INT(20, sec_obj.security_instances[1].security_mode, 1);
-    RESOURCE_CHECK_INT(20, sec_obj.security_instances[1].ssid, 7);
-    RESOURCE_CHECK_INT(20, sec_obj.security_instances[1].client_hold_off_time,
-                       17);
+    RESOURCE_CHECK_BOOL(sec_obj.security_instances[1].bootstrap_server, true);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].security_mode, 3);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].ssid, 7);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].client_hold_off_time, 17);
 
+    // before anj_dm_security_obj_offload_keys_and_certs() is
+    // called, sources should be set to buffer
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[1].public_key_or_identity.source,
+            ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[1].server_public_key.source,
+            ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(sec_obj.security_instances[1].secret_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
 #    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    // move data to external storage to check if it works correctly.
+    ANJ_UNIT_ASSERT_SUCCESS(
+            anj.security_credential_handlers->offload_keys_and_certs(&anj));
     // check external resources
     // check source
     ANJ_UNIT_ASSERT_EQUAL(
@@ -428,28 +502,120 @@ ANJ_UNIT_TEST(dm_security_object, create_instance) {
     ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[1]
                                  .public_key_or_identity.info.external.identity
                          == &g_mock_identity[0]);
-    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[1]
-                                 .server_public_key.info.external.identity
-                         == &g_mock_identity[1]);
     ANJ_UNIT_ASSERT_TRUE(
             sec_obj.security_instances[1].secret_key.info.external.identity
-            == &g_mock_identity[2]);
+            == &g_mock_identity[1]);
+    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[1]
+                                 .server_public_key.info.external.identity
+                         == &g_mock_identity[2]);
     // check provided data and data size
     ANJ_UNIT_ASSERT_EQUAL(g_mock_buffer_len[0],
                           sizeof(PUBLIC_KEY_OR_IDENTITY_1) - 1);
-    ANJ_UNIT_ASSERT_EQUAL(g_mock_buffer_len[1],
+    ANJ_UNIT_ASSERT_EQUAL(g_mock_buffer_len[1], sizeof(SECRET_KEY_1) - 1);
+    ANJ_UNIT_ASSERT_EQUAL(g_mock_buffer_len[2],
                           sizeof(SERVER_PUBLIC_KEY_1) - 1);
-    ANJ_UNIT_ASSERT_EQUAL(g_mock_buffer_len[2], sizeof(SECRET_KEY_1) - 1);
     ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(g_mock_buffer[0],
                                       PUBLIC_KEY_OR_IDENTITY_1,
                                       sizeof(PUBLIC_KEY_OR_IDENTITY_1) - 1);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(g_mock_buffer[1],
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(g_mock_buffer[1], SECRET_KEY_1,
+                                      sizeof(SECRET_KEY_1) - 1);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(g_mock_buffer[2],
                                       SERVER_PUBLIC_KEY_1,
                                       sizeof(SERVER_PUBLIC_KEY_1) - 1);
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(g_mock_buffer[2], SECRET_KEY_1,
-                                      sizeof(SECRET_KEY_1) - 1);
 #    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 }
+
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+// This test checks if anj_dm_security_obj_offload_keys_and_certs() correctly
+// handles errors from crypto storage layer. In case of error, keys and certs
+// should remain in their original place (buffers) and sources should not be
+// changed to external.
+ANJ_UNIT_TEST(dm_security_object, move_credentials_to_hsm_fails) {
+    INIT_ENV();
+    // fail during creation of second record
+    g_mock_create_fail_counter = 2;
+
+    anj_dm_security_instance_init_t inst = {
+        .server_uri = "coap://server.com:5683",
+        .bootstrap_server = true,
+        .security_mode = 3,
+        .public_key_or_identity = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = PUBLIC_KEY_OR_IDENTITY_1,
+            .info.buffer.data_size = sizeof(PUBLIC_KEY_OR_IDENTITY_1) - 1
+        },
+        .server_public_key = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = SERVER_PUBLIC_KEY_1,
+            .info.buffer.data_size = sizeof(SERVER_PUBLIC_KEY_1) - 1
+        },
+        .secret_key = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = SECRET_KEY_1,
+            .info.buffer.data_size = sizeof(SECRET_KEY_1) - 1
+        }
+    };
+
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_add_instance(&sec_obj, &inst));
+    // first move is called during installation, it should fail
+    ANJ_UNIT_ASSERT_FAILED(anj_dm_security_obj_install(&anj, &sec_obj));
+    // check that sources were not changed
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[0].public_key_or_identity.source,
+            ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[0].server_public_key.source,
+            ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(sec_obj.security_instances[0].secret_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    // check that data was not changed: data size and pointers to buffers
+    ANJ_UNIT_ASSERT_EQUAL(sec_obj.security_instances[0]
+                                  .public_key_or_identity.info.buffer.data_size,
+                          sizeof(PUBLIC_KEY_OR_IDENTITY_1) - 1);
+    ANJ_UNIT_ASSERT_EQUAL(sec_obj.security_instances[0]
+                                  .server_public_key.info.buffer.data_size,
+                          sizeof(SERVER_PUBLIC_KEY_1) - 1);
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[0].secret_key.info.buffer.data_size,
+            sizeof(SECRET_KEY_1) - 1);
+    ANJ_UNIT_ASSERT_TRUE(
+            sec_obj.security_instances[0]
+                    .public_key_or_identity.info.buffer.data
+            == sec_obj.security_instances[0].public_key_or_identity_buff);
+    ANJ_UNIT_ASSERT_TRUE(
+            sec_obj.security_instances[0].server_public_key.info.buffer.data
+            == sec_obj.security_instances[0].server_public_key_buff);
+    ANJ_UNIT_ASSERT_TRUE(
+            sec_obj.security_instances[0].secret_key.info.buffer.data
+            == sec_obj.security_instances[0].secret_key_buff);
+
+    // reset mock storage state
+    g_mock_identity_counter = 0;
+    // restore normal behavior of mock storage
+    g_mock_create_fail_counter = -1;
+
+    // now we successfully move credentials to external storage
+    ANJ_UNIT_ASSERT_SUCCESS(
+            anj.security_credential_handlers->offload_keys_and_certs(&anj));
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[0].public_key_or_identity.source,
+            ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(
+            sec_obj.security_instances[0].server_public_key.source,
+            ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(sec_obj.security_instances[0].secret_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[0]
+                                 .public_key_or_identity.info.external.identity
+                         == &g_mock_identity[0]);
+    ANJ_UNIT_ASSERT_TRUE(
+            sec_obj.security_instances[0].secret_key.info.external.identity
+            == &g_mock_identity[1]);
+    ANJ_UNIT_ASSERT_TRUE(sec_obj.security_instances[0]
+                                 .server_public_key.info.external.identity
+                         == &g_mock_identity[2]);
+}
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
 ANJ_UNIT_TEST(dm_security_object, delete_instance) {
     INIT_ENV();
@@ -471,19 +637,19 @@ ANJ_UNIT_TEST(dm_security_object, delete_instance) {
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, _ANJ_OP_DM_DELETE, true,
             &ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SECURITY, 0)));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
     ANJ_UNIT_ASSERT_EQUAL(sec_obj.obj.insts[1].iid, ANJ_ID_INVALID);
 
-    RESOURCE_CHECK_STRING(1, sec_obj.security_instances[1].server_uri,
+    RESOURCE_CHECK_STRING(sec_obj.security_instances[1].server_uri,
                           "coaps://server.com:5684");
-    RESOURCE_CHECK_INT(1, sec_obj.security_instances[1].ssid, 2);
+    RESOURCE_CHECK_INT(sec_obj.security_instances[1].ssid, 2);
 
     ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_begin(
             &anj, _ANJ_OP_DM_DELETE, true,
             &ANJ_MAKE_INSTANCE_PATH(ANJ_OBJ_ID_SECURITY, 1)));
-    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_operation_validate(&anj));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
+    ANJ_UNIT_ASSERT_SUCCESS(_anj_dm_bootstrap_operation_validate(&anj));
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);
 
     ANJ_UNIT_ASSERT_EQUAL(sec_obj.inst[0].iid, ANJ_ID_INVALID);
 }
@@ -538,7 +704,7 @@ ANJ_UNIT_TEST(dm_security_object, errors) {
                 .path = ANJ_MAKE_RESOURCE_PATH(ANJ_OBJ_ID_SECURITY, 0,
                                                RID_SECURITY_MODE)
             }));
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_FAILURE);
 }
 
 ANJ_UNIT_TEST(dm_security_object, get_psk_check) {
@@ -582,28 +748,175 @@ ANJ_UNIT_TEST(dm_security_object, get_psk_check) {
             anj_dm_security_obj_add_instance(&sec_obj, &inst_2));
     ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_install(&anj, &sec_obj));
 
-    anj_crypto_security_info_t psk_identity;
-    anj_crypto_security_info_t psk_key;
-    ANJ_UNIT_ASSERT_SUCCESS(
-            anj_dm_security_obj_get_psk(&anj, true, &psk_identity, &psk_key));
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_identity.info.buffer.data, "public",
-                                      strlen("public"));
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_key.info.buffer.data, "secret",
-                                      strlen("secret"));
-    ANJ_UNIT_ASSERT_EQUAL(psk_identity.tag,
+    anj_net_psk_info_t psk_info;
+    ANJ_UNIT_ASSERT_SUCCESS(anj_security_get_psk_info(&anj, true, &psk_info));
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.identity.tag,
                           ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY);
-    ANJ_UNIT_ASSERT_EQUAL(psk_key.tag, ANJ_CRYPTO_SECURITY_TAG_PSK_KEY);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.key.tag, ANJ_CRYPTO_SECURITY_TAG_PSK_KEY);
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_TRUE(psk_info.identity.info.external.identity
+                         == &g_mock_identity[2]);
+    ANJ_UNIT_ASSERT_TRUE(psk_info.key.info.external.identity
+                         == &g_mock_identity[3]);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.identity.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.key.source, ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+
+#    else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_info.identity.info.buffer.data,
+                                      "public", strlen("public"));
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_info.key.info.buffer.data, "secret",
+                                      strlen("secret"));
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.identity.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.key.source, ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
+    ANJ_UNIT_ASSERT_SUCCESS(anj_security_get_psk_info(&anj, false, &psk_info));
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.identity.tag,
+                          ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.key.tag, ANJ_CRYPTO_SECURITY_TAG_PSK_KEY);
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_TRUE(psk_info.identity.info.external.identity
+                         == &g_mock_identity[0]);
+    ANJ_UNIT_ASSERT_TRUE(psk_info.key.info.external.identity
+                         == &g_mock_identity[1]);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.identity.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.key.source, ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+#    else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_info.identity.info.buffer.data, "ddd",
+                                      strlen("ddd"));
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_info.key.info.buffer.data, "eee",
+                                      strlen("eee"));
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.identity.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(psk_info.key.source, ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+}
+
+#    ifdef ANJ_WITH_CERTIFICATES
+ANJ_UNIT_TEST(dm_security_object, get_cert_check) {
+    INIT_ENV();
+    anj_net_certificate_usage_t certificate_usage = 1;
+    anj_dm_security_instance_init_t inst_1 = {
+        .ssid = 1,
+        .bootstrap_server = false,
+        .server_uri = "coaps://dddd:777",
+        .security_mode = ANJ_DM_SECURITY_CERTIFICATE,
+        .public_key_or_identity = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "ddd",
+            .info.buffer.data_size = strlen("ddd")
+        },
+        .secret_key = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "eeee",
+            .info.buffer.data_size = strlen("eeee")
+        },
+        .server_public_key = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "ww",
+            .info.buffer.data_size = strlen("ww")
+        },
+        .server_name_indication = "aa",
+        .certificate_usage = &certificate_usage,
+    };
+    anj_dm_security_instance_init_t inst_2 = {
+        .ssid = 2,
+        .bootstrap_server = true,
+        .server_uri = "coaps://dddd:777",
+        .security_mode = ANJ_DM_SECURITY_CERTIFICATE,
+        .public_key_or_identity = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "public",
+            .info.buffer.data_size = strlen("public")
+        },
+        .secret_key = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "secret",
+            .info.buffer.data_size = strlen("secret")
+        }
+    };
+    ANJ_UNIT_ASSERT_SUCCESS(
+            anj_dm_security_obj_add_instance(&sec_obj, &inst_1));
+    ANJ_UNIT_ASSERT_SUCCESS(
+            anj_dm_security_obj_add_instance(&sec_obj, &inst_2));
+    ANJ_UNIT_ASSERT_SUCCESS(anj_dm_security_obj_install(&anj, &sec_obj));
+
+    anj_net_certificate_info_t cert_info;
+    ANJ_UNIT_ASSERT_SUCCESS(anj_security_get_cert_info(&anj, true, &cert_info));
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.client_cert.tag,
+                          ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.private_key.tag,
+                          ANJ_CRYPTO_SECURITY_TAG_PRIVATE_KEY);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.server_cert.tag,
+                          ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(cert_info.sni, "", 0);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.certificate_usage, 3);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.server_cert.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EMPTY);
+#        ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_TRUE(cert_info.client_cert.info.external.identity
+                         == &g_mock_identity[3]);
+    ANJ_UNIT_ASSERT_TRUE(cert_info.private_key.info.external.identity
+                         == &g_mock_identity[4]);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.client_cert.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.private_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+#        else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(cert_info.client_cert.info.buffer.data,
+                                      "public", strlen("public"));
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(cert_info.private_key.info.buffer.data,
+                                      "secret", strlen("secret"));
+    ANJ_UNIT_ASSERT_TRUE(cert_info.server_cert.info.buffer.data == NULL);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.client_cert.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.private_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+#        endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
     ANJ_UNIT_ASSERT_SUCCESS(
-            anj_dm_security_obj_get_psk(&anj, false, &psk_identity, &psk_key));
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_identity.info.buffer.data, "ddd",
-                                      strlen("ddd"));
-    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(psk_key.info.buffer.data, "eee",
-                                      strlen("eee"));
-    ANJ_UNIT_ASSERT_EQUAL(psk_identity.tag,
-                          ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY);
-    ANJ_UNIT_ASSERT_EQUAL(psk_key.tag, ANJ_CRYPTO_SECURITY_TAG_PSK_KEY);
+            anj_security_get_cert_info(&anj, false, &cert_info));
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.client_cert.tag,
+                          ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.private_key.tag,
+                          ANJ_CRYPTO_SECURITY_TAG_PRIVATE_KEY);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.server_cert.tag,
+                          ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN);
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(cert_info.sni, "aa", strlen("aa"));
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.certificate_usage, 1);
+
+#        ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_TRUE(cert_info.client_cert.info.external.identity
+                         == &g_mock_identity[0]);
+    ANJ_UNIT_ASSERT_TRUE(cert_info.private_key.info.external.identity
+                         == &g_mock_identity[1]);
+    ANJ_UNIT_ASSERT_TRUE(cert_info.server_cert.info.external.identity
+                         == &g_mock_identity[2]);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.client_cert.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.private_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.server_cert.source,
+                          ANJ_CRYPTO_DATA_SOURCE_EXTERNAL);
+#        else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(cert_info.client_cert.info.buffer.data,
+                                      "ddd", strlen("ddd"));
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(cert_info.private_key.info.buffer.data,
+                                      "eeee", strlen("eeee"));
+    ANJ_UNIT_ASSERT_EQUAL_BYTES_SIZED(cert_info.server_cert.info.buffer.data,
+                                      "ww", strlen("ww"));
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.client_cert.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.private_key.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+    ANJ_UNIT_ASSERT_EQUAL(cert_info.server_cert.source,
+                          ANJ_CRYPTO_DATA_SOURCE_BUFFER);
+#        endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 }
+#    endif // ANJ_WITH_CERTIFICATES
 
 ///////////////////////////////////////////////////////////////////////
 ////////////////////////// PERSISTENCE TESTS //////////////////////////
@@ -654,7 +967,8 @@ static int mem_read_cb(void *ctx, void *buf, size_t size) {
         _anj_dm_initialize(&Anj);              \
         anj_dm_security_obj_init(&Sec_obj);    \
         g_membuf_read_offset = 0;              \
-        g_membuf_write_offset = 0;
+        g_membuf_write_offset = 0;             \
+        g_mock_identity_counter = 0;
 
 // we can't compare whole object, because it contains pointers to instances
 // with different addresses
@@ -727,6 +1041,20 @@ ANJ_UNIT_TEST(dm_security_object, persistence_no_sec_basic) {
         Inst->secret_key.info.buffer.data = NULL;             \
         Inst->server_public_key.info.buffer.data = NULL;
 
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+void clear_internal_buffers(anj_dm_security_obj_t *sec_obj) {
+    for (size_t i = 0; i < ANJ_DM_SECURITY_OBJ_INSTANCES; i++) {
+        memset(sec_obj->security_instances[i].public_key_or_identity_buff, 0,
+               sizeof(sec_obj->security_instances[i]
+                              .public_key_or_identity_buff));
+        memset(sec_obj->security_instances[i].secret_key_buff, 0,
+               sizeof(sec_obj->security_instances[i].secret_key_buff));
+        memset(sec_obj->security_instances[i].server_public_key_buff, 0,
+               sizeof(sec_obj->security_instances[i].server_public_key_buff));
+    }
+}
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
 ANJ_UNIT_TEST(dm_security_object, persistence_psk_instance) {
     INIT_ENV_PERSISTENCE(anj, sec_obj);
     INIT_ENV_PERSISTENCE(anj_2, sec_obj_2);
@@ -750,6 +1078,19 @@ ANJ_UNIT_TEST(dm_security_object, persistence_psk_instance) {
     persistence_store(&anj, &sec_obj, &inst_1);
     persistence_restore(&anj_2, &sec_obj_2);
 
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    // during creds offloading, tag is set, we have to do it manually here
+    anj_dm_security_instance_t *inst = &sec_obj_2.security_instances[0];
+    inst->public_key_or_identity.tag = ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY;
+    inst->secret_key.tag = ANJ_CRYPTO_SECURITY_TAG_PSK_KEY;
+    // also buffer size is still set but it doesn't matter because source is
+    // external
+    inst = &sec_obj.security_instances[0];
+    inst->public_key_or_identity.info.buffer.data_size = 0;
+    inst->secret_key.info.buffer.data_size = 0;
+    clear_internal_buffers(&sec_obj);
+    clear_internal_buffers(&sec_obj_2);
+#    else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
     // before check handle crypto data pointers - check it and reset
     anj_dm_security_instance_t *inst = &sec_obj_2.security_instances[0];
     ANJ_UNIT_ASSERT_TRUE(inst->public_key_or_identity.info.buffer.data
@@ -757,9 +1098,71 @@ ANJ_UNIT_TEST(dm_security_object, persistence_psk_instance) {
     ANJ_UNIT_ASSERT_TRUE(inst->secret_key.info.buffer.data
                          == inst->secret_key_buff);
     CLEAR_CRYPTO_BUFFER_POINTERS(inst);
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
     compare_objects_after_persistence(&sec_obj, &sec_obj_2);
 }
+
+#    ifdef ANJ_WITH_CERTIFICATES
+ANJ_UNIT_TEST(dm_security_object, persistence_cert_instance) {
+    INIT_ENV_PERSISTENCE(anj, sec_obj);
+    INIT_ENV_PERSISTENCE(anj_2, sec_obj_2);
+
+    anj_net_certificate_usage_t certificate_usage = 2;
+    anj_dm_security_instance_init_t inst_1 = {
+        .ssid = 1,
+        .bootstrap_server = false,
+        .server_uri = "coaps://dddd:777",
+        .security_mode = ANJ_DM_SECURITY_CERTIFICATE,
+        .public_key_or_identity = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "public",
+            .info.buffer.data_size = strlen("public")
+        },
+        .secret_key = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "secret",
+            .info.buffer.data_size = strlen("secret")
+        },
+        .server_public_key = {
+            .source = ANJ_CRYPTO_DATA_SOURCE_BUFFER,
+            .info.buffer.data = "server_public_key",
+            .info.buffer.data_size = strlen("server_public_key")
+        },
+        .server_name_indication = "DDD",
+        .certificate_usage = &certificate_usage
+    };
+    persistence_store(&anj, &sec_obj, &inst_1);
+    persistence_restore(&anj_2, &sec_obj_2);
+
+#        ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    // during creds offloading, tag is set, we have to do it manually here
+    anj_dm_security_instance_t *inst = &sec_obj_2.security_instances[0];
+    inst->public_key_or_identity.tag =
+            ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN;
+    inst->server_public_key.tag = ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN;
+    inst->secret_key.tag = ANJ_CRYPTO_SECURITY_TAG_PRIVATE_KEY;
+    // also buffer size is still set but it doesn't matter because source is
+    // external
+    inst = &sec_obj.security_instances[0];
+    inst->public_key_or_identity.info.buffer.data_size = 0;
+    inst->secret_key.info.buffer.data_size = 0;
+    inst->server_public_key.info.buffer.data_size = 0;
+    clear_internal_buffers(&sec_obj);
+    clear_internal_buffers(&sec_obj_2);
+#        else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    // before check handle crypto data pointers - check it and reset
+    anj_dm_security_instance_t *inst = &sec_obj_2.security_instances[0];
+    ANJ_UNIT_ASSERT_TRUE(inst->public_key_or_identity.info.buffer.data
+                         == inst->public_key_or_identity_buff);
+    ANJ_UNIT_ASSERT_TRUE(inst->secret_key.info.buffer.data
+                         == inst->secret_key_buff);
+    CLEAR_CRYPTO_BUFFER_POINTERS(inst);
+#        endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
+    compare_objects_after_persistence(&sec_obj, &sec_obj_2);
+}
+#    endif // ANJ_WITH_CERTIFICATES
 
 ANJ_UNIT_TEST(dm_security_object, persistence_psk_two_instances) {
     INIT_ENV_PERSISTENCE(anj, sec_obj);
@@ -802,8 +1205,24 @@ ANJ_UNIT_TEST(dm_security_object, persistence_psk_two_instances) {
     persistence_store(&anj, &sec_obj, &inst_2);
     persistence_restore(&anj_2, &sec_obj_2);
 
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    // during creds offloading, tag is set, we have to do it manually here
+    for (size_t i = 0; i < ANJ_DM_SECURITY_OBJ_INSTANCES; i++) {
+        anj_dm_security_instance_t *inst = &sec_obj_2.security_instances[i];
+        inst->public_key_or_identity.tag = ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY;
+        inst->secret_key.tag = ANJ_CRYPTO_SECURITY_TAG_PSK_KEY;
+        // also buffer size is still set but it doesn't matter because source is
+        // external
+        inst = &sec_obj.security_instances[i];
+        inst->public_key_or_identity.info.buffer.data_size = 0;
+        inst->secret_key.info.buffer.data_size = 0;
+    }
+    clear_internal_buffers(&sec_obj);
+    clear_internal_buffers(&sec_obj_2);
+#    else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
     anj_dm_security_instance_t *inst = &sec_obj_2.security_instances[0];
     CLEAR_CRYPTO_BUFFER_POINTERS(inst);
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
     compare_objects_after_persistence(&sec_obj, &sec_obj_2);
 }

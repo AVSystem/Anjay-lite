@@ -327,7 +327,6 @@ int _anj_dm_write_entry(anj_t *anj, const anj_io_out_entry_t *record) {
 int _anj_dm_begin_write_op(anj_t *anj, const anj_uri_path_t *base_path) {
     assert(base_path && anj_uri_path_has(base_path, ANJ_ID_IID));
     _anj_dm_data_model_t *dm = &anj->dm;
-    dm->is_transactional = true;
     dm->op_ctx.write_ctx.path = *base_path;
 
     if (dm->operation == _ANJ_OP_DM_WRITE_REPLACE) {

@@ -1034,7 +1034,7 @@ class Lwm2mDelete(Lwm2mMsg):
                  options: List[coap.Option] = ANY):
         if isinstance(path, str):
             path = Lwm2mPath(path)
-        if path.resource_id is not None:
+        if path.resource_id is not None and path.resource_instance_id is None:
             raise ValueError(
                 'LWM2M Resource path is not applicable to a Delete: %s' % (path,))
 

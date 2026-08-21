@@ -238,4 +238,6 @@ Additional notes
 * The ``anj_core_ongoing_operation()`` function ensures safe access to objects
   that might currently be involved in active client operations.
   Always check its return value to avoid conflicts during concurrent
-  modifications.
+  modifications. During Bootstrap, ``anj_core_ongoing_operation()`` returns
+  true for the whole Bootstrap procedure, not only while individual
+  Bootstrap Write/Delete operations are being handled.

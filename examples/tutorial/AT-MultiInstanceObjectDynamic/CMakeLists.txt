@@ -15,6 +15,12 @@ set(CMAKE_C_EXTENSIONS OFF)
 set(ANJ_WITH_EXTRA_WARNINGS ON)
 set(CMAKE_BUILD_TYPE Debug)
 
+# Note: Although it is not recommended for production use,
+# DTLS is disabled in this example to simplify the setup.
+set(ANJ_NET_WITH_DTLS OFF)
+set(ANJ_WITH_SECURITY OFF)
+set(ANJ_WITH_MBEDTLS OFF)
+
 if (CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     set(anjay_lite_DIR "../../../cmake")
     find_package(anjay_lite REQUIRED)

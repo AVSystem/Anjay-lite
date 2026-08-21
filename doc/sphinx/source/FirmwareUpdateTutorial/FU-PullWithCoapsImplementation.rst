@@ -6,8 +6,8 @@
    Licensed under AVSystem Anjay Lite LwM2M Client SDK - Non-Commercial License.
    See the attached LICENSE file for details.
 
-FOTA Pull with CoAPs
-====================
+FOTA Pull with CoAPs (PSK)
+==========================
 
 Overview
 ^^^^^^^^
@@ -45,10 +45,11 @@ Enable the following options in ``CMakeLists.txt`` or ``anj_config.h``:
   Enables Pull mode support.
 * ``ANJ_WITH_COAP_DOWNLOADER=ON``:
   Enables the CoAP Downloader used in Pull mode.
-* ``ANJ_FOTA_WITH_COAP=ON`` and ``ANJ_FOTA_WITH_COAPS=ON``:
-  Allows both CoAP and CoAPs download URIs.
+* ``ANJ_FOTA_WITH_COAPS=ON``:
+  Allows CoAPs download URIs.
 * ``ANJ_WITH_SECURITY=ON``, ``ANJ_WITH_MBEDTLS=ON``, ``ANJ_NET_WITH_DTLS=ON``:
-  Required for DTLS-based secure transport.
+  Required for DTLS-based secure transport. These options are enabled by
+  default.
 
 Function: ``fu_uri_write()``
 ----------------------------
@@ -68,11 +69,10 @@ and the secure (CoAPs) variant.
         anj_net_config_t net_cfg;
         memset(&net_cfg, 0x00, sizeof(net_cfg));
         net_cfg.secure_socket_config.security.mode = ANJ_NET_SECURITY_PSK;
-        if (anj_dm_security_obj_get_psk(
+        if (anj_security_get_psk_info(
                     fu->anj,
                     false,
-                    &net_cfg.secure_socket_config.security.data.psk.identity,
-                    &net_cfg.secure_socket_config.security.data.psk.key)) {
+                    &net_cfg.secure_socket_config.security.data.psk)) {
             log(L_ERROR, "Failed to get PSK credentials from Security Object");
             return ANJ_DM_FW_UPDATE_RESULT_FAILED;
         }
@@ -88,7 +88,7 @@ and the secure (CoAPs) variant.
 
 **Explanation**
 
-- **PSK credentials** are retrieved from the Security Object using ``anj_dm_security_obj_get_psk()`` 
+- **PSK credentials** are retrieved from the Security Object using ``anj_security_get_psk_info()``
   and reused for the firmware download connection. This works with **Coiote DM**, which
   applies the same keys for both the management and the FOTA session,
   but may not apply to all servers or deployment models.  

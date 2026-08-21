@@ -87,6 +87,13 @@ extern "C" {
 /**@}*/
 
 typedef enum {
+    ANJ_NET_CERTIFICATE_CA_CONSTRAINT = 0,
+    ANJ_NET_CERTIFICATE_SERVICE_CERTIFICATE_CONSTRAINT = 1,
+    ANJ_NET_CERTIFICATE_TRUST_ANCHOR_ASSERTION = 2,
+    ANJ_NET_CERTIFICATE_DOMAIN_ISSUED_CERTIFICATE = 3,
+} anj_net_certificate_usage_t;
+
+typedef enum {
     ANJ_NET_BINDING_UDP = 0,
     ANJ_NET_BINDING_DTLS,
     ANJ_NET_BINDING_NON_IP
@@ -154,25 +161,86 @@ typedef struct {
 } anj_net_socket_configuration_t;
 
 #    ifdef ANJ_WITH_SECURITY
+
+/**
+ * Security mode used for DTLS/TLS connection setup.
+ */
 typedef enum {
+    /** Authenticate the connection using a pre-shared key and identity. */
     ANJ_NET_SECURITY_PSK,
+    /** Authenticate the connection using X.509 certificates. */
     ANJ_NET_SECURITY_CERTIFICATE,
 } anj_net_security_mode_t;
 
+/**
+ * Configuration of PSK-based security credentials.
+ */
 typedef struct {
+    /** Pre-shared secret key. */
     anj_crypto_security_info_t key;
+    /** PSK identity sent to the server. */
     anj_crypto_security_info_t identity;
+    /**
+     * Optional Server Name Indication value.
+     *
+     * If NULL, the hostname may be used instead.
+     */
+    const char *sni;
 } anj_net_psk_info_t;
 
+#        ifdef ANJ_WITH_CERTIFICATES
+/**
+ * Trust store containing a set of trusted CA certificates used to verify the
+ * peer certificate during the (D)TLS handshake.
+ */
 typedef struct {
-    void *empty;
-} anj_net_certificate_info_t;
+    /**
+     * Pointer to an array of @ref ca_certs_count entries, each describing CA
+     * certificate (or chain).
+     */
+    const anj_crypto_security_info_t *ca_certs;
+    /** Number of entries in the @ref ca_certs array. */
+    size_t ca_certs_count;
+} anj_net_trust_store_t;
 
+/**
+ * Configuration of certificate-based security credentials.
+ */
 typedef struct {
+    /** Client certificate presented during handshake. */
+    anj_crypto_security_info_t client_cert;
+    /** Private key corresponding to @ref client_cert. */
+    anj_crypto_security_info_t private_key;
+    /** Trusted server certificate or trust anchor used for verification. */
+    anj_crypto_security_info_t server_cert;
+    /** Rules that define how certificate material shall be used. */
+    anj_net_certificate_usage_t certificate_usage;
+    /**
+     * Optional Server Name Indication value.
+     *
+     * If NULL, the hostname may be used instead.
+     */
+    const char *sni;
+    /**
+     * Trust store containing a set of trusted CA certificates used to verify
+     * the peer certificate.
+     */
+    anj_net_trust_store_t trust_store;
+} anj_net_certificate_info_t;
+#        endif // ANJ_WITH_CERTIFICATES
+
+/**
+ * Security configuration for a DTLS/TLS socket.
+ */
+typedef struct {
+    /** Selected security mode. */
     anj_net_security_mode_t mode;
+    /** Parameters specific to the selected mode. */
     union {
         anj_net_psk_info_t psk;
+#        ifdef ANJ_WITH_CERTIFICATES
         anj_net_certificate_info_t cert;
+#        endif // ANJ_WITH_CERTIFICATES
     } data;
 } anj_net_security_info_t;
 
@@ -197,7 +265,7 @@ typedef struct {
  *
  * A structure initialized with all zeroes (e.g. using @c memset()) is a valid,
  * default configuration - it is used when @c NULL is passed to
- * @ref anj_net_create_ctx, and may also be used as a starting point for
+ * @ref anj_net_create_ctx_t, and may also be used as a starting point for
  * customizations.
  *
  * If @c secure_socket_config is initialized with all zeros the connection
@@ -218,7 +286,7 @@ struct anj_net_ctx_struct;
  * This type represents a network context object used internally by the
  * networking layer. Its definition is intentionally hidden and implementation-
  * specific. Applications should only work with pointers to @c anj_net_ctx_t
- * obtained from API functions such as @ref anj_net_create_ctx, and never
+ * obtained from API functions such as @ref anj_net_create_ctx_t, and never
  * attempt to access or modify its contents directly.
  *
  * On the implementation side, @c anj_net_ctx_t is cast to a backend-specific
@@ -273,12 +341,16 @@ static inline bool anj_net_is_inprogress(int res) {
 /**
  * Initializes a communication context for a connection.
  *
+ * On successful return, @p *ctx is set to a valid, non-NULL communication
+ * context that can be passed to other anj_net_* functions.
+ *
  * If a valid @p config pointer is supplied, it is used to configure the
  * context; otherwise, a @c NULL pointer is acceptable.
  *
  * @note This function does not block.
  *
- * @param[out] ctx    Created socket context.
+ * @param[out] ctx    Pointer to a pointer that will be set to the created
+ *                    communication context. Must not be NULL.
  * @param      config Optional configuration for initializing the socket
  *                    context.
  *
@@ -294,7 +366,7 @@ typedef int anj_net_create_ctx_t(anj_net_ctx_t **ctx,
  *
  * @note This function does not block.
  *
- * @param[inout] ctx Connection context to clean up.
+ * @param[inout] ctx Pointer to a communication context pointer to clean up.
  *
  * @return @ref ANJ_NET_OK          on success.
  *         @ref ANJ_NET_EINPROGRESS

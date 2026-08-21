@@ -2827,6 +2827,8 @@ ALIASES += anj_internal_fields_do_not_use="@warning **INTERNAL FIELDS**: This\
 type contains fields used internally by the Anjay Lite library. Do not access\
 them directly. They are not part of the public API."
 
+ALIASES += "experimental=\xrefitem experimentals \"Experimental\" \"Experimental List\""
+
 ALIASES += lwm2m_core="<a href=\"https://www.openmobilealliance.org/release/LightweightM2M/V1_2_2-20240613-A/OMA-TS-LightweightM2M_Core-V1_2_2-20240613-A.pdf\">OMA LwM2M Core Specification v1.2.2 \[OMA-TS-LightweightM2M_Core-V1_2_2-20240613-A\]</a>"
 
 ALIASES += lwm2m_transport="<a href=\"https://www.openmobilealliance.org/release/LightweightM2M/V1_2_2-20240613-A/OMA-TS-LightweightM2M_Transport-V1_2_2-20240613-A.pdf\">OMA LwM2M Transport Bindings Specification v1.2.2 \[OMA-TS-LightweightM2M_Transport-V1_2_2-20240613-A\]</a>"

@@ -11,6 +11,9 @@
 
 /**
  * @file
+ * @experimental This is an experimental crypto storage API. This API can change
+ * in the future versions without any notice.
+ *
  * @brief Platform hooks for external cryptographic storage.
  *
  * This header declares the API that platform integrators can implement
@@ -41,6 +44,9 @@ extern "C" {
 
 #        ifdef ANJ_WITH_PERSISTENCE
 /**
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
  * Maximum size of the persistence information used for storing cryptographic
  * data.
  */
@@ -48,6 +54,9 @@ extern "C" {
 #        endif // ANJ_WITH_PERSISTENCE
 
 /**
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
  * Called once in @ref anj_core_init to initialize the Cryptographic storage
  * module.
  *
@@ -60,59 +69,40 @@ extern "C" {
 int anj_crypto_storage_init(void **out_crypto_ctx);
 
 /**
- * Creates a new security information record.
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
+ * Creates and stores certificate or key data in the specified security record.
  *
  * This function is called to create a new security information record.
  * The implementation should allocate and initialize a new record on the
- * underlying storage side, which will then be populated with data in
- * subsequent calls to @ref anj_crypto_storage_store_data.
+ * underlying storage side, and then copy it from @p data.
  *
  * The @p out_info->tag and @p out_info->source are set by the caller to
  * identify the type and source of the security information being stored.
  *
+ * @note In case of an error, this function is responsible for performing any
+ *       necessary cleanup. Anjay will not call
+ *       @ref anj_crypto_storage_delete_record for records that were not
+ *       successfully created.
+ *
  * @param        crypto_ctx Cryptographic context.
  * @param[inout] out_info   Pointer to a structure that will receive the
  *                          newly created security information record.
+ * @param        data       Pointer to the data to store.
+ * @param        data_size  Size of the provided data chunk in bytes.
  *
  * @return 0 on success, or a negative value on failure.
  */
-int anj_crypto_storage_create_new_record(void *crypto_ctx,
-                                         anj_crypto_security_info_t *out_info);
+int anj_crypto_storage_create_record(void *crypto_ctx,
+                                     anj_crypto_security_info_t *out_info,
+                                     const void *data,
+                                     size_t data_size);
 
 /**
- * Stores certificate or key data in the specified security record.
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
  *
- * This function is always called after a successful call to
- * @ref anj_crypto_storage_create_new_record for the same security record.
- *
- * This function is called to store a portion (or the entirety) of the
- * certificate or key data in the record identified by @p info. Data may be
- * provided in multiple calls, in which case the implementation should append
- * each chunk to the existing record until the final chunk is received.
- *
- * When @p last_chunk is true, the implementation should finalize the storage
- * process and make the record ready for use.
- *
- * @note In case of any error during the storage process, Anjay will always call
- *       @ref anj_crypto_storage_delete_record.
- *
- * @note Only one security record can be created at a time.
- *
- * @param crypto_ctx Cryptographic context.
- * @param info       Identifier of the target security record.
- * @param data       Pointer to the data to store.
- * @param data_size  Size of the provided data chunk in bytes.
- * @param last_chunk True if this is the final data chunk.
- *
- * @return 0 on success, or a negative value on failure.
- */
-int anj_crypto_storage_store_data(void *crypto_ctx,
-                                  const anj_crypto_security_info_t *info,
-                                  const void *data,
-                                  size_t data_size,
-                                  bool last_chunk);
-
-/**
  * Deletes a security record.
  *
  * This function removes the certificate, key, or other security information
@@ -128,6 +118,9 @@ int anj_crypto_storage_delete_record(void *crypto_ctx,
                                      const anj_crypto_security_info_t *info);
 
 /**
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
  * Retrieves the security information from the storage.
  *
  * This function is called to load the security information from the storage
@@ -146,12 +139,42 @@ int anj_crypto_storage_delete_record(void *crypto_ctx,
  */
 int anj_crypto_storage_resolve_security_info(
         void *crypto_ctx,
-        anj_crypto_security_info_external_t *info,
+        const anj_crypto_security_info_external_t *info,
         char *out_buffer,
         size_t out_buffer_size,
         size_t *out_record_size);
 
+#        ifdef ANJ_WITH_EXTERNAL_SIGNING
 /**
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
+ * Populates the private key context with information required for externally
+ * performed signing operations, e.g. using an HSM or secure element.
+ *
+ * This function is used when the private key material is not directly available
+ * to the crypto backend. Instead, it provides backend-specific information that
+ * allows the backend to delegate signing to an external provider.
+ *
+ * @param      crypto_ctx      Cryptographic context.
+ * @param      info            Security record identifier.
+ * @param[out] out_pk_ctx      Private key context to be populated with
+ *                             backend-specific data required for signing. The
+ *                             exact type depends on the selected crypto
+ *                             backend.
+ *
+ * @returns 0 on success, or a negative value in case of error.
+ */
+int anj_crypto_storage_resolve_external_private_key_info(
+        void *crypto_ctx,
+        anj_crypto_security_info_external_t *info,
+        void *out_pk_ctx);
+#        endif // ANJ_WITH_EXTERNAL_SIGNING
+
+/**
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
  * Deinitializes the Cryptographic storage context.
  *
  * This function is called once in @ref anj_core_shutdown to clean up the
@@ -163,6 +186,9 @@ void anj_crypto_storage_deinit(void *out_crypto_ctx);
 
 #        ifdef ANJ_WITH_PERSISTENCE
 /**
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
  * Serializes key or certificate identification data from @ref
  * anj_crypto_security_info_external_t into the @ref ANJ_DATA_TYPE_BYTES format
  * for persistence.
@@ -190,12 +216,15 @@ int anj_crypto_storage_get_persistence_info(
         size_t *out_data_size);
 
 /**
+ * @experimental This is an experimental API. This API can change in the future
+ * versions without any notice.
+ *
  * This function is called by the Security Object to interpret the provided
  * @p data buffer and populate @p out_info with the corresponding key or
  * certificate identifier. It is the reverse operation of
  * @ref anj_crypto_storage_get_persistence_info.
  *
- * @note All data must be provided in single chunk.
+ * @note All data must be provided in a single chunk.
  *
  * @param      crypto_ctx Cryptographic context.
  * @param      data       Pointer to the data buffer containing the certificate

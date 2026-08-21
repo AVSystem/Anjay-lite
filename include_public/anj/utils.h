@@ -350,6 +350,28 @@ int anj_string_to_double_value(double *out_val,
                                const char *buff,
                                size_t buff_len);
 
+/**
+ * Encode a byte buffer as an uppercase hexadecimal string.
+ *
+ * The hexlified buffer is guaranteed to be NULL-terminated after the function
+ * returns.
+ *
+ * The caller must provide an output buffer large enough to hold the whole
+ * result together with the terminating null character, i.e. at least
+ * <tt>2 * data_len + 1</tt> bytes.
+ *
+ * @param[out] out_buff      Output buffer for the null-terminated hex string.
+ * @param      out_buff_size Size of @p out_buff in bytes.
+ * @param      data          Input byte buffer.
+ * @param      data_len      Length of @p data in bytes.
+ *
+ * @return 0 on success, -1 if @p out_buff is too small.
+ */
+int anj_hexlify(char *out_buff,
+                size_t out_buff_size,
+                const void *data,
+                size_t data_len);
+
 #    ifdef __cplusplus
 }
 #    endif

@@ -10,6 +10,7 @@
 import cbor2
 import collections
 import enum
+import struct
 import textwrap
 
 @enum.unique
@@ -75,6 +76,21 @@ class CBOR:
         return CborResourceList(CborResource(r) for r in cbor2.loads(data))
 
     @staticmethod
+    def _encode_float(encoder, value):
+        try:
+            packed32 = struct.pack(">f", value)
+            value32 = struct.unpack(">f", packed32)[0]
+
+            if value32 == value:
+                # float 32
+                encoder.write(b"\xfa" + packed32)
+                return
+        except OverflowError:
+            pass
+        # float 64
+        encoder.write(b"\xfb" + struct.pack(">d", value))
+
+    @staticmethod
     def serialize(entries) -> bytes:
         entry_list = []
         for e in entries:
@@ -86,4 +102,4 @@ class CBOR:
                     entry[k] = v
             entry_list += [ entry ]
 
-        return cbor2.dumps(entry_list)
+        return cbor2.dumps(entry_list, encoders={float: CBOR._encode_float})

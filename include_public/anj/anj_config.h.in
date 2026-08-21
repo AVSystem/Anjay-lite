@@ -105,8 +105,9 @@
 #cmakedefine ANJ_WITH_DEFAULT_SECURITY_OBJ
 
 /**
- * Configures the size of the buffer that holds Public Key or Identity
- * (/0/x/3 Resource).
+ * Configures the size of the buffer that holds the Public Key or Identity
+ * (/0/x/3 Resource). It also defines the size of a temporary buffer used
+ * by the default integration layer with MbedTLS when handling this credential.
  *
  * Default value: 255
  * It affects statically allocated RAM.
@@ -123,13 +124,23 @@
 #cmakedefine ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE @ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE@
 
 /**
- * Configures the size of the buffer that holds Secret Key
- * (/0/x/5 Resource).
+ * Configures the size of the buffer that holds the Secret Key
+ * (/0/x/5 Resource). It also defines the size of a temporary buffer used
+ * by the default integration layer with MbedTLS when handling this credential.
  *
  * Default value: 255
  * It affects statically allocated RAM.
  */
 #cmakedefine ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE @ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE@
+
+/**
+ * Configures the size of the buffer that holds Server Name Indication (SNI)
+ * (/0/x/14 Resource).
+ *
+ * Default value: 50
+ * It affects statically allocated RAM.
+ */
+#cmakedefine ANJ_SEC_OBJ_MAX_SNI_SIZE @ANJ_SEC_OBJ_MAX_SNI_SIZE@
 
 /******************************************************************************\
  * Server Object configuration
@@ -429,24 +440,7 @@
 #cmakedefine ANJ_WITH_MBEDTLS
 
 /**
- * Configures the maximum length of PSK Identity (used in PSK-based DTLS).
- *
- * Default value: 64
- *
- * This option is meaningful only if @ref ANJ_WITH_MBEDTLS is enabled.
-*/
-#cmakedefine ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN @ANJ_MBEDTLS_PSK_IDENTITY_MAX_LEN@
-
-/**
- * (D)TLS version supported by client, supported values are
- * MBEDTLS_SSL_VERSION_TLS1_2 and MBEDTLS_SSL_VERSION_TLS1_3.
- *
- * This option is meaningful only if @ref ANJ_WITH_MBEDTLS is enabled.
- */
-#cmakedefine ANJ_MBEDTLS_TLS_VERSION @ANJ_MBEDTLS_TLS_VERSION@
-
-/**
- * Defines the allowed ciphersuites for default MbedTLS DTLS sockets implementation.
+ * Defines the allowed ciphersuites for PSK mode in default MbedTLS DTLS sockets implementation.
  *
  * You may specify multiple ciphersuites as a comma-separated list.
  * Example: <c>MBEDTLS_TLS_PSK_WITH_AES_128_CBC_SHA256,MBEDTLS_TLS_PSK_WITH_AES_128_CCM_8</c>
@@ -456,7 +450,20 @@
  * @note Defaults to <c>MBEDTLS_TLS_PSK_WITH_AES_128_CCM_8,MBEDTLS_TLS_PSK_WITH_AES_256_CCM_8</c>
  *       if not defined.
  */
-#cmakedefine ANJ_MBEDTLS_ALLOWED_CIPHERSUITES @ANJ_MBEDTLS_ALLOWED_CIPHERSUITES@
+#cmakedefine ANJ_MBEDTLS_ALLOWED_PSK_CIPHERSUITES @ANJ_MBEDTLS_ALLOWED_PSK_CIPHERSUITES@
+
+/**
+ * Defines the allowed ciphersuites for certificates mode in default MbedTLS DTLS sockets implementation.
+ *
+ * You may specify multiple ciphersuites as a comma-separated list.
+ * Example: <c>MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8</c>
+ *
+ * This option is meaningful only if @ref ANJ_WITH_MBEDTLS is enabled.
+ *
+ * @note Defaults to <c>MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;MBEDTLS_TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8</c>
+ *       if not defined.
+ */
+#cmakedefine ANJ_MBEDTLS_ALLOWED_CERT_CIPHERSUITES @ANJ_MBEDTLS_ALLOWED_CERT_CIPHERSUITES@
 
 /**
  * Defines the initial handshake timeout value in milliseconds.
@@ -476,6 +483,14 @@
  */
 #cmakedefine ANJ_MBEDTLS_HS_MAXIMUM_TIMEOUT_VALUE_MS @ANJ_MBEDTLS_HS_MAXIMUM_TIMEOUT_VALUE_MS@
 
+/**
+ * Configures the size of the temporary buffer used by the default integration
+ * layer with MbedTLS when parsing trust store certificates.
+ * It specifies the maximum size of a single certificate (or chain).
+ *
+ * Default value: 255
+ */
+#cmakedefine ANJ_MBEDTLS_MAX_TRUST_STORE_CERTIFICATE_SIZE @ANJ_MBEDTLS_MAX_TRUST_STORE_CERTIFICATE_SIZE@
 /******************************************************************************\
  * Security configuration
 \******************************************************************************/
@@ -489,11 +504,26 @@
  *
  * If enabled, Anjay Lite will support certificate-based security mode
  * (/0/x/2 Resource in Security Object).
- *
- * @note This option will disable PSK-based security mode. NoSec mode
- *       will still be available.
  */
 #cmakedefine ANJ_WITH_CERTIFICATES
+
+/**
+ * Allow certificate-based DTLS connections without a configured server
+ * certificate.
+ *
+ * If this option is disabled, certificate-based security mode requires Server
+ * Public Key (/0/x/4 Resource in Security Object) to be configured. Missing
+ * server certificate is treated as a configuration error.
+ *
+ * If this option is enabled, the MbedTLS integration layer disables server
+ * certificate verification for that connection.
+ *
+ * @warning Enabling this option makes certificate-based connections insecure
+ *          against man-in-the-middle attacks. It should only be used in tests.
+ *
+ * This option is meaningful only if @ref ANJ_WITH_CERTIFICATES is enabled.
+ */
+#cmakedefine ANJ_ALLOW_INSECURE_SERVER_CERTIFICATE_SKIP
 
 /**
  * Enable support for external crypto storage API.
@@ -505,6 +535,19 @@
  * crypto storage API to store all provided security information.
  */
 #cmakedefine ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
+/**
+ * Enable support for externally performed signing operations.
+ *
+ * If enabled, the user must provide an implementation of the signing function
+ * required by the selected crypto backend, as well as
+ * @ref anj_crypto_storage_resolve_external_private_key_info(), which supplies
+ * backend-specific private key information required to perform signing without
+ * exposing the private key material.
+ *
+ * Requires @ref ANJ_WITH_EXTERNAL_CRYPTO_STORAGE to be enabled.
+ */
+#cmakedefine ANJ_WITH_EXTERNAL_SIGNING
 
 /******************************************************************************\
  * Data Formats configuration

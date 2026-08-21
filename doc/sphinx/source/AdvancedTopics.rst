@@ -16,6 +16,9 @@ Advanced Topics
    AdvancedTopics/AT-ConnectivityErrors
    AdvancedTopics/AT-Observations
    AdvancedTopics/AT-Bootstrap
+   AdvancedTopics/AT-Certificates
+   AdvancedTopics/AT-TrustStore
+   AdvancedTopics/AT-CertificateUsage
    AdvancedTopics/AT-QueueMode
    AdvancedTopics/AT-Transactions
    AdvancedTopics/AT-Logger
@@ -27,3 +30,5 @@ Advanced Topics
    AdvancedTopics/AT-MultiInstanceResource
    AdvancedTopics/AT-MultiInstanceResourceDynamic
    AdvancedTopics/AT-ExternalDataTypes
+   AdvancedTopics/AT-CryptoStorage
+   AdvancedTopics/AT-MbedTLSBestPractices

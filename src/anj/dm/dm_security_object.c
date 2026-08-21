@@ -12,6 +12,7 @@
 #define ANJ_LOG_SOURCE_FILE_ID 27
 
 #include <assert.h>
+#include <inttypes.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -28,8 +29,11 @@
 #ifdef ANJ_WITH_SECURITY
 #    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 #        include <anj/compat/crypto/storage.h>
+#        include <anj/compat/crypto/zeroize.h>
 #    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+#    include <anj/compat/net/anj_net_api.h>
 #    include <anj/crypto.h>
+#    include <anj/security.h>
 #endif // ANJ_WITH_SECURITY
 
 #ifdef ANJ_WITH_PERSISTENCE
@@ -37,8 +41,6 @@
 #endif // ANJ_WITH_PERSISTENCE
 
 #ifdef ANJ_WITH_DEFAULT_SECURITY_OBJ
-
-#    define ANJ_DM_SECURITY_RESOURCES_COUNT 8
 
 /*
  * Security Object Resources IDs
@@ -52,6 +54,12 @@ enum anj_dm_security_resources {
     ANJ_DM_SECURITY_RID_SECRET_KEY = 5,
     ANJ_DM_SECURITY_RID_SSID = 10,
     ANJ_DM_SECURITY_RID_CLIENT_HOLD_OFF_TIME = 11,
+#    ifdef ANJ_WITH_SECURITY
+    ANJ_DM_SECURITY_RID_SNI = 14,
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_CERTIFICATES
+    ANJ_DM_SECURITY_RID_CERTIFICATE_USAGE = 15,
+#    endif // ANJ_WITH_CERTIFICATES
 };
 
 enum security_resources_idx {
@@ -63,14 +71,16 @@ enum security_resources_idx {
     SECRET_KEY_IDX,
     SSID_IDX,
     CLIENT_HOLD_OFF_TIME_IDX,
+#    ifdef ANJ_WITH_SECURITY
+    SNI_IDX,
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_CERTIFICATES
+    CERTIFICATE_USAGE_IDX,
+#    endif // ANJ_WITH_CERTIFICATES
     _SECURITY_OBJ_RESOURCES_COUNT
 };
 
-ANJ_STATIC_ASSERT(ANJ_DM_SECURITY_RESOURCES_COUNT
-                          == _SECURITY_OBJ_RESOURCES_COUNT,
-                  security_resources_count_mismatch);
-
-static const anj_dm_res_t RES[ANJ_DM_SECURITY_RESOURCES_COUNT] = {
+static const anj_dm_res_t RES[_SECURITY_OBJ_RESOURCES_COUNT] = {
     [SERVER_URI_IDX] = {
         .rid = ANJ_DM_SECURITY_RID_SERVER_URI,
         .type = ANJ_DATA_TYPE_STRING,
@@ -111,6 +121,20 @@ static const anj_dm_res_t RES[ANJ_DM_SECURITY_RESOURCES_COUNT] = {
         .type = ANJ_DATA_TYPE_INT,
         .kind = ANJ_DM_RES_RW
     },
+#    ifdef ANJ_WITH_SECURITY
+    [SNI_IDX] = {
+        .rid = ANJ_DM_SECURITY_RID_SNI,
+        .type = ANJ_DATA_TYPE_STRING,
+        .kind = ANJ_DM_RES_RW
+    },
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_CERTIFICATES
+    [CERTIFICATE_USAGE_IDX] = {
+        .rid = ANJ_DM_SECURITY_RID_CERTIFICATE_USAGE,
+        .type = ANJ_DATA_TYPE_UINT,
+        .kind = ANJ_DM_RES_RW
+    },
+#    endif // ANJ_WITH_CERTIFICATES
 };
 
 static void initialize_instance(anj_dm_security_instance_t *inst,
@@ -118,6 +142,10 @@ static void initialize_instance(anj_dm_security_instance_t *inst,
     assert(inst);
     memset(inst, 0, sizeof(anj_dm_security_instance_t));
     inst->iid = iid;
+
+#    ifdef ANJ_WITH_CERTIFICATES
+    inst->certificate_usage = ANJ_NET_CERTIFICATE_DOMAIN_ISSUED_CERTIFICATE;
+#    endif // ANJ_WITH_CERTIFICATES
 }
 
 static anj_iid_t find_free_iid(anj_dm_security_obj_t *security_obj_ctx) {
@@ -150,7 +178,18 @@ static bool valid_uri_scheme(const char *uri) {
 
 static bool valid_security_mode(int64_t mode) {
     /* LwM2M specification defines modes in range 0..4 */
-    return mode >= ANJ_DM_SECURITY_PSK && mode <= ANJ_DM_SECURITY_EST;
+    if (mode == ANJ_DM_SECURITY_NOSEC
+#    ifdef ANJ_WITH_SECURITY
+            || mode == ANJ_DM_SECURITY_PSK
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_CERTIFICATES
+            || mode == ANJ_DM_SECURITY_CERTIFICATE
+#    endif // ANJ_WITH_CERTIFICATES
+    ) {
+        return true;
+    }
+    dm_log(L_ERROR, "Invalid security mode: %" PRIi64, mode);
+    return false;
 }
 
 static int validate_instance(anj_dm_security_instance_t *inst) {
@@ -160,6 +199,11 @@ static int validate_instance(anj_dm_security_instance_t *inst) {
     if (!valid_uri_scheme(inst->server_uri)
             || !valid_security_mode((int64_t) inst->security_mode)
             || inst->ssid == ANJ_ID_INVALID
+#    ifdef ANJ_WITH_CERTIFICATES
+            || inst->certificate_usage < ANJ_NET_CERTIFICATE_CA_CONSTRAINT
+            || inst->certificate_usage
+                           > ANJ_NET_CERTIFICATE_DOMAIN_ISSUED_CERTIFICATE
+#    endif // ANJ_WITH_CERTIFICATES
             || (inst->ssid == _ANJ_SSID_BOOTSTRAP && !inst->bootstrap_server)) {
         dm_log(L_ERROR, "Invalid Security Object instance configuration");
         return -1;
@@ -180,47 +224,23 @@ static anj_dm_security_instance_t *find_sec_inst(const anj_dm_obj_t *obj,
 }
 
 #    ifdef ANJ_WITH_SECURITY
-static int write_security_info(anj_t *anj,
-                               const anj_res_value_t *value,
+static int write_security_info(const anj_res_value_t *value,
                                anj_crypto_security_info_t *sec_info,
                                uint8_t *buffer,
                                size_t buffer_len,
-                               anj_crypto_security_tag_t tag) {
-#        ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
-    (void) buffer;
-    (void) buffer_len;
-    int res = 0;
-    if (sec_info->source == ANJ_CRYPTO_DATA_SOURCE_EMPTY) {
-        // set basic security info before storing data
-        sec_info->source = ANJ_CRYPTO_DATA_SOURCE_EXTERNAL;
-        sec_info->tag = tag;
-        res = anj_crypto_storage_create_new_record(anj->crypto_ctx, sec_info);
-        if (res) {
-            dm_log(L_ERROR, "Failed to create new security record: %d", res);
-            return res;
-        }
-    }
-    bool last_chunk =
-            value->bytes_or_string.offset + value->bytes_or_string.chunk_length
-            == value->bytes_or_string.full_length_hint;
-    res = anj_crypto_storage_store_data(anj->crypto_ctx,
-                                        sec_info,
-                                        value->bytes_or_string.data,
-                                        value->bytes_or_string.chunk_length,
-                                        last_chunk);
-    if (res) {
-        dm_log(L_ERROR, "Failed to store security data: %d", res);
-        return res;
-    }
-    return 0;
-#        else  // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
-    (void) anj;
-    (void) tag;
+                               const char *label) {
+    // If ANJ_WITH_EXTERNAL_CRYPTO_STORAGE is enabled, transaction_validate():
+    // - changes the data source
+    // - copies data to external storage
     sec_info->source = ANJ_CRYPTO_DATA_SOURCE_BUFFER;
     sec_info->info.buffer.data = buffer;
-    return anj_dm_write_bytes_chunked(value, buffer, buffer_len,
-                                      &sec_info->info.buffer.data_size, NULL);
-#        endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    int res =
+            anj_dm_write_bytes_chunked(value, buffer, buffer_len,
+                                       &sec_info->info.buffer.data_size, NULL);
+    if (res) {
+        dm_log(L_ERROR, "Buffer for %s is not big enough", label);
+    }
+    return res;
 }
 #    endif // ANJ_WITH_SECURITY
 
@@ -250,31 +270,20 @@ static int res_write(anj_t *anj,
         break;
 #    ifdef ANJ_WITH_SECURITY
     case ANJ_DM_SECURITY_RID_PUBLIC_KEY_OR_IDENTITY:
-        return write_security_info(anj, value,
-                                   &sec_inst->public_key_or_identity,
+        return write_security_info(value, &sec_inst->public_key_or_identity,
                                    sec_inst->public_key_or_identity_buff,
                                    ANJ_SEC_OBJ_MAX_PUBLIC_KEY_OR_IDENTITY_SIZE,
-#        ifdef ANJ_WITH_CERTIFICATES
-                                   ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN
-#        else  // ANJ_WITH_CERTIFICATES
-                                   ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY
-#        endif // ANJ_WITH_CERTIFICATES
-        );
+                                   "psk identity/client's cert");
     case ANJ_DM_SECURITY_RID_SERVER_PUBLIC_KEY:
-        return write_security_info(anj, value, &sec_inst->server_public_key,
+        return write_security_info(value, &sec_inst->server_public_key,
                                    sec_inst->server_public_key_buff,
                                    ANJ_SEC_OBJ_MAX_SERVER_PUBLIC_KEY_SIZE,
-                                   ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN);
+                                   "server's cert");
     case ANJ_DM_SECURITY_RID_SECRET_KEY:
-        return write_security_info(anj, value, &sec_inst->secret_key,
+        return write_security_info(value, &sec_inst->secret_key,
                                    sec_inst->secret_key_buff,
                                    ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE,
-#        ifdef ANJ_WITH_CERTIFICATES
-                                   ANJ_CRYPTO_SECURITY_TAG_PRIVATE_KEY
-#        else  // ANJ_WITH_CERTIFICATES
-                                   ANJ_CRYPTO_SECURITY_TAG_PSK_KEY
-#        endif // ANJ_WITH_CERTIFICATES
-        );
+                                   "private key");
 #    else  // ANJ_WITH_SECURITY
     case ANJ_DM_SECURITY_RID_PUBLIC_KEY_OR_IDENTITY:
     case ANJ_DM_SECURITY_RID_SERVER_PUBLIC_KEY:
@@ -294,6 +303,21 @@ static int res_write(anj_t *anj,
         }
         sec_inst->client_hold_off_time = (uint32_t) value->int_value;
         break;
+#    ifdef ANJ_WITH_SECURITY
+    case ANJ_DM_SECURITY_RID_SNI:
+        return anj_dm_write_string_chunked(
+                value, sec_inst->server_name_indication,
+                sizeof(sec_inst->server_name_indication), NULL);
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_CERTIFICATES
+    case ANJ_DM_SECURITY_RID_CERTIFICATE_USAGE:
+        if (value->uint_value > ANJ_NET_CERTIFICATE_DOMAIN_ISSUED_CERTIFICATE) {
+            return ANJ_DM_ERR_BAD_REQUEST;
+        }
+        sec_inst->certificate_usage =
+                (anj_net_certificate_usage_t) value->uint_value;
+        break;
+#    endif // ANJ_WITH_CERTIFICATES
     default:
         return ANJ_DM_ERR_NOT_FOUND;
     }
@@ -333,6 +357,16 @@ static int res_read(anj_t *anj,
     case ANJ_DM_SECURITY_RID_CLIENT_HOLD_OFF_TIME:
         out_value->int_value = sec_inst->client_hold_off_time;
         break;
+#    ifdef ANJ_WITH_SECURITY
+    case ANJ_DM_SECURITY_RID_SNI:
+        out_value->bytes_or_string.data = sec_inst->server_name_indication;
+        break;
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_CERTIFICATES
+    case ANJ_DM_SECURITY_RID_CERTIFICATE_USAGE:
+        out_value->uint_value = sec_inst->certificate_usage;
+        break;
+#    endif // ANJ_WITH_CERTIFICATES
     default:
         return ANJ_DM_ERR_NOT_FOUND;
     }
@@ -371,35 +405,25 @@ static int inst_create(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
     // anj_dm_security_obj_init()
     insert_new_instance(ctx, ANJ_ID_INVALID, iid);
     initialize_instance(sec_inst, iid);
-    // in case of failure, iid will be set to ANJ_ID_INVALID
-    ctx->new_instance_iid = iid;
     return 0;
 }
-
-#        ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
-static void maybe_delete_external_data(anj_t *anj,
-                                       anj_crypto_security_info_t *info) {
-    if (info->source == ANJ_CRYPTO_DATA_SOURCE_EXTERNAL) {
-        // don't check return value, as it is not important
-        anj_crypto_storage_delete_record(anj->crypto_ctx, info);
-        info->source = ANJ_CRYPTO_DATA_SOURCE_EMPTY;
-    }
-}
-#        endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
 static int inst_delete(anj_t *anj, const anj_dm_obj_t *obj, anj_iid_t iid) {
     (void) anj;
     anj_dm_security_obj_t *ctx =
             ANJ_CONTAINER_OF(obj, anj_dm_security_obj_t, obj);
     anj_dm_security_instance_t *sec_inst = find_sec_inst(obj, iid);
-#        ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
-    assert(sec_inst);
-    maybe_delete_external_data(anj, &sec_inst->public_key_or_identity);
-    maybe_delete_external_data(anj, &sec_inst->server_public_key);
-    maybe_delete_external_data(anj, &sec_inst->secret_key);
-#        endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
     sec_inst->iid = ANJ_ID_INVALID;
     insert_new_instance(ctx, iid, ANJ_ID_INVALID);
+    // Do not call anj_crypto_storage_delete_record() here, because in case of
+    // transaction rollback the record won't be restored. Instead, the record
+    // will be deleted in offload_keys_and_certs() if the source of the security
+    // info has changed.
+#        ifdef ANJ_WITH_SECURITY
+    sec_inst->server_public_key.source = ANJ_CRYPTO_DATA_SOURCE_EMPTY;
+    sec_inst->public_key_or_identity.source = ANJ_CRYPTO_DATA_SOURCE_EMPTY;
+    sec_inst->secret_key.source = ANJ_CRYPTO_DATA_SOURCE_EMPTY;
+#        endif // ANJ_WITH_SECURITY
     return 0;
 }
 #    endif // ANJ_WITH_BOOTSTRAP
@@ -419,9 +443,108 @@ static int transaction_begin(anj_t *anj, const anj_dm_obj_t *obj) {
            ctx->security_instances,
            sizeof(ctx->security_instances));
     memcpy(ctx->cache_inst, ctx->inst, sizeof(ctx->inst));
-    ctx->new_instance_iid = ANJ_ID_INVALID;
     return 0;
 }
+
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
+static int move_security_credentials_to_external_storage(
+        anj_t *anj, anj_dm_security_instance_t *inst) {
+    // info union is overwritten so we need to store buffer info
+    anj_crypto_security_info_t temp[3] = {
+        {
+            .source = ANJ_CRYPTO_DATA_SOURCE_EMPTY
+        },
+        {
+            .source = ANJ_CRYPTO_DATA_SOURCE_EMPTY
+        },
+        {
+            .source = ANJ_CRYPTO_DATA_SOURCE_EMPTY
+        }
+    };
+
+    anj_crypto_security_info_t *sec_info = &inst->public_key_or_identity;
+    // move all records stored locally to the external module
+    if (sec_info->source == ANJ_CRYPTO_DATA_SOURCE_BUFFER
+            && sec_info->info.buffer.data_size) {
+        temp[0] = *sec_info;
+        sec_info->tag = inst->security_mode == ANJ_DM_SECURITY_PSK
+                                ? ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY
+                                : ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN;
+        if (anj_crypto_storage_create_record(anj->crypto_ctx, sec_info,
+                                             temp[0].info.buffer.data,
+                                             temp[0].info.buffer.data_size)) {
+            goto restore_security_info;
+        }
+        sec_info->source = ANJ_CRYPTO_DATA_SOURCE_EXTERNAL;
+    }
+    sec_info = &inst->secret_key;
+    if (sec_info->source == ANJ_CRYPTO_DATA_SOURCE_BUFFER
+            && sec_info->info.buffer.data_size) {
+        temp[1] = *sec_info;
+        sec_info->tag = inst->security_mode == ANJ_DM_SECURITY_PSK
+                                ? ANJ_CRYPTO_SECURITY_TAG_PSK_KEY
+                                : ANJ_CRYPTO_SECURITY_TAG_PRIVATE_KEY;
+        if (anj_crypto_storage_create_record(anj->crypto_ctx, sec_info,
+                                             temp[1].info.buffer.data,
+                                             temp[1].info.buffer.data_size)) {
+            goto restore_security_info;
+        }
+        sec_info->source = ANJ_CRYPTO_DATA_SOURCE_EXTERNAL;
+    }
+    sec_info = &inst->server_public_key;
+    if (sec_info->source == ANJ_CRYPTO_DATA_SOURCE_BUFFER
+            && sec_info->info.buffer.data_size) {
+        temp[2] = *sec_info;
+        sec_info->tag = ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN;
+        if (anj_crypto_storage_create_record(anj->crypto_ctx, sec_info,
+                                             temp[2].info.buffer.data,
+                                             temp[2].info.buffer.data_size)) {
+            goto restore_security_info;
+        }
+        sec_info->source = ANJ_CRYPTO_DATA_SOURCE_EXTERNAL;
+    }
+    dm_log(L_INFO,
+           "Security credentials from /0/%" PRIu16 " moved to external storage",
+           inst->iid);
+    return 0;
+
+restore_security_info:
+    dm_log(L_ERROR, "Failed to move security credentials to external storage, "
+                    "restoring previous state");
+    // If temp[].source is set, it means that we called
+    // anj_crypto_storage_create_record but the function might have failed
+    // before creating a file and setting external.identity. We check if
+    // sec_info->source is set to ANJ_CRYPTO_DATA_SOURCE_EXTERNAL to indicate
+    // that the record was created. If it was, delete it and restore the
+    // original data source.
+    if (temp[0].source != ANJ_CRYPTO_DATA_SOURCE_EMPTY) {
+        sec_info = &inst->public_key_or_identity;
+        if (sec_info->source == ANJ_CRYPTO_DATA_SOURCE_EXTERNAL) {
+            anj_crypto_storage_delete_record(anj->crypto_ctx, sec_info);
+        }
+        *sec_info = temp[0];
+    }
+    if (temp[1].source != ANJ_CRYPTO_DATA_SOURCE_EMPTY) {
+        sec_info = &inst->secret_key;
+        if (sec_info->source == ANJ_CRYPTO_DATA_SOURCE_EXTERNAL) {
+            anj_crypto_storage_delete_record(anj->crypto_ctx, sec_info);
+        }
+        *sec_info = temp[1];
+    }
+    if (temp[2].source != ANJ_CRYPTO_DATA_SOURCE_EMPTY) {
+        /* Calling anj_crypto_storage_delete_record for the last record is not
+         * needed because if the source is set to
+         * ANJ_CRYPTO_DATA_SOURCE_EXTERNAL then there was no error. If it is not
+         * set to ANJ_CRYPTO_DATA_SOURCE_EXTERNAL then
+         * anj_crypto_storage_create_record should have performed the cleaning.
+         */
+        sec_info = &inst->server_public_key;
+        *sec_info = temp[2];
+    }
+    return -1;
+}
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
 
 static int transaction_validate(anj_t *anj, const anj_dm_obj_t *obj) {
     (void) anj;
@@ -444,25 +567,6 @@ static void transaction_end(anj_t *anj,
     (void) anj;
     anj_dm_security_obj_t *ctx =
             ANJ_CONTAINER_OF(obj, anj_dm_security_obj_t, obj);
-    // for Delete operation, there is no possibility of failure
-#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
-    // delete external data for failed transaction
-    if (result == ANJ_DM_TRANSACTION_FAILURE) {
-        for (uint16_t idx = 0; idx < ANJ_DM_SECURITY_OBJ_INSTANCES; idx++) {
-            anj_dm_security_instance_t *sec_inst =
-                    &ctx->security_instances[idx];
-            // new_instance_iid is set only for inst_create, so we can
-            // safely check if it is not ANJ_ID_INVALID
-            if (sec_inst->iid == ANJ_ID_INVALID
-                    || sec_inst->iid != ctx->new_instance_iid) {
-                continue;
-            }
-            maybe_delete_external_data(anj, &sec_inst->public_key_or_identity);
-            maybe_delete_external_data(anj, &sec_inst->server_public_key);
-            maybe_delete_external_data(anj, &sec_inst->secret_key);
-        }
-    }
-#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
     if (result == ANJ_DM_TRANSACTION_FAILURE) {
         memcpy(ctx->security_instances,
                ctx->cache_security_instances,
@@ -559,8 +663,14 @@ int anj_dm_security_obj_add_instance(
         dm_log(L_ERROR, "Server URI too long");
         return -1;
     }
-
 #    ifdef ANJ_WITH_SECURITY
+    if (instance->server_name_indication
+            && strlen(instance->server_name_indication)
+                           > sizeof(sec_inst->server_name_indication) - 1) {
+        dm_log(L_ERROR, "SNI too long");
+        return -1;
+    }
+
     if (copy_security_info(&sec_inst->public_key_or_identity,
                            &instance->public_key_or_identity,
                            sec_inst->public_key_or_identity_buff,
@@ -584,6 +694,17 @@ int anj_dm_security_obj_add_instance(
 #    endif // ANJ_WITH_SECURITY
 
     strcpy(sec_inst->server_uri, instance->server_uri);
+#    ifdef ANJ_WITH_SECURITY
+    if (instance->server_name_indication) {
+        strcpy(sec_inst->server_name_indication,
+               instance->server_name_indication);
+    }
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_CERTIFICATES
+    if (instance->certificate_usage) {
+        sec_inst->certificate_usage = *instance->certificate_usage;
+    }
+#    endif // ANJ_WITH_CERTIFICATES
     sec_inst->bootstrap_server = instance->bootstrap_server;
     sec_inst->ssid =
             sec_inst->bootstrap_server ? _ANJ_SSID_BOOTSTRAP : instance->ssid;
@@ -603,6 +724,157 @@ int anj_dm_security_obj_add_instance(
     return 0;
 }
 
+#    ifdef ANJ_WITH_SECURITY
+static int get_psk_info(const anj_t *anj,
+                        bool bootstrap_credentials,
+                        anj_net_psk_info_t *out_psk_info) {
+    assert(anj && out_psk_info);
+    const anj_dm_obj_t *obj = anj->dm.objs[0];
+    // security object is always the first one
+    assert(obj && obj->oid == ANJ_OBJ_ID_SECURITY);
+    anj_dm_security_obj_t *ctx =
+            ANJ_CONTAINER_OF(obj, anj_dm_security_obj_t, obj);
+
+    for (int i = 0; i < ANJ_DM_SECURITY_OBJ_INSTANCES; i++) {
+        anj_dm_security_instance_t *sec_inst = &ctx->security_instances[i];
+        if (sec_inst->security_mode != ANJ_DM_SECURITY_PSK
+                || sec_inst->iid == ANJ_ID_INVALID
+                || sec_inst->bootstrap_server != bootstrap_credentials) {
+            continue;
+        }
+        out_psk_info->sni = sec_inst->server_name_indication;
+        out_psk_info->identity = sec_inst->public_key_or_identity;
+        out_psk_info->key = sec_inst->secret_key;
+        // because security object don't use tags, we set them here
+        out_psk_info->identity.tag = ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY;
+        out_psk_info->key.tag = ANJ_CRYPTO_SECURITY_TAG_PSK_KEY;
+        return 0;
+    }
+    dm_log(L_ERROR, "No PSK found for the server");
+    return ANJ_DM_ERR_NOT_FOUND;
+}
+#    endif // ANJ_WITH_SECURITY
+
+#    ifdef ANJ_WITH_CERTIFICATES
+static int get_cert_info(const anj_t *anj,
+                         bool bootstrap_credentials,
+                         anj_net_certificate_info_t *out_cert_info) {
+    assert(anj && out_cert_info);
+    const anj_dm_obj_t *obj = anj->dm.objs[0];
+    // security object is always the first one
+    assert(obj && obj->oid == ANJ_OBJ_ID_SECURITY);
+    anj_dm_security_obj_t *ctx =
+            ANJ_CONTAINER_OF(obj, anj_dm_security_obj_t, obj);
+
+    for (int i = 0; i < ANJ_DM_SECURITY_OBJ_INSTANCES; i++) {
+        anj_dm_security_instance_t *sec_inst = &ctx->security_instances[i];
+        if (sec_inst->security_mode != ANJ_DM_SECURITY_CERTIFICATE
+                || sec_inst->iid == ANJ_ID_INVALID
+                || sec_inst->bootstrap_server != bootstrap_credentials) {
+            continue;
+        }
+        out_cert_info->private_key = sec_inst->secret_key;
+        out_cert_info->client_cert = sec_inst->public_key_or_identity;
+        out_cert_info->server_cert = sec_inst->server_public_key;
+        out_cert_info->sni = sec_inst->server_name_indication;
+        out_cert_info->certificate_usage = sec_inst->certificate_usage;
+        // because security object don't use tags, we set them here
+        out_cert_info->private_key.tag = ANJ_CRYPTO_SECURITY_TAG_PRIVATE_KEY;
+        out_cert_info->client_cert.tag =
+                ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN;
+        out_cert_info->server_cert.tag =
+                ANJ_CRYPTO_SECURITY_TAG_CERTIFICATE_CHAIN;
+        return 0;
+    }
+    dm_log(L_ERROR, "No certificates found for the server");
+    return ANJ_DM_ERR_NOT_FOUND;
+}
+#    endif // ANJ_WITH_CERTIFICATES
+
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+static void maybe_delete_external_data(anj_t *anj,
+                                       anj_crypto_security_info_t *info) {
+    if (info->source == ANJ_CRYPTO_DATA_SOURCE_EXTERNAL) {
+        // don't check return value, as it is not important
+        anj_crypto_storage_delete_record(anj->crypto_ctx, info);
+        info->source = ANJ_CRYPTO_DATA_SOURCE_EMPTY;
+    }
+}
+
+static int offload_keys_and_certs(anj_t *anj) {
+    assert(anj);
+    const anj_dm_obj_t *obj = anj->dm.objs[0];
+    // security object is always the first one
+    assert(obj && obj->oid == ANJ_OBJ_ID_SECURITY);
+    anj_dm_security_obj_t *ctx =
+            ANJ_CONTAINER_OF(obj, anj_dm_security_obj_t, obj);
+
+    // Start from removing the credentials from the external storage - if cached
+    // instance is different from the current instance, it means that the
+    // record was modified or deleted, so we need to remove it. This function is
+    // called after successful bootstrap procedure, so we don't need to worry
+    // about restoring the records in case of failure.
+    for (uint16_t idx = 0; idx < ANJ_DM_SECURITY_OBJ_INSTANCES; idx++) {
+        anj_dm_security_instance_t *sec_inst = &ctx->security_instances[idx];
+        anj_dm_security_instance_t *cached_sec_inst =
+                &ctx->cache_security_instances[idx];
+        // .source is set to ANJ_CRYPTO_DATA_SOURCE_EMPTY when the record is
+        // deleted, and to ANJ_CRYPTO_DATA_SOURCE_BUFFER when the record is
+        // updated, so we can just compare the .source to determine if the
+        // record was modified or deleted.
+        if (sec_inst->public_key_or_identity.source
+                != cached_sec_inst->public_key_or_identity.source) {
+            maybe_delete_external_data(
+                    anj, &cached_sec_inst->public_key_or_identity);
+        }
+        if (sec_inst->server_public_key.source
+                != cached_sec_inst->server_public_key.source) {
+            maybe_delete_external_data(anj,
+                                       &cached_sec_inst->server_public_key);
+        }
+        if (sec_inst->secret_key.source != cached_sec_inst->secret_key.source) {
+            maybe_delete_external_data(anj, &cached_sec_inst->secret_key);
+        }
+    }
+
+    // move keys/certs to external storage, if they are stored in
+    // internal buffers.
+    for (uint16_t idx = 0; idx < ANJ_DM_SECURITY_OBJ_INSTANCES; idx++) {
+        anj_dm_security_instance_t *sec_inst = &ctx->security_instances[idx];
+        if (sec_inst->iid != ANJ_ID_INVALID) {
+            if (move_security_credentials_to_external_storage(anj, sec_inst)) {
+                return -1;
+            }
+        }
+    }
+
+    /**
+     * After moving all of the credentials to the external storage clean the
+     * buffer containing the private key
+     */
+    for (uint16_t idx = 0; idx < ANJ_DM_SECURITY_OBJ_INSTANCES; idx++) {
+        anj_dm_security_instance_t *sec_inst = &ctx->security_instances[idx];
+        if (sec_inst->iid != ANJ_ID_INVALID) {
+            anj_crypto_zeroize(sec_inst->secret_key_buff,
+                               ANJ_SEC_OBJ_MAX_SECRET_KEY_SIZE);
+        }
+    }
+    return 0;
+}
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
+#    ifdef ANJ_WITH_SECURITY
+static const anj_security_credential_handlers_t CREDENTIALS_HANDLERS = {
+    .get_psk_info = get_psk_info,
+#        ifdef ANJ_WITH_CERTIFICATES
+    .get_cert_info = get_cert_info,
+#        endif // ANJ_WITH_CERTIFICATES
+#        ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    .offload_keys_and_certs = offload_keys_and_certs
+#        endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+};
+#    endif // ANJ_WITH_SECURITY
+
 int anj_dm_security_obj_install(anj_t *anj,
                                 anj_dm_security_obj_t *security_obj_ctx) {
     assert(anj && security_obj_ctx);
@@ -612,42 +884,23 @@ int anj_dm_security_obj_install(anj_t *anj,
         return res;
     }
     dm_log(L_INFO, "Security Object installed");
+
+#    ifdef ANJ_WITH_SECURITY
+    anj_security_register_credential_handlers(anj, &CREDENTIALS_HANDLERS);
+#    endif // ANJ_WITH_SECURITY
+#    ifdef ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+    // Move keys/certs to external storage, if they are stored in internal
+    // buffers. Do this before bootstrap.
+    if (anj->security_credential_handlers->offload_keys_and_certs(anj)) {
+        dm_log(L_ERROR,
+               "Failed to move security credentials to external storage");
+        return -1;
+    }
+#    endif // ANJ_WITH_EXTERNAL_CRYPTO_STORAGE
+
     security_obj_ctx->installed = true;
     return 0;
 }
-
-#    ifdef ANJ_WITH_SECURITY
-
-int anj_dm_security_obj_get_psk(const anj_t *anj,
-                                bool bootstrap_credentials,
-                                anj_crypto_security_info_t *out_psk_identity,
-                                anj_crypto_security_info_t *out_psk_key) {
-    assert(anj && out_psk_identity && out_psk_key);
-    const anj_dm_obj_t *obj = anj->dm.objs[0];
-    // security object is always the first one
-    assert(obj && obj->oid == ANJ_OBJ_ID_SECURITY);
-    anj_dm_security_obj_t *ctx =
-            ANJ_CONTAINER_OF(obj, anj_dm_security_obj_t, obj);
-
-    for (int i = 0; i < ANJ_DM_SECURITY_OBJ_INSTANCES; i++) {
-        anj_dm_security_instance_t *sec_inst = &ctx->security_instances[i];
-        if (sec_inst->iid == ANJ_ID_INVALID) {
-            continue;
-        }
-        if (sec_inst->bootstrap_server != bootstrap_credentials) {
-            continue;
-        }
-        *out_psk_identity = sec_inst->public_key_or_identity;
-        *out_psk_key = sec_inst->secret_key;
-        // because security object don't use tags, we set them here
-        out_psk_identity->tag = ANJ_CRYPTO_SECURITY_TAG_PSK_IDENTITY;
-        out_psk_key->tag = ANJ_CRYPTO_SECURITY_TAG_PSK_KEY;
-        return 0;
-    }
-    dm_log(L_ERROR, "No PSK found for the server");
-    return ANJ_DM_ERR_NOT_FOUND;
-}
-#    endif // ANJ_WITH_SECURITY
 
 #    ifdef ANJ_WITH_PERSISTENCE
 
@@ -664,12 +917,19 @@ int anj_dm_security_obj_get_psk(const anj_t *anj,
 #            define HAS_BOOTSTRAP_SUPPORT 0x00u
 #        endif
 
+#        ifdef ANJ_WITH_CERTIFICATES
+#            define HAS_CERTIFICATES_SUPPORT 0x01u
+#        else
+#            define HAS_CERTIFICATES_SUPPORT 0x00u
+#        endif
+
 static const uint8_t g_persistence_header[] = { 'S',
                                                 'E',
                                                 'C',
-                                                0x01, // version
+                                                0x02, // version
                                                 HAS_SECURITY_SUPPORT,
-                                                HAS_BOOTSTRAP_SUPPORT };
+                                                HAS_BOOTSTRAP_SUPPORT,
+                                                HAS_CERTIFICATES_SUPPORT };
 
 #        ifdef ANJ_WITH_SECURITY
 // store: source - u8, size - u32, data - u8[]
@@ -783,6 +1043,9 @@ static int instance_persistence(anj_t *anj,
     anj_dm_security_instance_t *sec_inst =
             &security_obj_ctx->security_instances[idx];
     uint8_t security_mode = (uint8_t) sec_inst->security_mode;
+#        ifdef ANJ_WITH_CERTIFICATES
+    uint8_t certificate_usage = (uint8_t) sec_inst->certificate_usage;
+#        endif // ANJ_WITH_CERTIFICATES
     if (anj_persistence_u16(ctx, &security_obj_ctx->inst[idx].iid)
             || anj_persistence_string(ctx, sec_inst->server_uri,
                                       ANJ_SERVER_URI_MAX_SIZE)
@@ -790,6 +1053,11 @@ static int instance_persistence(anj_t *anj,
             || anj_persistence_u8(ctx, &security_mode)
             || anj_persistence_u16(ctx, &sec_inst->ssid)
             || anj_persistence_u32(ctx, &sec_inst->client_hold_off_time)
+#        ifdef ANJ_WITH_CERTIFICATES
+            || anj_persistence_string(ctx, sec_inst->server_name_indication,
+                                      ANJ_SEC_OBJ_MAX_SNI_SIZE)
+            || anj_persistence_u8(ctx, &certificate_usage)
+#        endif // ANJ_WITH_CERTIFICATES
 #        ifdef ANJ_WITH_SECURITY
             || security_persistence(
                        anj, ctx, &sec_inst->public_key_or_identity,
@@ -807,6 +1075,10 @@ static int instance_persistence(anj_t *anj,
     }
 
     sec_inst->security_mode = (anj_dm_security_mode_t) security_mode;
+#        ifdef ANJ_WITH_CERTIFICATES
+    sec_inst->certificate_usage =
+            (anj_net_certificate_usage_t) certificate_usage;
+#        endif // ANJ_WITH_CERTIFICATES
     sec_inst->iid = security_obj_ctx->inst[idx].iid;
     return 0;
 }

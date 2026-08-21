@@ -94,10 +94,16 @@ int main(int argc, char *argv[]) {
     anj_dm_res_read(&anj, &ANJ_MAKE_RESOURCE_PATH(3, 0, 3), &firmware_version);
     log(L_INFO, "Firmware version: %s",
         (const char *) firmware_version.bytes_or_string.data);
-    if (fw_update_object_install(
-                &anj,
+
+    firmware_update_config_t fota_config = {
+        .firmware_version =
                 (const char *) firmware_version.bytes_or_string.data,
-                anj.endpoint_name)) {
+        .endpoint_name = anj.endpoint_name,
+        .retry_count = 10,
+        .retry_delay = anj_time_duration_new(10, ANJ_TIME_UNIT_S)
+    };
+
+    if (fw_update_object_install(&anj, &fota_config)) {
         return -1;
     }
 

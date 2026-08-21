@@ -274,7 +274,7 @@ typedef struct {
             ANJ_UNIT_ASSERT_EQUAL(res, 0);                                    \
         }                                                                     \
     }                                                                         \
-    _anj_dm_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);                  \
+    _anj_dm_bootstrap_operation_end(&anj, ANJ_DM_TRANSACTION_SUCCESS);        \
     ANJ_UNIT_ASSERT_FALSE(anj_core_ongoing_operation(&anj));
 
 /**

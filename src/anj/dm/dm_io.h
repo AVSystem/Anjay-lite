@@ -91,6 +91,11 @@ int _anj_dm_operation_begin(anj_t *anj,
  * operation any function returns error value this function must be called
  * immediately.
  *
+ * @note If the operation was transactional, this function will call the
+ *       @ref anj_dm_handlers_struct::transaction_end handler for each object
+ *       that was involved in the transaction, for bootstrap operation this step
+ *       is skipped.
+ *
  * @param anj    Anjay object to operate on.
  * @param result Result of the operation.
  */
@@ -101,6 +106,11 @@ void _anj_dm_operation_end(anj_t *anj, anj_dm_transaction_result_t result);
  * called before @ref _anj_dm_operation_end for transactional operations if no
  * error occurred.
  *
+ * @note If the operation was transactional, this function will call the
+ *       @ref anj_dm_handlers_struct::transaction_validate handler for each
+ *       object that was involved in the transaction, for bootstrap operation
+ *       this step is skipped.
+ *
  * @param anj Anjay object to operate on.
  *
  * @returns
@@ -108,6 +118,31 @@ void _anj_dm_operation_end(anj_t *anj, anj_dm_transaction_result_t result);
  * - a negative value in case of error.
  */
 int _anj_dm_operation_validate(anj_t *anj);
+
+#    ifdef ANJ_WITH_BOOTSTRAP
+/**
+ * Called at the end of bootstrap procedure. Function calls the @ref
+ * anj_dm_handlers_struct::transaction_end handler for each object that was
+ * modified during the bootstrap procedure.
+ *
+ * @param anj    Anjay object to operate on.
+ * @param result Result of the operation.
+ */
+void _anj_dm_bootstrap_operation_end(anj_t *anj,
+                                     anj_dm_transaction_result_t result);
+
+/**
+ * Called at the end of bootstrap procedure. Function calls the @ref
+ * anj_dm_handlers_struct::transaction_validate handler for each object that was
+ * modified during the bootstrap procedure.
+ *
+ * @param anj Anjay object to operate on.
+ * @returns
+ * - 0 on success,
+ * - a negative value in case of error.
+ */
+int _anj_dm_bootstrap_operation_validate(anj_t *anj);
+#    endif // ANJ_WITH_BOOTSTRAP
 
 /**
  * Processes READ, READ-COMPOSITE and BOOTSTRAP-READ operation. Should be

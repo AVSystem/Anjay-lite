@@ -27,6 +27,8 @@ Pytest integration points used here:
     even under pytest-xdist).
 """
 
+import re
+import shutil
 import pytest
 import subprocess
 import sys
@@ -36,11 +38,44 @@ from pathlib import Path
 import app_prebuild
 from app_wrapper.app_manager import AppManager
 
+# A small typed wrapper for certificate generation environment:
+# - openssl_path points to the OpenSSL command line utility used by helpers
+# - certificates_dir points to a per-test directory in pytest's persistent cache
+#   (e.g. .pytest_cache/d/certificates/<test_name>/)
+@dataclass(frozen=True)
+class CertificateEnvironment:
+    openssl_path: str
+    certificates_dir: Path
+
+# We use a simple regex to sanitize test names for use as directory names in
+# the pytest cache. Replacing any character that is not a letter, digit,
+# underscore, dot, or hyphen with an underscore.
+def _safe_cache_dir_name(name: str) -> str:
+    return re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_")
+
+
+@pytest.fixture
+def certificate_environment(request):
+    openssl = shutil.which("openssl")
+    if openssl is None:
+        pytest.fail(
+            "OpenSSL command line utility is required for certificate integration tests")
+
+    certs_root = request.config.cache.mkdir("certificates")
+    # create subdirectory for test using its name
+    certs_dir = certs_root / _safe_cache_dir_name(request.node.name)
+    # clean up any existing content (e.g. from previous test runs) to ensure a
+    # clean state for certificate generation
+    shutil.rmtree(certs_dir, ignore_errors=True)
+    certs_dir.mkdir(parents=True)
+
+    return CertificateEnvironment(
+        openssl_path=openssl,
+        certificates_dir=certs_dir)
+
 # A small typed wrapper that tests consume:
 # - cfg is the (possibly empty) AppConfig dict used for the build
 # - path points to the executable produced for that config
-
-
 @dataclass(frozen=True)
 class App:
     cfg: app_prebuild.AppConfig
@@ -49,8 +84,6 @@ class App:
 # A helper wrapper for spawned app processes
 # - process is the subprocess.Popen instance for the spawned app
 # - wrapper is the AppManager instance connected to the app's control socket
-
-
 @dataclass(frozen=True)
 class SpawnedApp:
     process: subprocess.Popen
@@ -89,20 +122,21 @@ class SpawnedApp:
         assert self.wait(timeout=2) == 0
         return False
 
-# A helper type to manage spawning apps and allowing type inferennce for the app_spawner fixture
-
-
+# A helper type to manage spawning apps and allowing type inferennce for
+# the app_spawner fixture
 @dataclass(frozen=True)
 class Spawner:
     app: App
     spawned_apps: list[SpawnedApp]
+    workdir: Path
 
     def spawn_app(self, timeout=1.0) -> SpawnedApp:
         wrapper = AppManager(host="localhost", timeout=timeout)
         wrapper.create_socket()
 
         process = subprocess.Popen(
-            [str(self.app.path), str(wrapper.get_port())]
+            [str(self.app.path), str(wrapper.get_port())],
+            cwd=self.workdir,
         )
 
         spawned = SpawnedApp(process=process, wrapper=wrapper)
@@ -141,10 +175,10 @@ def app(request):
 
 
 @pytest.fixture
-def app_spawner(app):
+def app_spawner(app, tmp_path):
     spawned_apps: list[SpawnedApp] = []
 
-    yield Spawner(app=app, spawned_apps=spawned_apps)
+    yield Spawner(app=app, spawned_apps=spawned_apps, workdir=tmp_path)
 
     leaked_pids: list[int] = []
 

@@ -33,6 +33,7 @@
 
 #    ifdef ANJ_WITH_SECURITY
 #        include <anj/crypto.h>
+#        include <anj/security.h>
 #    endif // ANJ_WITH_SECURITY
 
 #    ifdef __cplusplus
@@ -84,9 +85,13 @@ typedef struct {
     anj_crypto_security_info_t public_key_or_identity;
     anj_crypto_security_info_t server_public_key;
     anj_crypto_security_info_t secret_key;
+    char server_name_indication[ANJ_SEC_OBJ_MAX_SNI_SIZE];
 #        endif // ANJ_WITH_SECURITY
     uint16_t ssid;
     uint32_t client_hold_off_time;
+#        ifdef ANJ_WITH_CERTIFICATES
+    anj_net_certificate_usage_t certificate_usage;
+#        endif // ANJ_WITH_CERTIFICATES
 
     // metadata
     anj_iid_t iid;
@@ -115,7 +120,20 @@ typedef struct {
 
     /** Secret Key Resource (/0/x/5) value. */
     anj_crypto_security_info_t secret_key;
+
+    /** SNI Resource (/0/x/14) value. */
+    const char *server_name_indication;
 #        endif // ANJ_WITH_SECURITY
+
+#        ifdef ANJ_WITH_CERTIFICATES
+    /**
+     * Certificate Usage Resource (/0/x/15) value.
+     *
+     * If @c NULL, @ref ANJ_NET_CERTIFICATE_DOMAIN_ISSUED_CERTIFICATE will be
+     * set.
+     */
+    anj_net_certificate_usage_t *certificate_usage;
+#        endif // ANJ_WITH_CERTIFICATES
 
     /**
      * Short Server ID Resource (/0/x/10) value. This Resource is ignored for
@@ -154,7 +172,6 @@ typedef struct {
     anj_dm_security_instance_t
             cache_security_instances[ANJ_DM_SECURITY_OBJ_INSTANCES];
     bool installed;
-    anj_iid_t new_instance_iid;
 } anj_dm_security_obj_t;
 
 /**
@@ -198,31 +215,6 @@ int anj_dm_security_obj_add_instance(
  */
 int anj_dm_security_obj_install(anj_t *anj,
                                 anj_dm_security_obj_t *security_obj_ctx);
-
-#        ifdef ANJ_WITH_SECURITY
-
-/**
- * Retrieves the Pre-Shared Key (PSK) identity and key for the specified
- * connection.
- *
- * @note Anjay Lite supports only one non-Bootstrap Server LwM2M Server.
- *
- * @param      anj                   Anjay object to take the Security Object
- *                                   from.
- * @param      bootstrap_credentials If true, retrieves credentials for the
- *                                   Bootstrap Server, otherwise for the regular
- *                                   LwM2M Server.
- * @param[out] out_psk_identity      Output parameter for the PSK identity.
- * @param[out] out_psk_key           Output parameter for the PSK key.
- *
- * @return 0 in case of success, @ref ANJ_DM_ERR_NOT_FOUND if instance not
- *         found.
- */
-int anj_dm_security_obj_get_psk(const anj_t *anj,
-                                bool bootstrap_credentials,
-                                anj_crypto_security_info_t *out_psk_identity,
-                                anj_crypto_security_info_t *out_psk_key);
-#        endif // ANJ_WITH_SECURITY
 
 #        ifdef ANJ_WITH_PERSISTENCE
 /**

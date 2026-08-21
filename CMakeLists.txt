@@ -21,54 +21,7 @@ include(ExternalProject)
 set(anjay_lite_DIR "cmake")
 find_package(anjay_lite REQUIRED)
 
-set(ANJAY_LITE_VERSION "2.1.2" CACHE STRING "Anjay library version")
-
-# Although we have cmake/anjay_lite-config.cmake which calls
-# anjay_lite_mbedtls.cmake internally, we couldn't use this
-# cmake script here because FetchContent builds mbedtls in a way
-# that can't be utilized by find_package(MbedTLS).
-#
-# When calling root project CMakeLists.txt, MbedTLS will be
-# either downloaded by ExternalProject call below, or user
-# will provide MBEDTLS_ROOT_DIR variable pointing to an existing
-# MbedTLS installation. MbedTLS fetched by ExternalProject will
-# be passed to subprojects via -DMBEDTLS_ROOT_DIR=... argument.
-# This allows to utilize single MbedTLS build for all subprojects.
-#
-# When calling subproject CMakeLists.txt directly, user is expected
-# to provide MBEDTLS_ROOT_DIR variable pointing to an existing MbedTLS
-# installation, otherwise, subproject will include anjay_lite_mbedtls.cmake
-# and download MbedTLS via FetchContent mechanism, once for each subproject.
-if(NOT MBEDTLS_ROOT_DIR)
-    if(NOT MBEDTLS_VERSION)
-        set(MBEDTLS_VERSION "3.6.4")
-    endif()
-
-    message(STATUS "No MBEDTLS_ROOT_DIR provided. Fetching MbedTLS ${MBEDTLS_VERSION} ...")
-    set(MBEDTLS_BUILD_DIR "${CMAKE_BINARY_DIR}/_deps/mbedtls-build")
-    ExternalProject_Add(mbedtls
-            GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-            GIT_TAG        v${MBEDTLS_VERSION}
-            GIT_SHALLOW    TRUE
-
-            SOURCE_DIR     "${CMAKE_BINARY_DIR}/_deps/mbedtls-src"
-            BINARY_DIR     "${MBEDTLS_BUILD_DIR}"
-
-            CMAKE_ARGS
-            -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-            -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
-            -DCMAKE_C_FLAGS:STRING=${CMAKE_C_FLAGS}
-            -DCMAKE_EXE_LINKER_FLAGS:STRING=${CMAKE_EXE_LINKER_FLAGS}
-            -DENABLE_PROGRAMS=OFF
-            -DENABLE_TESTING=OFF
-
-            INSTALL_COMMAND ""    # skip "make install"
-    )
-    set(TARGETS_MBEDTLS_DIR "${MBEDTLS_BUILD_DIR}")
-else()
-    message("Using MbedTLS from: ${MBEDTLS_ROOT_DIR}")
-    set(TARGETS_MBEDTLS_DIR "${MBEDTLS_ROOT_DIR}")
-endif()
+set(ANJAY_LITE_VERSION "3.0.0" CACHE STRING "Anjay library version")
 
 find_program(VALGRIND_EXECUTABLE valgrind)
 
@@ -85,13 +38,8 @@ endforeach()
 
 message(STATUS "Command line flags: ${COMMAND_LINE_FLAGS}")
 
-function(add_standalone_target NAME PATH WITH_VALGRIND WITH_MBEDTLS)
+function(add_standalone_target NAME PATH WITH_VALGRIND)
   set(workdir "${CMAKE_BINARY_DIR}/${NAME}")
-
-  set(DEPENDS_ON_LIST "")
-  if(TARGET mbedtls AND WITH_MBEDTLS)
-    list(APPEND DEPENDS_ON_LIST mbedtls)
-  endif()
 
   if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/${PATH})
       ExternalProject_Add(
@@ -102,9 +50,8 @@ function(add_standalone_target NAME PATH WITH_VALGRIND WITH_MBEDTLS)
               -DCMAKE_C_COMPILER:STRING=${CMAKE_C_COMPILER}
               -DCMAKE_C_FLAGS:STRING=${CMAKE_C_FLAGS}
               -DCMAKE_EXE_LINKER_FLAGS:STRING=${CMAKE_EXE_LINKER_FLAGS}
-              -DMBEDTLS_ROOT_DIR:STRING=${TARGETS_MBEDTLS_DIR}
+              -DMBEDTLS_ROOT_DIR:STRING=${MBEDTLS_ROOT_DIR} # pass mbedtls path to examples and tests
               ${COMMAND_LINE_FLAGS}
-              DEPENDS ${DEPENDS_ON_LIST}
               INSTALL_COMMAND ""  # skip "make install"
               BUILD_ALWAYS 1
       )
@@ -125,48 +72,53 @@ function(add_standalone_target NAME PATH WITH_VALGRIND WITH_MBEDTLS)
 endfunction()
 
 # tests
-add_standalone_target(standard_tests tests/anj/standard_tests ON ON)
-add_standalone_target(standard_tests_without_composite tests/anj/standard_tests_without_composite ON ON)
-add_standalone_target(standard_tests_without_external_data tests/anj/standard_tests_without_external_data ON ON)
-add_standalone_target(standard_tests_without_lwm2m_1_2 tests/anj/standard_tests_without_lwm2m_1_2 ON ON)
-add_standalone_target(log_tests tests/anj/log ON OFF)
-add_standalone_target(net_tests tests/anj/net ON OFF)
+add_standalone_target(standard_tests tests/anj/standard_tests ON)
+add_standalone_target(standard_tests_without_composite tests/anj/standard_tests_without_composite ON)
+add_standalone_target(standard_tests_without_external_data tests/anj/standard_tests_without_external_data ON)
+add_standalone_target(standard_tests_without_lwm2m_1_2 tests/anj/standard_tests_without_lwm2m_1_2 ON)
+add_standalone_target(standard_tests_without_certificates tests/anj/standard_tests_without_certificates ON)
+add_standalone_target(log_tests tests/anj/log ON)
+add_standalone_target(net_tests tests/anj/net ON)
 
 # examples
-add_standalone_target(anjay_lite_firmware_update examples/tutorial/firmware-update OFF OFF)
-add_standalone_target(anjay_lite_firmware_update_pull examples/tutorial/firmware-update-coap-downloader OFF OFF)
-add_standalone_target(anjay_lite_secure_firmware_update_pull examples/tutorial/firmware-update-coaps-downloader OFF ON)
+add_standalone_target(anjay_lite_firmware_update examples/tutorial/firmware-update OFF)
+add_standalone_target(anjay_lite_firmware_update_pull examples/tutorial/firmware-update-coap-downloader OFF)
+add_standalone_target(anjay_lite_firmware_update_suspend_resume examples/tutorial/firmware-update-downloader-suspend-resume OFF)
+add_standalone_target(anjay_lite_secure_firmware_update_pull examples/tutorial/firmware-update-coaps-downloader OFF)
+add_standalone_target(anjay_lite_certs_firmware_update_pull examples/tutorial/firmware-update-coaps-downloader-certificates OFF)
 
-add_standalone_target(anjay_lite_bc_initialization examples/tutorial/BC-Initialization OFF OFF)
-add_standalone_target(anjay_lite_bc_mandatory_objects examples/tutorial/BC-MandatoryObjects OFF OFF)
-add_standalone_target(anjay_lite_bc_security examples/tutorial/BC-Security OFF ON)
-add_standalone_target(anjay_lite_bc_object_impl examples/tutorial/BC-BasicObjectImplementation OFF OFF)
-add_standalone_target(anjay_lite_bc_notifications examples/tutorial/BC-Notifications OFF OFF)
-add_standalone_target(anjay_lite_bc_send examples/tutorial/BC-Send OFF OFF)
+add_standalone_target(anjay_lite_bc_initialization examples/tutorial/BC-Initialization OFF)
+add_standalone_target(anjay_lite_bc_mandatory_objects examples/tutorial/BC-MandatoryObjects OFF)
+add_standalone_target(anjay_lite_bc_security examples/tutorial/BC-Security OFF)
+add_standalone_target(anjay_lite_bc_object_impl examples/tutorial/BC-BasicObjectImplementation OFF)
+add_standalone_target(anjay_lite_bc_notifications examples/tutorial/BC-Notifications OFF)
+add_standalone_target(anjay_lite_bc_send examples/tutorial/BC-Send OFF)
 
-add_standalone_target(anjay_lite_at_bootstrap examples/tutorial/AT-Bootstrap OFF OFF)
-add_standalone_target(anjay_lite_at_persistence examples/tutorial/AT-Persistence OFF OFF)
-add_standalone_target(anjay_lite_at_queue_mode examples/tutorial/AT-QueueMode OFF OFF)
-add_standalone_target(anjay_lite_at_connectivity_errors examples/tutorial/AT-ConnectivityErrors OFF OFF)
-add_standalone_target(anjay_lite_at_multi_instance_object examples/tutorial/AT-MultiInstanceObject OFF OFF)
-add_standalone_target(anjay_lite_at_multi_instance_object_dynamic examples/tutorial/AT-MultiInstanceObjectDynamic OFF OFF)
-add_standalone_target(anjay_lite_at_multi_instance_resource examples/tutorial/AT-MultiInstanceResource OFF OFF)
-add_standalone_target(anjay_lite_at_multi_instance_resource_dynamic examples/tutorial/AT-MultiInstanceResourceDynamic OFF OFF)
-add_standalone_target(anjay_lite_at_time_synchronization examples/tutorial/AT-TimeSynchronization OFF OFF)
-add_standalone_target(anjay_lite_at_time_synchronization_persistence examples/tutorial/AT-TimeSynchronizationPersistence OFF OFF)
-add_standalone_target(anjay_lite_at_micro_logs examples/tutorial/AT-MicroLogs OFF OFF)
+add_standalone_target(anjay_lite_at_bootstrap examples/tutorial/AT-Bootstrap OFF)
+add_standalone_target(anjay_lite_at_certificates examples/tutorial/AT-Certificates OFF)
+add_standalone_target(anjay_lite_at_trust_store examples/tutorial/AT-TrustStore OFF)
+add_standalone_target(anjay_lite_at_persistence examples/tutorial/AT-Persistence OFF)
+add_standalone_target(anjay_lite_at_queue_mode examples/tutorial/AT-QueueMode OFF)
+add_standalone_target(anjay_lite_at_connectivity_errors examples/tutorial/AT-ConnectivityErrors OFF)
+add_standalone_target(anjay_lite_at_multi_instance_object examples/tutorial/AT-MultiInstanceObject OFF)
+add_standalone_target(anjay_lite_at_multi_instance_object_dynamic examples/tutorial/AT-MultiInstanceObjectDynamic OFF)
+add_standalone_target(anjay_lite_at_multi_instance_resource examples/tutorial/AT-MultiInstanceResource OFF)
+add_standalone_target(anjay_lite_at_multi_instance_resource_dynamic examples/tutorial/AT-MultiInstanceResourceDynamic OFF)
+add_standalone_target(anjay_lite_at_time_synchronization examples/tutorial/AT-TimeSynchronization OFF)
+add_standalone_target(anjay_lite_at_time_synchronization_persistence examples/tutorial/AT-TimeSynchronizationPersistence OFF)
+add_standalone_target(anjay_lite_at_micro_logs examples/tutorial/AT-MicroLogs OFF)
+add_standalone_target(anjay_lite_at_external_data_types examples/tutorial/AT-ExternalDataTypes OFF)
 
-add_standalone_target(anjay_lite_minimal_network_api examples/custom-network/minimal OFF OFF)
+add_standalone_target(anjay_lite_minimal_network_api examples/custom-network/minimal OFF)
 
 # Sphinx/doxygen and documentation
 add_subdirectory(doc)
 
 # C++ header compatibility check
-add_standalone_target(cxx_header_check tests/cxx_header_check OFF OFF)
+add_standalone_target(cxx_header_check tests/cxx_header_check OFF)
 
-add_standalone_target(codegen_compilation_check tests/codegen/compilation OFF OFF)
-add_standalone_target(codegen_object_registry_check tests/codegen/object_registry OFF OFF)
-add_standalone_target(codegen_add_object_tests tests/codegen/add_object OFF OFF)
+add_standalone_target(codegen_compilation_check tests/codegen/compilation OFF)
+add_standalone_target(codegen_add_object_tests tests/codegen/add_object OFF)
 
 # Check for correct inclusion of anj/init.h
 add_custom_target(init_header_check
